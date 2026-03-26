@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import Home from './components/Home'
 import Quiz from './components/Quiz'
 import Results from './components/Results'
@@ -86,6 +87,7 @@ export default function App() {
           onPlayAgain={handlePlayAgain}
         />
       )}
+      <SpeedInsights />
     </div>
   )
 }
