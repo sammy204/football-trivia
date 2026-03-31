@@ -4,6 +4,7 @@ import Quiz from './components/Quiz'
 import Results from './components/Results'
 import Loading from './components/Loading'
 import { generateQuestions } from './lib/question'
+import { track } from '@vercel/analytics'
 
 export default function App() {
   const [screen, setScreen] = useState('home')
@@ -17,6 +18,7 @@ export default function App() {
   const accentColor = sport === 'basketball' ? '#FF6B35' : '#00FF87'
 
   async function launchGame(config) {
+    track('game_started', { sport: config.sport, mode: config.mode, rounds: config.rounds })
     setGameConfig(config)
     setReviewData([])
     setScreen('loading')
