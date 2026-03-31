@@ -11,11 +11,11 @@ export default function Quiz({ questions, config, onFinish }) {
   const [selected, setSelected] = useState(null)
   const [answered, setAnswered] = useState(false)
   const [timeLeft, setTimeLeft] = useState(TIMER_SECS)
+  const [history, setHistory] = useState([])
   const timerRef = useRef(null)
 
   const q = questions[qIndex]
   const currentPlayer = (players || ['Player'])[playerIndex]
-  const [history, setHistory] = useState([])
 
   useEffect(() => {
     setSelected(null)
@@ -38,26 +38,25 @@ export default function Quiz({ questions, config, onFinish }) {
     return () => clearInterval(timerRef.current)
   }, [answered, qIndex, playerIndex])
 
-  function recordAnswer(choice, isCorrect) {
-    setHistory(prev => [
-      ...prev,
-      {
-        player: currentPlayer,
-        question: q.question,
-        selected: choice,
-        correctAnswer: q.answer,
-        isCorrect,
-        explanation: q.explanation,
-      }
-    ])
+  function buildEntry(choice, isCorrect) {
+    return {
+      player: currentPlayer,
+      question: q.question,
+      selected: choice,
+      correctAnswer: q.answer,
+      isCorrect,
+      explanation: q.explanation,
+    }
   }
 
   function handleNoAnswer() {
     if (answered) return
     setAnswered(true)
     setSelected(null)
-    recordAnswer(null, false)
-    setTimeout(next, 250)
+    const entry = buildEntry(null, false)
+    const newHistory = [...history, entry]
+    setHistory(newHistory)
+    setTimeout(() => next(newHistory, playerScores), 250)
   }
 
   function answerQuestion(choice) {
@@ -67,24 +66,26 @@ export default function Quiz({ questions, config, onFinish }) {
     setSelected(choice)
 
     const correct = choice === q.answer
-    recordAnswer(choice, correct)
+    const entry = buildEntry(choice, correct)
+    const newHistory = [...history, entry]
+    setHistory(newHistory)
 
+    let newScores = playerScores
     if (correct) {
-      setPlayerScores(prev => {
-        const next = [...prev]
-        next[playerIndex]++
-        return next
-      })
+      newScores = [...playerScores]
+      newScores[playerIndex]++
+      setPlayerScores(newScores)
     }
-    setTimeout(next, 250)
+
+    setTimeout(() => next(newHistory, newScores), 250)
   }
 
-  function next() {
+  function next(latestHistory, latestScores) {
     if (mode === 'multi') {
       const nextPlayer = (playerIndex + 1) % players.length
       if (nextPlayer === 0) {
         if (qIndex + 1 >= questions.length) {
-          onFinish({ scores: playerScores, history })
+          onFinish({ scores: latestScores, history: latestHistory })
         } else {
           setQIndex(qIndex + 1)
           setPlayerIndex(0)
@@ -94,7 +95,7 @@ export default function Quiz({ questions, config, onFinish }) {
       }
     } else {
       if (qIndex + 1 >= questions.length) {
-        onFinish({ scores: playerScores, history })
+        onFinish({ scores: latestScores, history: latestHistory })
       } else {
         setQIndex(qIndex + 1)
       }

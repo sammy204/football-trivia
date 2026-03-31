@@ -4,7 +4,7 @@ import Quiz from './components/Quiz'
 import Results from './components/Results'
 import Loading from './components/Loading'
 import { generateQuestions } from './lib/question'
- 
+
 export default function App() {
   const [screen, setScreen] = useState('home')
   const [questions, setQuestions] = useState([])
