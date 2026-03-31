@@ -193,3 +193,34 @@
     padding: 4rem 2rem 5rem;
   }
 }
+
+.sportGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 0;
+}
+
+.sportBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  transition: all 0.15s;
+  cursor: pointer;
+}
+.sportBtn:hover {
+  color: var(--white);
+  border-color: rgba(255,255,255,0.2);
+}
+
+.sportEmoji {
+  font-size: 28px;
+}

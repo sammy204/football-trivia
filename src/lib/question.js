@@ -1,4 +1,4 @@
-const QUESTION_BANK = [
+const FOOTBALL_QUESTIONS = [
   { question: 'Which country won the FIFA World Cup in 2018?', options: ['Brazil', 'France', 'Germany', 'Croatia'], answer: 'France', explanation: 'France defeated Croatia 4-2 in the 2018 final.' },
   { question: 'Which country won the FIFA World Cup in 2022?', options: ['Argentina', 'France', 'Germany', 'Brazil'], answer: 'Argentina', explanation: 'Argentina won their third World Cup title in Qatar.' },
   { question: 'In which year was the first FIFA World Cup held?', options: ['1930', '1950', '1922', '1940'], answer: '1930', explanation: 'The first FIFA World Cup was held in Uruguay in 1930.' },
@@ -61,6 +61,49 @@ const QUESTION_BANK = [
   { question: 'How long is each halftime break in a standard match?', options: ['10 minutes', '15 minutes', '20 minutes', '25 minutes'], answer: '15 minutes', explanation: 'Halftime lasts 15 minutes between the two halves.' },
 ]
 
+const BASKETBALL_QUESTIONS = [
+  { question: 'Which NBA team has won the most championships?', options: ['Los Angeles Lakers', 'Boston Celtics', 'Chicago Bulls', 'Golden State Warriors'], answer: 'Boston Celtics', explanation: 'The Boston Celtics have won 17 NBA championships.' },
+  { question: 'Who holds the record for the most points scored in a single NBA game?', options: ['Michael Jordan', 'Kobe Bryant', 'Wilt Chamberlain', 'LeBron James'], answer: 'Wilt Chamberlain', explanation: 'Wilt Chamberlain scored 100 points for the Philadelphia Warriors against the New York Knicks in 1962.' },
+  { question: 'How many players are on the court per team in basketball?', options: ['4', '5', '6', '7'], answer: '5', explanation: 'Each team has 5 players on the court at a time.' },
+  { question: 'Which player is known as "The GOAT" in basketball?', options: ['LeBron James', 'Kobe Bryant', 'Michael Jordan', 'Kareem Abdul-Jabbar'], answer: 'Michael Jordan', explanation: 'Michael Jordan is widely considered the greatest basketball player of all time.' },
+  { question: 'How long is an NBA quarter?', options: ['10 minutes', '12 minutes', '15 minutes', '8 minutes'], answer: '12 minutes', explanation: 'Each NBA quarter lasts 12 minutes.' },
+  { question: 'Which player has won the most NBA MVP awards?', options: ['LeBron James', 'Michael Jordan', 'Kareem Abdul-Jabbar', 'Bill Russell'], answer: 'Kareem Abdul-Jabbar', explanation: 'Kareem Abdul-Jabbar won 6 NBA MVP awards.' },
+  { question: 'Which country does basketball originate from?', options: ['USA', 'Canada', 'UK', 'Brazil'], answer: 'Canada', explanation: 'Basketball was invented by Canadian Dr. James Naismith in 1891.' },
+  { question: 'What is the three-second rule in basketball?', options: ['Shot clock limit', 'Player cannot stay in the paint for more than 3 seconds', 'Time to inbound the ball', 'Time to shoot a free throw'], answer: 'Player cannot stay in the paint for more than 3 seconds', explanation: 'An offensive player cannot remain in the paint for more than 3 consecutive seconds.' },
+  { question: 'Which team did LeBron James win his first NBA championship with?', options: ['Cleveland Cavaliers', 'Miami Heat', 'Los Angeles Lakers', 'Boston Celtics'], answer: 'Miami Heat', explanation: 'LeBron James won his first championship with the Miami Heat in 2012.' },
+  { question: 'How high is an NBA basketball hoop from the ground?', options: ['8 feet', '9 feet', '10 feet', '11 feet'], answer: '10 feet', explanation: 'The NBA basket is 10 feet (3.05 meters) above the floor.' },
+  { question: 'Who scored 81 points in a single NBA game in 2006?', options: ['LeBron James', 'Michael Jordan', 'Kobe Bryant', 'Shaquille O\'Neal'], answer: 'Kobe Bryant', explanation: 'Kobe Bryant scored 81 points against the Toronto Raptors on January 22, 2006.' },
+  { question: 'Which NBA team does Stephen Curry play for?', options: ['Los Angeles Lakers', 'Golden State Warriors', 'Phoenix Suns', 'Brooklyn Nets'], answer: 'Golden State Warriors', explanation: 'Stephen Curry has played for the Golden State Warriors his entire career.' },
+  { question: 'What is a "triple-double" in basketball?', options: ['Three consecutive wins', 'Scoring 30+ points three times', 'Reaching double digits in three statistical categories', 'Three three-pointers in a row'], answer: 'Reaching double digits in three statistical categories', explanation: 'A triple-double means a player reaches 10 or more in three stats like points, rebounds, and assists.' },
+  { question: 'Which player is known as "The Black Mamba"?', options: ['LeBron James', 'Shaquille O\'Neal', 'Kobe Bryant', 'Dwyane Wade'], answer: 'Kobe Bryant', explanation: 'Kobe Bryant gave himself the nickname "Black Mamba" to separate his fierce on-court persona.' },
+  { question: 'How many points is a shot worth if made beyond the three-point line?', options: ['1', '2', '3', '4'], answer: '3', explanation: 'Any shot made from beyond the three-point arc is worth 3 points.' },
+  { question: 'Which NBA player is nicknamed "The Greek Freak"?', options: ['Nikola Jokić', 'Luka Dončić', 'Giannis Antetokounmpo', 'Rudy Gobert'], answer: 'Giannis Antetokounmpo', explanation: 'Giannis Antetokounmpo, who plays for the Milwaukee Bucks, earned the nickname due to his Greek heritage and freakish athleticism.' },
+  { question: 'Who won the NBA championship in 2023?', options: ['Boston Celtics', 'Golden State Warriors', 'Denver Nuggets', 'Miami Heat'], answer: 'Denver Nuggets', explanation: 'The Denver Nuggets won their first NBA championship in 2023, led by Nikola Jokić.' },
+  { question: 'What does NBA stand for?', options: ['National Basketball Association', 'National Basketball Academy', 'North Basketball Alliance', 'National Ball Association'], answer: 'National Basketball Association', explanation: 'NBA stands for the National Basketball Association.' },
+  { question: 'Which player holds the NBA all-time scoring record?', options: ['Michael Jordan', 'Kobe Bryant', 'LeBron James', 'Kareem Abdul-Jabbar'], answer: 'LeBron James', explanation: 'LeBron James surpassed Kareem Abdul-Jabbar\'s record in February 2023 to become the all-time leading scorer.' },
+  { question: 'How long is the shot clock in the NBA?', options: ['20 seconds', '24 seconds', '30 seconds', '35 seconds'], answer: '24 seconds', explanation: 'NBA teams have 24 seconds to attempt a shot after gaining possession.' },
+  { question: 'Which team drafted Michael Jordan in the 1984 NBA Draft?', options: ['Chicago Bulls', 'Boston Celtics', 'Los Angeles Lakers', 'Portland Trail Blazers'], answer: 'Chicago Bulls', explanation: 'The Chicago Bulls selected Michael Jordan with the 3rd overall pick in the 1984 NBA Draft.' },
+  { question: 'How many NBA titles did Michael Jordan win?', options: ['4', '5', '6', '7'], answer: '6', explanation: 'Michael Jordan won 6 NBA championships, all with the Chicago Bulls.' },
+  { question: 'Which player is known as "The Mailman"?', options: ['Charles Barkley', 'Karl Malone', 'Patrick Ewing', 'John Stockton'], answer: 'Karl Malone', explanation: 'Karl Malone earned the nickname "The Mailman" because he always delivered.' },
+  { question: 'What is the diameter of an NBA basketball hoop?', options: ['16 inches', '18 inches', '20 inches', '22 inches'], answer: '18 inches', explanation: 'The NBA hoop has an inner diameter of 18 inches (45.7 cm).' },
+  { question: 'Which country won the first FIBA Basketball World Cup in 1950?', options: ['USA', 'Brazil', 'Argentina', 'France'], answer: 'Argentina', explanation: 'Argentina won the inaugural FIBA Basketball World Cup in 1950.' },
+  { question: 'How many fouls does it take to foul out of an NBA game?', options: ['4', '5', '6', '7'], answer: '6', explanation: 'A player fouls out of an NBA game after committing 6 personal fouls.' },
+  { question: 'Which team has appeared in the most NBA Finals?', options: ['Chicago Bulls', 'Los Angeles Lakers', 'Boston Celtics', 'Golden State Warriors'], answer: 'Los Angeles Lakers', explanation: 'The Los Angeles Lakers have appeared in the NBA Finals more times than any other team.' },
+  { question: 'Who won the NBA Slam Dunk Contest in 2016?', options: ['LeBron James', 'Zach LaVine', 'Aaron Gordon', 'Vince Carter'], answer: 'Zach LaVine', explanation: 'Zach LaVine won the 2016 NBA Slam Dunk Contest with an outstanding performance.' },
+  { question: 'Which player won the NBA MVP award in 2022 and 2023?', options: ['LeBron James', 'Giannis Antetokounmpo', 'Nikola Jokić', 'Joel Embiid'], answer: 'Nikola Jokić', explanation: 'Nikola Jokić won back-to-back MVP awards in 2021 and 2022, and again in 2024.' },
+  { question: 'What is a "buzzer beater" in basketball?', options: ['A shot made after the buzzer', 'A shot made as time expires', 'A foul called at the end of the game', 'An overtime winner'], answer: 'A shot made as time expires', explanation: 'A buzzer beater is a shot released before the buzzer sounds and counts as time expires.' },
+  { question: 'Which NBA team is based in San Antonio?', options: ['Houston Rockets', 'Dallas Mavericks', 'San Antonio Spurs', 'Oklahoma City Thunder'], answer: 'San Antonio Spurs', explanation: 'The San Antonio Spurs are the NBA franchise based in San Antonio, Texas.' },
+  { question: 'How many rings did Shaquille O\'Neal win in his career?', options: ['2', '3', '4', '5'], answer: '4', explanation: 'Shaquille O\'Neal won 4 NBA championships: three with the Lakers and one with the Heat.' },
+  { question: 'Which player is nicknamed "King James"?', options: ['Kevin Durant', 'LeBron James', 'Dwyane Wade', 'Chris Paul'], answer: 'LeBron James', explanation: 'LeBron James is nicknamed "King James" due to his dominance in the sport.' },
+  { question: 'In which year was the NBA founded?', options: ['1940', '1946', '1950', '1955'], answer: '1946', explanation: 'The NBA was founded on June 6, 1946, as the Basketball Association of America.' },
+  { question: 'Which player holds the record for most assists in NBA history?', options: ['Magic Johnson', 'John Stockton', 'Steve Nash', 'Chris Paul'], answer: 'John Stockton', explanation: 'John Stockton holds the all-time NBA record with 15,806 assists.' },
+  { question: 'How many points is a free throw worth?', options: ['1', '2', '3', '4'], answer: '1', explanation: 'Each successful free throw is worth 1 point.' },
+  { question: 'Which team did Kevin Durant join in 2016?', options: ['Brooklyn Nets', 'Golden State Warriors', 'Oklahoma City Thunder', 'Phoenix Suns'], answer: 'Golden State Warriors', explanation: 'Kevin Durant joined the Golden State Warriors in 2016, forming a superteam.' },
+  { question: 'Who coached the Chicago Bulls during their 1990s dynasty?', options: ['Pat Riley', 'Phil Jackson', 'Larry Bird', 'Chuck Daly'], answer: 'Phil Jackson', explanation: 'Phil Jackson coached the Chicago Bulls to 6 championships in the 1990s.' },
+  { question: 'Which player was selected 1st overall in the 2003 NBA Draft?', options: ['Carmelo Anthony', 'Dwyane Wade', 'LeBron James', 'Chris Bosh'], answer: 'LeBron James', explanation: 'LeBron James was selected 1st overall by the Cleveland Cavaliers in the 2003 NBA Draft.' },
+  { question: 'What is the length of an NBA basketball court?', options: ['84 feet', '90 feet', '94 feet', '100 feet'], answer: '94 feet', explanation: 'An NBA basketball court is 94 feet (28.65 meters) long.' },
+]
+
 function shuffle(array) {
   const arr = [...array]
   for (let i = arr.length - 1; i > 0; i--) {
@@ -70,8 +113,7 @@ function shuffle(array) {
   return arr
 }
 
-export async function generateQuestions({ rounds }) {
-  const source = QUESTION_BANK
-  const questions = shuffle(source).slice(0, rounds || 5)
-  return questions.map(q => ({ ...q }))
+export async function generateQuestions({ rounds, sport }) {
+  const bank = sport === 'basketball' ? BASKETBALL_QUESTIONS : FOOTBALL_QUESTIONS
+  return shuffle(bank).slice(0, rounds || 5).map(q => ({ ...q }))
 }

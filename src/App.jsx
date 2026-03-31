@@ -13,15 +13,16 @@ export default function App() {
   const [reviewData, setReviewData] = useState([])
   const [error, setError] = useState(null)
 
+  const sport = gameConfig?.sport || 'football'
+  const accentColor = sport === 'basketball' ? '#FF6B35' : '#00FF87'
+
   async function launchGame(config) {
     setGameConfig(config)
     setReviewData([])
     setScreen('loading')
     setError(null)
     try {
-      const qs = await generateQuestions({
-        rounds: config.rounds,
-      })
+      const qs = await generateQuestions({ rounds: config.rounds, sport: config.sport })
       setQuestions(qs)
       setScreen('quiz')
     } catch (e) {
@@ -30,12 +31,12 @@ export default function App() {
     }
   }
 
-  function handleStartSolo({ name, rounds }) {
-    launchGame({ mode: 'solo', players: [name], rounds })
+  function handleStartSolo({ name, rounds, sport }) {
+    launchGame({ mode: 'solo', players: [name], rounds, sport })
   }
 
-  function handleStartMulti({ players, rounds }) {
-    launchGame({ mode: 'multi', players, rounds })
+  function handleStartMulti({ players, rounds, sport }) {
+    launchGame({ mode: 'multi', players, rounds, sport })
   }
 
   function handleFinish({ scores, history }) {
@@ -49,7 +50,7 @@ export default function App() {
   }
 
   return (
-    <div style={{ minHeight: '100vh' }}>
+    <div style={{ minHeight: '100vh', '--accent': accentColor }}>
       {error && (
         <div style={{
           position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)',
