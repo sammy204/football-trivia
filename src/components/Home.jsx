@@ -3,7 +3,7 @@ import styles from './Home.module.css'
 
 const ROUNDS = [5, 10, 15]
 
-export default function Home({ onStartSolo, onStartMulti }) {
+export default function Home({ onStartSolo, onStartMulti, onStartOnline }) {
   const [sport, setSport] = useState('football')
   const [tab, setTab] = useState('solo')
   const [rounds, setRounds] = useState(5)
@@ -14,6 +14,7 @@ export default function Home({ onStartSolo, onStartMulti }) {
   const accent = isBasketball ? '#FF6B35' : '#00FF87'
   const accentDark = isBasketball ? '#e55a28' : '#00C96B'
   const accentBg = isBasketball ? 'rgba(255,107,53,0.08)' : 'rgba(0,255,135,0.08)'
+  const accentText = isBasketball ? '#fff' : '#0a1f0f'
 
   function addPlayer() {
     if (players.length < 4) setPlayers([...players, ''])
@@ -31,25 +32,11 @@ export default function Home({ onStartSolo, onStartMulti }) {
     onStartMulti({ players: names, rounds, sport })
   }
 
-  const chipActiveStyle = {
-    borderColor: accent,
-    color: accent,
-    background: accentBg,
-  }
-  const startBtnStyle = {
-    background: accent,
-    color: isBasketball ? '#fff' : '#0a1f0f',
-  }
-  const tabActiveStyle = {
-    background: accent,
-    color: isBasketball ? '#fff' : '#0a1f0f',
-    borderColor: accent,
-  }
+  const chipActiveStyle = { borderColor: accent, color: accent, background: accentBg }
+  const startBtnStyle = { background: accent, color: accentText }
+  const tabActiveStyle = { background: accent, color: accentText, borderColor: accent }
   const sportActiveStyle = (s) => s === sport ? {
-    borderColor: accent,
-    color: accent,
-    background: accentBg,
-    fontWeight: 700,
+    borderColor: accent, color: accent, background: accentBg, fontWeight: 700,
   } : {}
 
   return (
@@ -84,34 +71,36 @@ export default function Home({ onStartSolo, onStartMulti }) {
 
       {/* Mode Tabs */}
       <div className={styles.tabs}>
-        {['solo', 'multi'].map(t => (
+        {['solo', 'multi', 'online'].map(t => (
           <button
             key={t}
             className={`${styles.tab} ${tab === t ? styles.tabActive : ''}`}
             style={tab === t ? tabActiveStyle : {}}
             onClick={() => setTab(t)}
           >
-            {t === 'solo' ? 'Solo' : 'Multiplayer'}
+            {t === 'solo' ? 'Solo' : t === 'multi' ? 'Local' : '🌐 Online'}
           </button>
         ))}
       </div>
 
-      {/* Rounds */}
-      <div className={styles.section}>
-        <p className={styles.label}>Rounds</p>
-        <div className={styles.roundGrid}>
-          {ROUNDS.map(r => (
-            <button
-              key={r}
-              className={styles.chip}
-              style={rounds === r ? chipActiveStyle : {}}
-              onClick={() => setRounds(r)}
-            >
-              {r} rounds
-            </button>
-          ))}
+      {/* Rounds — only for solo and local */}
+      {tab !== 'online' && (
+        <div className={styles.section}>
+          <p className={styles.label}>Rounds</p>
+          <div className={styles.roundGrid}>
+            {ROUNDS.map(r => (
+              <button
+                key={r}
+                className={styles.chip}
+                style={rounds === r ? chipActiveStyle : {}}
+                onClick={() => setRounds(r)}
+              >
+                {r} rounds
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Solo */}
       {tab === 'solo' && (
@@ -122,7 +111,6 @@ export default function Home({ onStartSolo, onStartMulti }) {
             placeholder="Enter your name"
             value={soloName}
             onChange={e => setSoloName(e.target.value)}
-            style={{ '--input-focus': accent }}
           />
           <button className={styles.startBtn} style={startBtnStyle} onClick={handleSolo}>
             {isBasketball ? 'Tip off →' : 'Kick off →'}
@@ -130,7 +118,7 @@ export default function Home({ onStartSolo, onStartMulti }) {
         </div>
       )}
 
-      {/* Multi */}
+      {/* Local Multiplayer */}
       {tab === 'multi' && (
         <div className={styles.section}>
           <p className={styles.label}>Players</p>
@@ -151,6 +139,18 @@ export default function Home({ onStartSolo, onStartMulti }) {
           )}
           <button className={styles.startBtn} style={{ ...startBtnStyle, marginTop: 12 }} onClick={handleMulti}>
             {isBasketball ? 'Tip off →' : 'Kick off →'}
+          </button>
+        </div>
+      )}
+
+      {/* Online Multiplayer */}
+      {tab === 'online' && (
+        <div className={styles.section}>
+          <p className={styles.onlineDesc}>
+            Play against a friend anywhere in the world. Create a room and share the code, or join an existing room.
+          </p>
+          <button className={styles.startBtn} style={startBtnStyle} onClick={() => onStartOnline(sport)}>
+            Enter Online Lobby →
           </button>
         </div>
       )}

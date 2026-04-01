@@ -3,6 +3,7 @@ import Home from './components/Home'
 import Quiz from './components/Quiz'
 import Results from './components/Results'
 import Loading from './components/Loading'
+import OnlineMulti from './components/OnlineMulti'
 import { generateQuestions } from './lib/question'
 import { track } from '@vercel/analytics'
 
@@ -18,11 +19,11 @@ export default function App() {
   const accentColor = sport === 'basketball' ? '#FF6B35' : '#00FF87'
 
   async function launchGame(config) {
-    track('game_started', { sport: config.sport, mode: config.mode, rounds: config.rounds })
     setGameConfig(config)
     setReviewData([])
     setScreen('loading')
     setError(null)
+    track('game_started', { sport: config.sport, mode: config.mode, rounds: config.rounds })
     try {
       const qs = await generateQuestions({ rounds: config.rounds, sport: config.sport })
       setQuestions(qs)
@@ -39,6 +40,11 @@ export default function App() {
 
   function handleStartMulti({ players, rounds, sport }) {
     launchGame({ mode: 'multi', players, rounds, sport })
+  }
+
+  function handleStartOnline(sport) {
+    setGameConfig({ sport })
+    setScreen('online')
   }
 
   function handleFinish({ scores, history }) {
@@ -67,6 +73,14 @@ export default function App() {
         <Home
           onStartSolo={handleStartSolo}
           onStartMulti={handleStartMulti}
+          onStartOnline={handleStartOnline}
+        />
+      )}
+
+      {screen === 'online' && (
+        <OnlineMulti
+          sport={gameConfig?.sport || 'football'}
+          onBack={() => setScreen('home')}
         />
       )}
 
