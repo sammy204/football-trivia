@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { generateQuestions } from '../lib/question'
 import { createRoom, joinRoom, startGame, listenToRoom, submitAnswer, nextQuestion } from '../lib/multiplayer'
 import styles from './OnlineMulti.module.css'
@@ -13,6 +13,8 @@ export default function OnlineMulti({ sport, onBack }) {
   const [selected, setSelected] = useState(null)
   const [answered, setAnswered] = useState(false)
   const [error, setError] = useState('')
+  const roleRef = useRef(null)
+  const roomCodeRef = useRef(null)
 
   const accent = sport === 'basketball' ? '#FF6B35' : '#00FF87'
   const accentText = sport === 'basketball' ? '#fff' : '#0a1f0f'
@@ -24,12 +26,26 @@ export default function OnlineMulti({ sport, onBack }) {
       const questions = await generateQuestions({ rounds: 5, sport })
       const c = await createRoom({ playerName: name.trim(), questions, rounds: 5, sport })
       setRoomCode(c)
+      roomCodeRef.current = c
       setRole('host')
+      roleRef.current = 'host'
       setScreen('waiting')
       listenToRoom(c, data => {
         setRoom(data)
         if (data?.status === 'playing') setScreen('quiz')
         if (data?.status === 'finished') setScreen('results')
+
+        // Only host checks if both have answered and advances the question
+        if (
+          roleRef.current === 'host' &&
+          data?.status === 'playing' &&
+          data?.players?.host?.answered === true &&
+          data?.players?.guest?.answered === true
+        ) {
+          setTimeout(() => {
+            nextQuestion({ code: roomCodeRef.current, qIndex: data.currentQuestion, total: data.questions.length })
+          }, 1500)
+        }
       })
     } catch (e) {
       setError(e.message)
@@ -43,7 +59,9 @@ export default function OnlineMulti({ sport, onBack }) {
     try {
       const r = await joinRoom({ code: code.toUpperCase(), playerName: name.trim() })
       setRoomCode(code.toUpperCase())
+      roomCodeRef.current = code.toUpperCase()
       setRole('guest')
+      roleRef.current = 'guest'
       setRoom(r)
       setScreen('waiting')
       listenToRoom(code.toUpperCase(), data => {
@@ -56,6 +74,12 @@ export default function OnlineMulti({ sport, onBack }) {
     }
   }
 
+  // Reset answered state when question changes
+  useEffect(() => {
+    setSelected(null)
+    setAnswered(false)
+  }, [room?.currentQuestion])
+
   async function handleStart() {
     await startGame(roomCode)
   }
@@ -66,14 +90,7 @@ export default function OnlineMulti({ sport, onBack }) {
     setSelected(choice)
     const q = room.questions[room.currentQuestion]
     const correct = choice === q.answer
-
-    await submitAnswer({ code: roomCode, role, qIndex: room.currentQuestion, answer: choice, correct })
-
-    setTimeout(() => {
-      nextQuestion({ code: roomCode, qIndex: room.currentQuestion, total: room.questions.length })
-      setSelected(null)
-      setAnswered(false)
-    }, 1500)
+    await submitAnswer({ code: roomCodeRef.current, role: roleRef.current, qIndex: room.currentQuestion, answer: choice, correct })
   }
 
   const q = room?.questions?.[room?.currentQuestion]
@@ -84,6 +101,9 @@ export default function OnlineMulti({ sport, onBack }) {
   const myScore = role === 'host' ? hostScore : guestScore
   const theirScore = role === 'host' ? guestScore : hostScore
   const theirName = role === 'host' ? guestName : hostName
+  const opponentAnswered = role === 'host'
+    ? room?.players?.guest?.answered
+    : room?.players?.host?.answered
 
   return (
     <div className={styles.wrap}>
@@ -161,7 +181,13 @@ export default function OnlineMulti({ sport, onBack }) {
               </button>
             ))}
           </div>
-          {answered && <p className={styles.waiting}>Waiting for opponent...</p>}
+
+          {answered && !opponentAnswered && (
+            <p className={styles.waiting}>⏳ Waiting for {theirName} to answer...</p>
+          )}
+          {answered && opponentAnswered && (
+            <p className={styles.waiting}>✅ Both answered! Next question coming...</p>
+          )}
         </>
       )}
 
