@@ -59,23 +59,6 @@ const FOOTBALL_QUESTIONS = [
   { question: 'How much of the ball must cross the goal line for a goal to count?', options: ['Half', 'Whole ball', 'Part of it', 'Top curve'], answer: 'Whole ball', explanation: 'The entire ball must completely cross the goal line for a goal to be awarded.' },
   { question: 'What is an offside position in football?', options: ['Standing too close to opponent', 'Nearer to goal than both ball and second-to-last opponent', 'Standing on sidelines', 'In goalkeeper\'s area'], answer: 'Nearer to goal than both ball and second-to-last opponent', explanation: 'A player is in an offside position if they are nearer to the opponent\'s goal line than both the ball and the second-to-last opponent.' },
   { question: 'How long is each halftime break in a standard match?', options: ['10 minutes', '15 minutes', '20 minutes', '25 minutes'], answer: '15 minutes', explanation: 'Halftime lasts 15 minutes between the two halves.' },
-  { question: 'Who scored the "Hand of God" goal?', options: ['Pelé', 'Ronaldo', 'Diego Maradona', 'Zinedine Zidane'], answer: 'Diego Maradona', explanation: 'Maradona scored the infamous Hand of God goal against England in the 1986 World Cup quarter-final.' },
-  { question: 'Which club did Ronaldinho play for in his prime?', options: ['Real Madrid', 'Barcelona', 'PSG', 'AC Milan'], answer: 'Barcelona', explanation: 'Ronaldinho was at his peak during his time at Barcelona from 2003 to 2008.' },
-  { question: 'Who is the all-time top scorer in Premier League history?', options: ['Wayne Rooney', 'Alan Shearer', 'Andrew Cole', 'Frank Lampard'], answer: 'Alan Shearer', explanation: 'Alan Shearer holds the Premier League record with 260 goals.' },
-  { question: 'Which country does Sadio Mané represent?', options: ['Nigeria', 'Ghana', 'Senegal', 'Ivory Coast'], answer: 'Senegal', explanation: 'Sadio Mané plays for the Senegalese national team.' },
-  { question: 'What is the nickname of the Brazilian national team?', options: ['The Eagles', 'The Samba Boys', 'The Selecão', 'The Green Giants'], answer: 'The Selecão', explanation: 'Brazil\'s national team is officially known as A Seleção.' },
-  { question: 'Which club does Erling Haaland play for?', options: ['Borussia Dortmund', 'Manchester City', 'Real Madrid', 'Bayern Munich'], answer: 'Manchester City', explanation: 'Erling Haaland joined Manchester City from Borussia Dortmund in 2022.' },
-  { question: 'How many times has Liverpool won the UEFA Champions League?', options: ['4', '5', '6', '7'], answer: '6', explanation: 'Liverpool have won the Champions League 6 times.' },
-  { question: 'Who won the 2023 Ballon d\'Or?', options: ['Kylian Mbappé', 'Erling Haaland', 'Lionel Messi', 'Vinicius Jr'], answer: 'Lionel Messi', explanation: 'Messi won his 8th Ballon d\'Or in 2023 after winning the World Cup with Argentina.' },
-  { question: 'Which club did Thierry Henry play most of his career at?', options: ['Chelsea', 'Arsenal', 'Barcelona', 'Juventus'], answer: 'Arsenal', explanation: 'Thierry Henry is Arsenal\'s all-time top scorer with 228 goals.' },
-  { question: 'What nationality is Robert Lewandowski?', options: ['German', 'Czech', 'Polish', 'Austrian'], answer: 'Polish', explanation: 'Robert Lewandowski is Polish and captains the Polish national team.' },
-  { question: 'Which team won the 2019 UEFA Champions League?', options: ['Manchester City', 'Juventus', 'Liverpool', 'Ajax'], answer: 'Liverpool', explanation: 'Liverpool defeated Tottenham Hotspur 2-0 in the 2019 Champions League final.' },
-  { question: 'How tall is a standard football goal?', options: ['6 feet', '7 feet', '8 feet', '9 feet'], answer: '8 feet', explanation: 'A standard football goal is 8 feet (2.44m) tall and 24 feet (7.32m) wide.' },
-  { question: 'Which player is known as CR7?', options: ['Carlos Riquelme', 'Cristiano Ronaldo', 'Carlos Ruiz', 'César Rodríguez'], answer: 'Cristiano Ronaldo', explanation: 'CR7 stands for Cristiano Ronaldo, his initials and shirt number.' },
-  { question: 'In what country is the La Liga football league based?', options: ['Italy', 'France', 'Spain', 'Portugal'], answer: 'Spain', explanation: 'La Liga is the top professional football division in Spain.' },
-  { question: 'Which player has the most assists in Premier League history?', options: ['David Beckham', 'Ryan Giggs', 'Wayne Rooney', 'Frank Lampard'], answer: 'Ryan Giggs', explanation: 'Ryan Giggs holds the record for most Premier League assists.' },
-  { question: 'Which African country reached the semi-finals of the 2022 World Cup?', options: ['Nigeria', 'Senegal', 'Morocco', 'Cameroon'], answer: 'Morocco', explanation: 'Morocco made history by becoming the first African nation to reach the World Cup semi-finals in 2022.' },
-  { question: 'Who scored the winning goal in the 2010 World Cup final?', options: ['David Villa', 'Fernando Torres', 'Andrés Iniesta', 'Xavi'], answer: 'Andrés Iniesta', explanation: 'Iniesta scored in extra time to give Spain a 1-0 victory over the Netherlands.' },
 ]
 
 const BASKETBALL_QUESTIONS = [
@@ -107,7 +90,7 @@ const BASKETBALL_QUESTIONS = [
   { question: 'How many fouls does it take to foul out of an NBA game?', options: ['4', '5', '6', '7'], answer: '6', explanation: 'A player fouls out of an NBA game after committing 6 personal fouls.' },
   { question: 'Which team has appeared in the most NBA Finals?', options: ['Chicago Bulls', 'Los Angeles Lakers', 'Boston Celtics', 'Golden State Warriors'], answer: 'Los Angeles Lakers', explanation: 'The Los Angeles Lakers have appeared in the NBA Finals more times than any other team.' },
   { question: 'Who won the NBA Slam Dunk Contest in 2016?', options: ['LeBron James', 'Zach LaVine', 'Aaron Gordon', 'Vince Carter'], answer: 'Zach LaVine', explanation: 'Zach LaVine won the 2016 NBA Slam Dunk Contest with an outstanding performance.' },
-  { question: 'Which player won the NBA MVP award in 2021 and 2022?', options: ['LeBron James', 'Giannis Antetokounmpo', 'Nikola Jokić', 'Joel Embiid'], answer: 'Nikola Jokić', explanation: 'Nikola Jokić won back-to-back MVP awards in 2021 and 2022.' },
+  { question: 'Which player won the NBA MVP award in 2022 and 2023?', options: ['LeBron James', 'Giannis Antetokounmpo', 'Nikola Jokić', 'Joel Embiid'], answer: 'Nikola Jokić', explanation: 'Nikola Jokić won back-to-back MVP awards in 2021 and 2022, and again in 2024.' },
   { question: 'What is a "buzzer beater" in basketball?', options: ['A shot made after the buzzer', 'A shot made as time expires', 'A foul called at the end of the game', 'An overtime winner'], answer: 'A shot made as time expires', explanation: 'A buzzer beater is a shot released before the buzzer sounds and counts as time expires.' },
   { question: 'Which NBA team is based in San Antonio?', options: ['Houston Rockets', 'Dallas Mavericks', 'San Antonio Spurs', 'Oklahoma City Thunder'], answer: 'San Antonio Spurs', explanation: 'The San Antonio Spurs are the NBA franchise based in San Antonio, Texas.' },
   { question: 'How many rings did Shaquille O\'Neal win in his career?', options: ['2', '3', '4', '5'], answer: '4', explanation: 'Shaquille O\'Neal won 4 NBA championships: three with the Lakers and one with the Heat.' },
@@ -119,17 +102,6 @@ const BASKETBALL_QUESTIONS = [
   { question: 'Who coached the Chicago Bulls during their 1990s dynasty?', options: ['Pat Riley', 'Phil Jackson', 'Larry Bird', 'Chuck Daly'], answer: 'Phil Jackson', explanation: 'Phil Jackson coached the Chicago Bulls to 6 championships in the 1990s.' },
   { question: 'Which player was selected 1st overall in the 2003 NBA Draft?', options: ['Carmelo Anthony', 'Dwyane Wade', 'LeBron James', 'Chris Bosh'], answer: 'LeBron James', explanation: 'LeBron James was selected 1st overall by the Cleveland Cavaliers in the 2003 NBA Draft.' },
   { question: 'What is the length of an NBA basketball court?', options: ['84 feet', '90 feet', '94 feet', '100 feet'], answer: '94 feet', explanation: 'An NBA basketball court is 94 feet (28.65 meters) long.' },
-  { question: 'Which player is known as "The Slim Reaper"?', options: ['Kevin Durant', 'Kawhi Leonard', 'Paul George', 'Jimmy Butler'], answer: 'Kevin Durant', explanation: 'Kevin Durant earned the nickname "The Slim Reaper" due to his tall, slender build and lethal scoring ability.' },
-  { question: 'Who holds the record for most three-pointers made in NBA history?', options: ['Ray Allen', 'Stephen Curry', 'Reggie Miller', 'Klay Thompson'], answer: 'Stephen Curry', explanation: 'Stephen Curry broke Ray Allen\'s record and holds the all-time record for most three-pointers made.' },
-  { question: 'Which team won the NBA championship in 2016?', options: ['Golden State Warriors', 'Cleveland Cavaliers', 'Oklahoma City Thunder', 'Toronto Raptors'], answer: 'Cleveland Cavaliers', explanation: 'The Cleveland Cavaliers came back from 3-1 down to beat the Golden State Warriors in 2016.' },
-  { question: 'What is the name of the trophy awarded to the NBA champion?', options: ['The Golden Trophy', 'Larry O\'Brien Championship Trophy', 'The NBA Cup', 'Bill Russell Trophy'], answer: 'Larry O\'Brien Championship Trophy', explanation: 'The Larry O\'Brien Championship Trophy is awarded to the NBA champion each year.' },
-  { question: 'Which player won the NBA Finals MVP in 2023?', options: ['Jamal Murray', 'Nikola Jokić', 'Aaron Gordon', 'Michael Porter Jr'], answer: 'Nikola Jokić', explanation: 'Nikola Jokić won the Finals MVP as the Denver Nuggets claimed their first title.' },
-  { question: 'How many quarters are in an NBA game?', options: ['2', '3', '4', '5'], answer: '4', explanation: 'An NBA game consists of 4 quarters, each lasting 12 minutes.' },
-  { question: 'Which player is nicknamed "The Beard"?', options: ['LeBron James', 'James Harden', 'Russell Westbrook', 'Paul George'], answer: 'James Harden', explanation: 'James Harden is nicknamed "The Beard" due to his distinctive facial hair.' },
-  { question: 'Which country won the 2019 FIBA Basketball World Cup?', options: ['USA', 'Spain', 'Australia', 'France'], answer: 'Spain', explanation: 'Spain defeated Argentina in the final to win the 2019 FIBA Basketball World Cup.' },
-  { question: 'Who was named the NBA\'s Most Improved Player in 2023?', options: ['Ja Morant', 'Lauri Markkanen', 'Tyrese Haliburton', 'Shai Gilgeous-Alexander'], answer: 'Lauri Markkanen', explanation: 'Lauri Markkanen of the Utah Jazz won the Most Improved Player award in the 2022-23 season.' },
-  { question: 'Which team did Kobe Bryant play his entire career with?', options: ['Chicago Bulls', 'Miami Heat', 'Los Angeles Lakers', 'Orlando Magic'], answer: 'Los Angeles Lakers', explanation: 'Kobe Bryant spent all 20 seasons of his NBA career with the Los Angeles Lakers.' },
-  { question: 'What is a "double-double" in basketball?', options: ['Scoring twice in overtime', 'Two consecutive wins', 'Reaching double digits in two statistical categories', 'Two three-pointers in a row'], answer: 'Reaching double digits in two statistical categories', explanation: 'A double-double is when a player reaches 10 or more in two statistical categories like points and rebounds.' },
 ]
 
 function shuffle(array) {
@@ -141,43 +113,7 @@ function shuffle(array) {
   return arr
 }
 
-async function generateWithClaude(sport, rounds) {
-  const sportName = sport === 'basketball' ? 'basketball (NBA, FIBA, players, history, rules)' : 'football/soccer (FIFA, Premier League, Champions League, players, history, rules, transfers)'
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      messages: [{
-        role: 'user',
-        content: `Generate ${rounds} unique multiple choice trivia questions about ${sportName}. 
-Return ONLY a JSON array, no markdown, no explanation. Each object must have:
-- question (string)
-- options (array of exactly 4 strings)
-- answer (string, must exactly match one of the options)
-- explanation (string, one sentence)
-
-Make the questions varied — mix easy, medium and hard. Do not repeat common questions. Be creative and specific.`
-      }]
-    })
-  })
-
-  if (!response.ok) throw new Error('API failed')
-  const data = await response.json()
-  const text = data.content[0].text.trim()
-  const clean = text.replace(/```json|```/g, '').trim()
-  return JSON.parse(clean)
-}
-
 export async function generateQuestions({ rounds, sport }) {
-  try {
-    const questions = await generateWithClaude(sport, rounds || 5)
-    if (Array.isArray(questions) && questions.length > 0) return questions
-    throw new Error('Invalid response')
-  } catch (e) {
-    console.warn('Claude API failed, falling back to local questions:', e.message)
-    const bank = sport === 'basketball' ? BASKETBALL_QUESTIONS : FOOTBALL_QUESTIONS
-    return shuffle(bank).slice(0, rounds || 5).map(q => ({ ...q }))
-  }
+  const bank = sport === 'basketball' ? BASKETBALL_QUESTIONS : FOOTBALL_QUESTIONS
+  return shuffle(bank).slice(0, rounds || 5).map(q => ({ ...q }))
 }
