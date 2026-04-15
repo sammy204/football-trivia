@@ -26,6 +26,30 @@
   margin-bottom: 4px;
 }
 
+.rulesCard {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 22px 20px;
+}
+
+.rulesLead {
+  color: var(--white);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+
+.rulesList {
+  color: var(--muted);
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 .error {
   color: #FF5C5C;
   font-size: 13px;
@@ -202,7 +226,7 @@
   flex-shrink: 0;
 }
 
-.selected { border-color: #00FF87; background: rgba(0,255,135,0.08); }
+.selected { border-color: var(--green); background: color-mix(in srgb, var(--green) 12%, transparent); }
 .dim { opacity: 0.35; }
 
 .winner {

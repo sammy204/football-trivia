@@ -3,8 +3,7 @@ import styles from './Home.module.css'
 
 const ROUNDS = [5, 10, 15]
 
-export default function Home({ onStartSolo, onStartMulti, onStartOnline }) {
-  const [sport, setSport] = useState('football')
+export default function Home({ sport, onSportChange, onStartSolo, onStartMulti, onStartOnline }) {
   const [tab, setTab] = useState('solo')
   const [rounds, setRounds] = useState(5)
   const [soloName, setSoloName] = useState('')
@@ -42,10 +41,12 @@ export default function Home({ onStartSolo, onStartMulti, onStartOnline }) {
   return (
     <div className={styles.wrap}>
       <header className={styles.header}>
+        <div className={styles.logoWrap}>
+          <img className={styles.logo} src="/logo-mark.svg" alt="Sports trivia logo" />
+        </div>
         <h1 className={styles.title}>
-          {isBasketball ? <>Basket<br />ball</> : <>Football<br />Trivia</>}
+          {isBasketball ? <>Basketball<br />Trivia</> : <>Football<br />Trivia</>}
         </h1>
-        <p className={styles.sub}>Test your knowledge. Beat your mates.</p>
       </header>
 
       {/* Sport Picker */}
@@ -60,7 +61,7 @@ export default function Home({ onStartSolo, onStartMulti, onStartOnline }) {
               key={s.key}
               className={styles.sportBtn}
               style={sportActiveStyle(s.key)}
-              onClick={() => setSport(s.key)}
+              onClick={() => onSportChange(s.key)}
             >
               <span className={styles.sportEmoji}>{s.emoji}</span>
               <span>{s.label}</span>
@@ -84,23 +85,21 @@ export default function Home({ onStartSolo, onStartMulti, onStartOnline }) {
       </div>
 
       {/* Rounds — only for solo and local */}
-      {tab !== 'online' && (
-        <div className={styles.section}>
-          <p className={styles.label}>Rounds</p>
-          <div className={styles.roundGrid}>
-            {ROUNDS.map(r => (
-              <button
-                key={r}
-                className={styles.chip}
-                style={rounds === r ? chipActiveStyle : {}}
-                onClick={() => setRounds(r)}
-              >
-                {r} rounds
-              </button>
-            ))}
-          </div>
+      <div className={styles.section}>
+        <p className={styles.label}>Rounds</p>
+        <div className={styles.roundGrid}>
+          {ROUNDS.map(r => (
+            <button
+              key={r}
+              className={styles.chip}
+              style={rounds === r ? chipActiveStyle : {}}
+              onClick={() => setRounds(r)}
+            >
+              {r} rounds
+            </button>
+          ))}
         </div>
-      )}
+      </div>
 
       {/* Solo */}
       {tab === 'solo' && (
@@ -149,7 +148,7 @@ export default function Home({ onStartSolo, onStartMulti, onStartOnline }) {
           <p className={styles.onlineDesc}>
             Play against a friend anywhere in the world. Create a room and share the code, or join an existing room.
           </p>
-          <button className={styles.startBtn} style={startBtnStyle} onClick={() => onStartOnline(sport)}>
+          <button className={styles.startBtn} style={startBtnStyle} onClick={() => onStartOnline({ sport, rounds })}>
             Enter Online Lobby →
           </button>
         </div>
