@@ -1,42 +1,125 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { getDailyChallengeInfo } from '../lib/dailyChallenge'
+import { subscribeUserToPush } from '../lib/pushNotifications'
 import styles from './Home.module.css'
 
 const ROUNDS = [5, 10, 15]
 
-export default function Home({ sport, onSportChange, onStartSolo, onStartMulti, onStartOnline }) {
+function formatCountdown(ms) {
+  if (ms <= 0) return '00:00:00'
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000))
+  const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0')
+  const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0')
+  const seconds = String(totalSeconds % 60).padStart(2, '0')
+  return `${hours}:${minutes}:${seconds}`
+}
+
+export default function Home({
+  sport,
+  onSportChange,
+  onStartSolo,
+  onStartOnline,
+  onStartDaily,
+  onViewDailyLeaderboard,
+  profile,
+}) {
   const [tab, setTab] = useState('solo')
   const [rounds, setRounds] = useState(5)
   const [soloName, setSoloName] = useState('')
-  const [players, setPlayers] = useState(['', ''])
 
   const isBasketball = sport === 'basketball'
   const accent = isBasketball ? '#FF6B35' : '#00FF87'
-  const accentDark = isBasketball ? '#e55a28' : '#00C96B'
   const accentBg = isBasketball ? 'rgba(255,107,53,0.08)' : 'rgba(0,255,135,0.08)'
   const accentText = isBasketball ? '#fff' : '#0a1f0f'
+  const sportLabel = isBasketball ? 'Basketball' : 'Football'
 
-  function addPlayer() {
-    if (players.length < 4) setPlayers([...players, ''])
-  }
-  function updatePlayer(i, val) {
-    const p = [...players]; p[i] = val; setPlayers(p)
-  }
+  const [now, setNow] = useState(Date.now())
+  const [notificationPermission, setNotificationPermission] = useState(
+    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
+  )
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(interval)
+  }, [])
+
+  const dailyChallenge = useMemo(
+    () => getDailyChallengeInfo({ sport, now: new Date(now) }),
+    [sport, now]
+  )
+
+  const dailyAvailable = dailyChallenge.available
+  const dailyButtonLabel = dailyAvailable
+    ? isBasketball ? 'Start daily tip-off' : 'Start daily kickoff'
+    : 'Locked until 12:00 UTC'
+
+  const countdown = formatCountdown(dailyChallenge.nextRelease.getTime() - now)
+  const countdownLabel = dailyAvailable
+    ? 'Ends in'
+    : now < dailyChallenge.releaseTime.getTime()
+    ? 'Unlocks in'
+    : 'Next challenge in'
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return
+    setNotificationPermission(Notification.permission)
+  }, [])
+
+  useEffect(() => {
+    if (
+      typeof window === 'undefined' ||
+      !('Notification' in window) ||
+      notificationPermission !== 'granted' ||
+      dailyAvailable ||
+      !dailyChallenge?.nextRelease
+    ) {
+      return
+    }
+
+    const reminderTime = dailyChallenge.nextRelease.getTime() - 5 * 60 * 1000
+    const now = Date.now()
+    if (reminderTime <= now) return
+
+    const timeout = window.setTimeout(() => {
+      new Notification('Daily challenge unlocks soon', {
+        body: `${sportLabel} daily challenge starts at 12:00 UTC. Get ready!`,
+      })
+    }, reminderTime - now)
+
+    return () => window.clearTimeout(timeout)
+  }, [dailyAvailable, dailyChallenge?.nextRelease, notificationPermission, sportLabel])
 
   function handleSolo() {
     onStartSolo({ name: soloName.trim() || 'Player', rounds, sport })
   }
-  function handleMulti() {
-    const names = players.map(p => p.trim()).filter(Boolean)
-    if (names.length < 2) return alert('Enter at least 2 player names.')
-    onStartMulti({ players: names, rounds, sport })
+
+  async function requestNotificationPermission() {
+    if (typeof window === 'undefined' || !('Notification' in window)) return
+    const permission = await Notification.requestPermission()
+    setNotificationPermission(permission)
+
+    // If permission granted, subscribe to push notifications
+    if (permission === 'granted') {
+      try {
+        await subscribeUserToPush()
+      } catch (error) {
+        console.error('Failed to subscribe to push notifications:', error)
+      }
+    }
   }
 
   const chipActiveStyle = { borderColor: accent, color: accent, background: accentBg }
   const startBtnStyle = { background: accent, color: accentText }
   const tabActiveStyle = { background: accent, color: accentText, borderColor: accent }
-  const sportActiveStyle = (s) => s === sport ? {
-    borderColor: accent, color: accent, background: accentBg, fontWeight: 700,
-  } : {}
+  const sportActiveStyle = (nextSport) =>
+    nextSport === sport
+      ? {
+          borderColor: accent,
+          color: accent,
+          background: accentBg,
+          fontWeight: 700,
+        }
+      : {}
 
   return (
     <div className={styles.wrap}>
@@ -47,61 +130,102 @@ export default function Home({ sport, onSportChange, onStartSolo, onStartMulti, 
         <h1 className={styles.title}>
           {isBasketball ? <>Basketball<br />Trivia</> : <>Football<br />Trivia</>}
         </h1>
+        <p className={styles.sub}>
+          Pick your lane, then jump into solo, local multiplayer, online rooms, or today&apos;s shared challenge.
+        </p>
       </header>
 
-      {/* Sport Picker */}
+      <section className={styles.dailyCard}>
+        <div className={styles.dailyTop}>
+          <div>
+            <p className={styles.badge}>Daily challenge</p>
+            <h2 className={styles.dailyTitle}>{sportLabel} matchday</h2>
+          </div>
+          <button className={styles.dailyGhost} onClick={() => onViewDailyLeaderboard(sport)}>
+            Leaderboard
+          </button>
+        </div>
+
+        <p className={styles.dailyCopy}>
+          Same {sportLabel.toLowerCase()} questions for everyone today. Score first, speed second.
+        </p>
+
+        <div className={styles.dailyMeta}>
+          <span>{dailyChallenge?.rounds || 10} questions</span>
+          <span>{dailyChallenge?.dateKey}</span>
+          <span>{profile?.displayName ? `Playing as ${profile.displayName}` : 'Play first, save score after'}</span>
+        </div>
+
+        <div className={styles.countdownRow}>
+          <span className={styles.countdownLabel}>{countdownLabel}</span>
+          <span className={styles.countdownValue}>{countdown}</span>
+        </div>
+
+        {!dailyAvailable && typeof window !== 'undefined' && 'Notification' in window && notificationPermission !== 'granted' && (
+          <button className={styles.reminderBtn} onClick={requestNotificationPermission}>
+            Enable reminder
+          </button>
+        )}
+
+        <button
+          className={styles.dailyBtn}
+          style={startBtnStyle}
+          onClick={() => onStartDaily({ sport })}
+          disabled={!dailyAvailable}
+        >
+          {dailyButtonLabel}
+        </button>
+      </section>
+
       <div className={styles.section}>
         <p className={styles.label}>Choose your sport</p>
         <div className={styles.sportGrid}>
           {[
-            { key: 'football', emoji: '⚽', label: 'Football' },
-            { key: 'basketball', emoji: '🏀', label: 'Basketball' },
-          ].map(s => (
+            { key: 'football', icon: '⚽', label: 'Football' },
+            { key: 'basketball', icon: '🏀', label: 'Basketball' },
+          ].map((option) => (
             <button
-              key={s.key}
+              key={option.key}
               className={styles.sportBtn}
-              style={sportActiveStyle(s.key)}
-              onClick={() => onSportChange(s.key)}
+              style={sportActiveStyle(option.key)}
+              onClick={() => onSportChange(option.key)}
             >
-              <span className={styles.sportEmoji}>{s.emoji}</span>
-              <span>{s.label}</span>
+              <span className={styles.sportEmoji}>{option.icon}</span>
+              <span>{option.label}</span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* Mode Tabs */}
       <div className={styles.tabs}>
-        {['solo', 'multi', 'online'].map(t => (
+        {['solo', 'online'].map((nextTab) => (
           <button
-            key={t}
-            className={`${styles.tab} ${tab === t ? styles.tabActive : ''}`}
-            style={tab === t ? tabActiveStyle : {}}
-            onClick={() => setTab(t)}
+            key={nextTab}
+            className={`${styles.tab} ${tab === nextTab ? styles.tabActive : ''}`}
+            style={tab === nextTab ? tabActiveStyle : {}}
+            onClick={() => setTab(nextTab)}
           >
-            {t === 'solo' ? 'Solo' : t === 'multi' ? 'Local' : '🌐 Online'}
+            {nextTab === 'solo' ? 'Solo' : 'Online'}
           </button>
         ))}
       </div>
 
-      {/* Rounds — only for solo and local */}
       <div className={styles.section}>
         <p className={styles.label}>Rounds</p>
         <div className={styles.roundGrid}>
-          {ROUNDS.map(r => (
+          {ROUNDS.map((round) => (
             <button
-              key={r}
+              key={round}
               className={styles.chip}
-              style={rounds === r ? chipActiveStyle : {}}
-              onClick={() => setRounds(r)}
+              style={rounds === round ? chipActiveStyle : {}}
+              onClick={() => setRounds(round)}
             >
-              {r} rounds
+              {round} rounds
             </button>
           ))}
         </div>
       </div>
 
-      {/* Solo */}
       {tab === 'solo' && (
         <div className={styles.section}>
           <p className={styles.label}>Your name</p>
@@ -109,47 +233,21 @@ export default function Home({ sport, onSportChange, onStartSolo, onStartMulti, 
             className={styles.input}
             placeholder="Enter your name"
             value={soloName}
-            onChange={e => setSoloName(e.target.value)}
+            onChange={(event) => setSoloName(event.target.value)}
           />
           <button className={styles.startBtn} style={startBtnStyle} onClick={handleSolo}>
-            {isBasketball ? 'Tip off →' : 'Kick off →'}
+            {isBasketball ? 'Tip off ->' : 'Kick off ->'}
           </button>
         </div>
       )}
 
-      {/* Local Multiplayer */}
-      {tab === 'multi' && (
-        <div className={styles.section}>
-          <p className={styles.label}>Players</p>
-          {players.map((p, i) => (
-            <input
-              key={i}
-              className={styles.input}
-              placeholder={`Player ${i + 1}`}
-              value={p}
-              onChange={e => updatePlayer(i, e.target.value)}
-              style={{ marginBottom: 8 }}
-            />
-          ))}
-          {players.length < 4 && (
-            <button className={styles.addBtn} style={{ color: accent }} onClick={addPlayer}>
-              + Add player
-            </button>
-          )}
-          <button className={styles.startBtn} style={{ ...startBtnStyle, marginTop: 12 }} onClick={handleMulti}>
-            {isBasketball ? 'Tip off →' : 'Kick off →'}
-          </button>
-        </div>
-      )}
-
-      {/* Online Multiplayer */}
       {tab === 'online' && (
         <div className={styles.section}>
           <p className={styles.onlineDesc}>
             Play against a friend anywhere in the world. Create a room and share the code, or join an existing room.
           </p>
           <button className={styles.startBtn} style={startBtnStyle} onClick={() => onStartOnline({ sport, rounds })}>
-            Enter Online Lobby →
+            Enter online lobby {'>'}
           </button>
         </div>
       )}

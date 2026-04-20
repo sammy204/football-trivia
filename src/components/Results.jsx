@@ -1,18 +1,36 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import styles from './Results.module.css'
 
-export default function Results({ scores, history, config, onHome, onPlayAgain }) {
-  const { players, mode, totalQuestions } = config
-  const [showReview, setShowReview] = useState(false)
+function formatTime(totalTimeMs) {
+  if (!totalTimeMs && totalTimeMs !== 0) return '--'
+  return `${(totalTimeMs / 1000).toFixed(1)}s`
+}
 
-  const winner = mode === 'multi'
-    ? players[scores.indexOf(Math.max(...scores))]
-    : null
+export default function Results({
+  scores,
+  history,
+  config,
+  resultMeta,
+  profile,
+  saveState,
+  onSaveDailyScore,
+  onViewDailyLeaderboard,
+  onHome,
+  onPlayAgain,
+}) {
+  const { mode, totalQuestions } = config
+  const [showReview, setShowReview] = useState(false)
+  const [displayName, setDisplayName] = useState(profile?.displayName || '')
+  const isDaily = mode === 'daily'
 
   const pct = Math.round((scores[0] / totalQuestions) * 100)
+  const averageTime = useMemo(() => {
+    if (!resultMeta?.totalTimeMs || !totalQuestions) return '--'
+    return `${(resultMeta.totalTimeMs / totalQuestions / 1000).toFixed(1)}s`
+  }, [resultMeta, totalQuestions])
 
   function getMessage() {
-    if (mode === 'multi') return `${winner} wins!`
+    if (isDaily && pct === 100) return 'Daily domination!'
     if (pct === 100) return 'Perfect score!'
     if (pct >= 80) return 'Outstanding!'
     if (pct >= 60) return 'Solid performance!'
@@ -20,57 +38,83 @@ export default function Results({ scores, history, config, onHome, onPlayAgain }
     return 'Back to training!'
   }
 
-  function renderPlayerStats(idx) {
-    const correct = scores[idx]
-    const wrong = totalQuestions - correct
-    return `${correct} right · ${wrong} wrong`
+  function handleSave() {
+    onSaveDailyScore(displayName)
   }
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.topLabel}>Full time</div>
+      <div className={styles.topLabel}>{isDaily ? 'Daily challenge' : 'Full time'}</div>
       <h1 className={styles.message}>{getMessage()}</h1>
 
-      {mode === 'solo' ? (
-        <div className={styles.scoreBig}>
-          <span className={styles.scoreNum}>{scores[0]}</span>
-          <span className={styles.scoreOf}>/ {totalQuestions}</span>
-        </div>
-      ) : (
-        <div className={styles.multiScores}>
-          {players.map((p, i) => (
-            <div key={i} className={`${styles.scoreRow} ${i === scores.indexOf(Math.max(...scores)) ? styles.winner : ''}`}>
-              <div className={styles.playerName}>
-                {i === scores.indexOf(Math.max(...scores)) && <span className={styles.crown}>★</span>}
-                {p}
-              </div>
-              <div className={styles.playerScore}>{scores[i]}/{totalQuestions}</div>
-              <div className={styles.playerPct}>{Math.round((scores[i] / totalQuestions) * 100)}%</div>
-              <div className={styles.playerSub}>{renderPlayerStats(i)}</div>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className={styles.scoreBig}>
+        <span className={styles.scoreNum}>{scores[0]}</span>
+        <span className={styles.scoreOf}>/ {totalQuestions}</span>
+      </div>
 
-      {mode === 'solo' && (
-        <div className={styles.statGrid}>
-          <div className={styles.stat}>
-            <p className={styles.statVal}>{pct}%</p>
-            <p className={styles.statLabel}>Accuracy</p>
+      <div className={styles.statGrid}>
+        <div className={styles.stat}>
+          <p className={styles.statVal}>{pct}%</p>
+          <p className={styles.statLabel}>Accuracy</p>
+        </div>
+        <div className={styles.stat}>
+          <p className={styles.statVal}>{formatTime(resultMeta?.totalTimeMs)}</p>
+          <p className={styles.statLabel}>Total time</p>
+        </div>
+        <div className={styles.stat}>
+          <p className={styles.statVal}>{averageTime}</p>
+          <p className={styles.statLabel}>Avg answer</p>
+        </div>
+      </div>
+
+      {isDaily && (
+        <div className={styles.dailyPanel}>
+          <div className={styles.dailyHeader}>
+            <div>
+              <p className={styles.dailyKicker}>Leaderboard</p>
+              <h2 className={styles.dailyTitle}>
+                {saveState.status === 'saved' ? 'Score saved' : 'Save today&apos;s run'}
+              </h2>
+            </div>
+            <button className={styles.dailyGhost} onClick={onViewDailyLeaderboard}>
+              View board
+            </button>
           </div>
-          <div className={styles.stat}>
-            <p className={styles.statVal}>{scores[0]}</p>
-            <p className={styles.statLabel}>Correct</p>
+
+          <p className={styles.dailyCopy}>
+            Claim your result with a display name so it can appear on today&apos;s {config.sport} leaderboard.
+          </p>
+
+          <div className={styles.saveRow}>
+            <input
+              className={styles.nameInput}
+              placeholder="Choose a display name"
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+            />
+            <button
+              className={styles.saveBtn}
+              onClick={handleSave}
+              disabled={saveState.status === 'saving' || !displayName.trim()}
+            >
+              {saveState.status === 'saving' ? 'Saving...' : saveState.status === 'saved' ? 'Saved' : 'Save score'}
+            </button>
           </div>
-          <div className={styles.stat}>
-            <p className={styles.statVal}>{totalQuestions - scores[0]}</p>
-            <p className={styles.statLabel}>Wrong</p>
-          </div>
+
+          {saveState.status === 'saved' && (
+            <p className={styles.saveMessage}>
+              You&apos;re currently #{saveState.rank} on today&apos;s board.
+            </p>
+          )}
+
+          {saveState.status === 'error' && (
+            <p className={styles.saveError}>Saving failed. Try again in a moment.</p>
+          )}
         </div>
       )}
 
       <div style={{ marginTop: 16 }}>
-        <button className={styles.ghostBtn} onClick={() => setShowReview(prev => !prev)}>
+        <button className={styles.ghostBtn} onClick={() => setShowReview((prev) => !prev)}>
           {showReview ? 'Hide review' : 'Review answers'}
         </button>
       </div>
@@ -78,13 +122,13 @@ export default function Results({ scores, history, config, onHome, onPlayAgain }
       {showReview && (
         <div className={styles.review} style={{ marginTop: 14 }}>
           <h2 className={styles.subheading}>Answer review</h2>
-          {(history && history.length) ? history.map((item, idx) => (
-            <div key={idx} className={styles.reviewRow} style={{ marginBottom: 10, borderBottom: '1px solid #ddd', paddingBottom: 8 }}>
-              <div><strong>Q{idx + 1} ({item.player})</strong>: {item.question}</div>
+          {history?.length ? history.map((item, index) => (
+            <div key={`${item.question}-${index}`} className={styles.reviewRow}>
+              <div><strong>Q{index + 1} ({item.player})</strong>: {item.question}</div>
               <div>Given: {item.selected || 'No answer'}</div>
               <div>Correct: {item.correctAnswer}</div>
               <div>Result: {item.isCorrect ? 'Correct' : 'Wrong'}</div>
-              <div style={{ color: '#555' }}>Explanation: {item.explanation}</div>
+              <div className={styles.reviewExplanation}>Explanation: {item.explanation}</div>
             </div>
           )) : <p>No answer history available.</p>}
         </div>
@@ -92,7 +136,9 @@ export default function Results({ scores, history, config, onHome, onPlayAgain }
 
       <div className={styles.actions}>
         <button className={styles.ghostBtn} onClick={onHome}>Home</button>
-        <button className={styles.mainBtn} onClick={onPlayAgain}>Play again →</button>
+        <button className={styles.mainBtn} onClick={onPlayAgain}>
+          {isDaily ? 'Replay daily challenge ->' : 'Play again ->'}
+        </button>
       </div>
     </div>
   )

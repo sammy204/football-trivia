@@ -1,0 +1,514 @@
+:root {
+  --green: #00ff87;
+  --green-dark: #00c96b;
+  --pitch: #07150c;
+  --pitch-mid: #0d2818;
+  --pitch-light: #163926;
+  --white: #f6f5ef;
+  --muted: rgba(246, 245, 239, 0.62);
+  --border: rgba(255, 255, 255, 0.09);
+  --card: rgba(255, 255, 255, 0.05);
+  --card-strong: rgba(255, 255, 255, 0.08);
+  --warning: #ffb347;
+  --success: #8effc1;
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "DM Sans", sans-serif;
+  color: var(--white);
+  background:
+    radial-gradient(circle at top left, rgba(0, 255, 135, 0.16), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(255, 179, 71, 0.12), transparent 24%),
+    linear-gradient(180deg, #08140d 0%, #0b1d12 100%);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.appShell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(320px, 440px) minmax(320px, 1fr);
+}
+
+.flowPanel {
+  padding: 40px 32px;
+  border-right: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 28%),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 56px,
+      rgba(255, 255, 255, 0.02) 56px,
+      rgba(255, 255, 255, 0.02) 57px
+    );
+}
+
+.brandLockup {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.brandMark {
+  width: 84px;
+  height: 84px;
+  border-radius: 28px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(0, 255, 135, 0.16), rgba(255, 179, 71, 0.2));
+  box-shadow: var(--shadow);
+}
+
+.brandMark img {
+  width: 68px;
+  height: 68px;
+}
+
+.eyebrow,
+.smallLabel,
+.notesLabel,
+.kicker {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Bebas Neue", sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+}
+
+h1 {
+  font-size: clamp(42px, 6vw, 64px);
+  line-height: 0.95;
+  margin-top: 8px;
+}
+
+.intro {
+  max-width: 36ch;
+  line-height: 1.65;
+  color: var(--muted);
+  margin-bottom: 28px;
+}
+
+.screenNav {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.screenLink,
+.ghostBtn,
+.secondaryBtn,
+.chip {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--white);
+}
+
+.screenLink {
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 14px;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.screenLink.is-active {
+  border-color: var(--green);
+  background: rgba(0, 255, 135, 0.1);
+}
+
+.notesCard {
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  margin-bottom: 16px;
+}
+
+.notesCard.accent {
+  background: linear-gradient(180deg, rgba(0, 255, 135, 0.08), rgba(255, 255, 255, 0.03));
+}
+
+.notesList {
+  padding-left: 18px;
+  margin: 12px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.notesText {
+  color: var(--muted);
+  margin-top: 12px;
+  line-height: 1.6;
+}
+
+.phoneStage {
+  display: grid;
+  place-items: center;
+  padding: 32px 24px;
+}
+
+.deviceFrame {
+  width: min(100%, 410px);
+  min-height: 820px;
+  border-radius: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 28%),
+    linear-gradient(180deg, #0a1f10 0%, #102d1b 100%);
+  box-shadow: 0 36px 80px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.deviceTopBar {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 22px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.screen {
+  display: none;
+  padding: 20px 22px 28px;
+}
+
+.screen.is-visible {
+  display: grid;
+  gap: 18px;
+}
+
+.screenHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0, 255, 135, 0.12);
+  border: 1px solid rgba(0, 255, 135, 0.24);
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.pill.success {
+  color: var(--success);
+  border-color: rgba(142, 255, 193, 0.3);
+  background: rgba(142, 255, 193, 0.1);
+}
+
+.pill.warning {
+  color: var(--warning);
+  border-color: rgba(255, 179, 71, 0.3);
+  background: rgba(255, 179, 71, 0.1);
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.heroCard,
+.splitCard,
+.scoreCard,
+.calloutCard,
+.leaderboardCard {
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 20px;
+}
+
+.heroCard {
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 135, 0.18), transparent 34%),
+    rgba(255, 255, 255, 0.05);
+}
+
+.heroCard h2,
+.calloutCard h2,
+.leaderboardCard h2 {
+  font-size: 44px;
+  line-height: 0.95;
+  margin: 10px 0 12px;
+}
+
+.heroCard p,
+.calloutCard p,
+.scoreSummary,
+.footNote {
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.heroStats,
+.resultGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.heroStats div,
+.metric {
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.heroStats strong,
+.metric strong {
+  display: block;
+  font-size: 24px;
+}
+
+.heroStats span,
+.metric span {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.splitCard,
+.leaderboardTop,
+.row,
+.scoreLine {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.splitCard h3,
+.calloutCard h3 {
+  font-size: 30px;
+  line-height: 0.98;
+  margin-top: 8px;
+}
+
+.ghostBtn,
+.primaryBtn,
+.secondaryBtn,
+.authOption,
+.textInput {
+  border-radius: 16px;
+}
+
+.ghostBtn,
+.secondaryBtn {
+  padding: 12px 14px;
+}
+
+.actionStack {
+  display: grid;
+  gap: 12px;
+}
+
+.primaryBtn {
+  border: 0;
+  padding: 16px 18px;
+  background: var(--green);
+  color: #06200f;
+  font-weight: 700;
+  box-shadow: 0 16px 28px rgba(0, 255, 135, 0.18);
+}
+
+.secondaryBtn {
+  color: var(--white);
+}
+
+.scoreCard {
+  text-align: center;
+  padding-top: 24px;
+  padding-bottom: 24px;
+}
+
+.scoreLine {
+  justify-content: center;
+  gap: 14px;
+  margin: 14px 0 12px;
+}
+
+.scoreLine strong {
+  font-size: 64px;
+  font-family: "Bebas Neue", sans-serif;
+  letter-spacing: 0.04em;
+}
+
+.scoreLine span {
+  font-size: 20px;
+  color: var(--green);
+  font-weight: 700;
+}
+
+.optionList {
+  display: grid;
+  gap: 12px;
+}
+
+.authOption {
+  text-align: left;
+  padding: 16px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--white);
+}
+
+.authOption span {
+  display: block;
+  font-weight: 700;
+}
+
+.authOption small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+.fieldLabel {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--white);
+}
+
+.textInput {
+  width: 100%;
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--white);
+  padding: 14px 16px;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chip {
+  padding: 10px 14px;
+}
+
+.countdown {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--warning);
+}
+
+.rows {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.row {
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.row.highlight {
+  border-color: rgba(0, 255, 135, 0.3);
+  background: rgba(0, 255, 135, 0.08);
+}
+
+.rank {
+  width: 20px;
+  color: var(--muted);
+}
+
+.name {
+  flex: 1;
+  font-weight: 700;
+}
+
+.score,
+.time {
+  font-size: 13px;
+}
+
+@media (max-width: 980px) {
+  .appShell {
+    grid-template-columns: 1fr;
+  }
+
+  .flowPanel {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .phoneStage {
+    padding-top: 24px;
+  }
+}
+
+@media (max-width: 540px) {
+  .flowPanel,
+  .phoneStage {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .deviceFrame {
+    min-height: 760px;
+  }
+
+  .heroStats,
+  .resultGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .splitCard,
+  .leaderboardTop,
+  .row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

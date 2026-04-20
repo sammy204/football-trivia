@@ -182,14 +182,18 @@ function shuffle(array) {
 }
 
 export async function generateQuestions({ rounds, sport }) {
-  const bank = sport === 'basketball' ? BASKETBALL_QUESTIONS : FOOTBALL_QUESTIONS
+  const bank = getQuestionBank(sport)
   return shuffle(bank).slice(0, rounds || 5).map(q => ({ ...q }))
 }
 
 export function generateTieBreakerQuestion({ sport, excludeQuestions = [] }) {
-  const bank = sport === 'basketball' ? BASKETBALL_QUESTIONS : FOOTBALL_QUESTIONS
+  const bank = getQuestionBank(sport)
   const usedQuestions = new Set(excludeQuestions.map(q => q.question))
   const remaining = bank.filter(q => !usedQuestions.has(q.question))
   if (!remaining.length) return null
   return { ...shuffle(remaining)[0] }
+}
+
+export function getQuestionBank(sport) {
+  return sport === 'basketball' ? BASKETBALL_QUESTIONS : FOOTBALL_QUESTIONS
 }

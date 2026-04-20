@@ -6,22 +6,24 @@ const TIMER_SECS = 20
 export default function Quiz({ questions, config, onFinish }) {
   const { mode, players } = config
   const [qIndex, setQIndex] = useState(0)
-  const [playerIndex, setPlayerIndex] = useState(0)
   const [playerScores, setPlayerScores] = useState((players || ['Player']).map(() => 0))
   const [selected, setSelected] = useState(null)
   const [answered, setAnswered] = useState(false)
   const [timeLeft, setTimeLeft] = useState(TIMER_SECS)
   const [history, setHistory] = useState([])
+  const [totalTimeMs, setTotalTimeMs] = useState(0)
   const timerRef = useRef(null)
+  const startedAtRef = useRef(Date.now())
 
   const q = questions[qIndex]
-  const currentPlayer = (players || ['Player'])[playerIndex]
+  const currentPlayer = (players || ['Player'])[0]
 
   useEffect(() => {
     setSelected(null)
     setAnswered(false)
     setTimeLeft(TIMER_SECS)
-  }, [qIndex, playerIndex])
+    startedAtRef.current = Date.now()
+  }, [qIndex])
 
   useEffect(() => {
     if (answered) return
@@ -36,9 +38,10 @@ export default function Quiz({ questions, config, onFinish }) {
       })
     }, 1000)
     return () => clearInterval(timerRef.current)
-  }, [answered, qIndex, playerIndex])
+  }, [answered, qIndex])
 
   function buildEntry(choice, isCorrect) {
+    const elapsedMs = Date.now() - startedAtRef.current
     return {
       player: currentPlayer,
       question: q.question,
@@ -46,6 +49,7 @@ export default function Quiz({ questions, config, onFinish }) {
       correctAnswer: q.answer,
       isCorrect,
       explanation: q.explanation,
+      elapsedMs,
     }
   }
 
@@ -56,7 +60,9 @@ export default function Quiz({ questions, config, onFinish }) {
     const entry = buildEntry(null, false)
     const newHistory = [...history, entry]
     setHistory(newHistory)
-    setTimeout(() => next(newHistory, playerScores), 250)
+    const nextTotalTimeMs = totalTimeMs + entry.elapsedMs
+    setTotalTimeMs(nextTotalTimeMs)
+    setTimeout(() => next(newHistory, playerScores, nextTotalTimeMs), 250)
   }
 
   function answerQuestion(choice) {
@@ -69,36 +75,24 @@ export default function Quiz({ questions, config, onFinish }) {
     const entry = buildEntry(choice, correct)
     const newHistory = [...history, entry]
     setHistory(newHistory)
+    const nextTotalTimeMs = totalTimeMs + entry.elapsedMs
+    setTotalTimeMs(nextTotalTimeMs)
 
     let newScores = playerScores
     if (correct) {
       newScores = [...playerScores]
-      newScores[playerIndex]++
+      newScores[0]++
       setPlayerScores(newScores)
     }
 
-    setTimeout(() => next(newHistory, newScores), 250)
+    setTimeout(() => next(newHistory, newScores, nextTotalTimeMs), 250)
   }
 
-  function next(latestHistory, latestScores) {
-    if (mode === 'multi') {
-      const nextPlayer = (playerIndex + 1) % players.length
-      if (nextPlayer === 0) {
-        if (qIndex + 1 >= questions.length) {
-          onFinish({ scores: latestScores, history: latestHistory })
-        } else {
-          setQIndex(qIndex + 1)
-          setPlayerIndex(0)
-        }
-      } else {
-        setPlayerIndex(nextPlayer)
-      }
+  function next(latestHistory, latestScores, latestTotalTimeMs) {
+    if (qIndex + 1 >= questions.length) {
+      onFinish({ scores: latestScores, history: latestHistory, totalTimeMs: latestTotalTimeMs })
     } else {
-      if (qIndex + 1 >= questions.length) {
-        onFinish({ scores: latestScores, history: latestHistory })
-      } else {
-        setQIndex(qIndex + 1)
-      }
+      setQIndex(qIndex + 1)
     }
   }
 
@@ -108,8 +102,8 @@ export default function Quiz({ questions, config, onFinish }) {
   return (
     <div className={styles.wrap}>
       <div className={styles.topBar}>
-        {mode === 'multi' && (
-          <div className={styles.playerTag}>{currentPlayer}'s turn</div>
+        {mode === 'daily' && (
+          <div className={styles.pill}>Daily challenge</div>
         )}
       </div>
 

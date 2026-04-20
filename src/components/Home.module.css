@@ -8,6 +8,122 @@
   margin-bottom: 2rem;
 }
 
+.dailyCard {
+  margin-bottom: 1.75rem;
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--card-border);
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--green) 16%, transparent), transparent 36%),
+    var(--card-bg);
+}
+
+.dailyTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dailyTitle {
+  font-family: var(--font-display);
+  font-size: 36px;
+  line-height: 0.95;
+  color: var(--white);
+  margin-top: 4px;
+}
+
+.dailyCopy {
+  margin-top: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.dailyMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  margin-bottom: 14px;
+}
+
+.dailyMeta span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  color: var(--muted);
+  font-size: 12px;
+  background: rgba(255,255,255,0.03);
+}
+
+.countdownRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.countdownLabel {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.countdownValue {
+  color: var(--white);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.reminderBtn {
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--green);
+  background: rgba(0,255,135,0.08);
+  color: var(--white);
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.reminderBtn:hover {
+  background: rgba(0,255,135,0.16);
+}
+
+.reminderBtn:active {
+  transform: scale(0.98);
+}
+
+.dailyBtn {
+  width: 100%;
+  padding: 15px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  transition: transform 0.1s, background 0.2s;
+}
+
+.dailyBtn:active {
+  transform: scale(0.98);
+}
+
+.dailyGhost {
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(255,255,255,0.03);
+}
+
 .logoWrap {
   width: 86px;
   height: 86px;
@@ -239,7 +355,15 @@
 }
 
 .sportEmoji {
-  font-size: 28px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: rgba(255,255,255,0.05);
 }
 .onlineDesc {
   color: var(--muted);

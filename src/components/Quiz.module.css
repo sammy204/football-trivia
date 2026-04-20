@@ -24,16 +24,6 @@
   color: var(--muted);
 }
 
-.playerTag {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--green);
-  background: rgba(0,255,135,0.1);
-  padding: 4px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(0,255,135,0.2);
-}
-
 .progress {
   display: flex;
   align-items: center;

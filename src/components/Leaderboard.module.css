@@ -18,6 +18,21 @@
   font-size: 52px;
   line-height: 1;
   color: var(--white);
+  margin-bottom: 0.35rem;
+}
+
+.kicker {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--green);
+  margin-bottom: 0.5rem;
+}
+
+.date {
+  font-size: 13px;
+  color: var(--muted);
   margin-bottom: 1.5rem;
 }
 
@@ -39,6 +54,10 @@
   transition: border-color 0.15s;
 }
 .topThree { border-color: rgba(255,255,255,0.12); }
+.highlight {
+  border-color: var(--green);
+  background: color-mix(in srgb, var(--green) 10%, transparent);
+}
 
 .rank {
   font-family: var(--font-display);

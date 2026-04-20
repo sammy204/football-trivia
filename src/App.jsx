@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Landing from './components/Landing'
 import Home from './components/Home'
 import Quiz from './components/Quiz'
 import Results from './components/Results'
 import Loading from './components/Loading'
 import OnlineMulti from './components/OnlineMulti'
+import DailyLeaderboard from './components/DailyLeaderboard'
 import { generateQuestions } from './lib/question'
+import { getDailyChallengeInfo, saveDailyLeaderboardEntry } from './lib/dailyChallenge'
+import { loadProfile, saveProfile } from './lib/profile'
 import { track } from '@vercel/analytics'
 
 export default function App() {
@@ -16,6 +19,9 @@ export default function App() {
   const [finalScores, setFinalScores] = useState([])
   const [reviewData, setReviewData] = useState([])
   const [error, setError] = useState(null)
+  const [profile, setProfile] = useState(() => loadProfile())
+  const [resultMeta, setResultMeta] = useState(null)
+  const [saveState, setSaveState] = useState({ status: 'idle', rank: null })
 
   const sport = gameConfig?.sport || selectedSport
   const isBasketball = sport === 'basketball'
@@ -47,6 +53,8 @@ export default function App() {
     setGameConfig(config)
     setSelectedSport(config.sport)
     setReviewData([])
+    setResultMeta(null)
+    setSaveState({ status: 'idle', rank: null })
     setScreen('loading')
     setError(null)
     track('game_started', { sport: config.sport, mode: config.mode, rounds: config.rounds })
@@ -64,24 +72,89 @@ export default function App() {
     launchGame({ mode: 'solo', players: [name], rounds, sport })
   }
 
-  function handleStartMulti({ players, rounds, sport }) {
-    launchGame({ mode: 'multi', players, rounds, sport })
-  }
-
   function handleStartOnline({ sport, rounds }) {
     setSelectedSport(sport)
     setGameConfig({ sport, rounds })
     setScreen('online')
   }
 
-  function handleFinish({ scores, history }) {
+  function handleStartDaily({ sport }) {
+    const challenge = getDailyChallengeInfo({ sport })
+    if (!challenge.available) {
+      setError('Daily challenge unlocks at 12:00 UTC. Please come back then.')
+      return
+    }
+
+    setSelectedSport(sport)
+    setGameConfig({
+      mode: 'daily',
+      sport,
+      rounds: challenge.rounds,
+      players: [profile?.displayName || 'Guest'],
+      challengeKey: challenge.dateKey,
+    })
+    setQuestions(challenge.questions)
+    setReviewData([])
+    setResultMeta(null)
+    setSaveState({ status: 'idle', rank: null })
+    setScreen('quiz')
+    track('game_started', { sport, mode: 'daily', rounds: challenge.rounds })
+  }
+
+  function handleFinish({ scores, history, totalTimeMs }) {
     setFinalScores(scores)
     setReviewData(history)
+    setResultMeta({ totalTimeMs })
     setScreen('results')
   }
 
   function handlePlayAgain() {
+    if (gameConfig?.mode === 'daily') {
+      handleStartDaily({ sport: gameConfig.sport })
+      return
+    }
     launchGame(gameConfig)
+  }
+
+  async function handleSaveDailyScore(displayName) {
+    if (!gameConfig || gameConfig.mode !== 'daily') return
+
+    setSaveState({ status: 'saving', rank: null })
+    setError(null)
+
+    try {
+      const nextProfile = saveProfile({ displayName })
+      setProfile(nextProfile)
+
+      const saved = await saveDailyLeaderboardEntry({
+        dateKey: gameConfig.challengeKey,
+        sport: gameConfig.sport,
+        playerId: nextProfile.id,
+        displayName: nextProfile.displayName,
+        score: finalScores[0],
+        totalQuestions: questions.length,
+        totalTimeMs: resultMeta?.totalTimeMs || 0,
+      })
+
+      setGameConfig((current) => ({
+        ...current,
+        players: [nextProfile.displayName],
+      }))
+      setSaveState({ status: 'saved', rank: saved.rank })
+      track('daily_score_saved', {
+        sport: gameConfig.sport,
+        score: finalScores[0],
+        rank: saved.rank,
+      })
+    } catch (e) {
+      setSaveState({ status: 'error', rank: null })
+      setError('Could not save your daily score. Please try again.')
+    }
+  }
+
+  function handleViewDailyLeaderboard(nextSport = selectedSport) {
+    setSelectedSport(nextSport)
+    setScreen('dailyLeaderboard')
   }
 
   return (
@@ -114,8 +187,10 @@ export default function App() {
           sport={selectedSport}
           onSportChange={setSelectedSport}
           onStartSolo={handleStartSolo}
-          onStartMulti={handleStartMulti}
           onStartOnline={handleStartOnline}
+          onStartDaily={handleStartDaily}
+          onViewDailyLeaderboard={handleViewDailyLeaderboard}
+          profile={profile}
         />
       )}
 
@@ -123,6 +198,14 @@ export default function App() {
         <OnlineMulti
           sport={gameConfig?.sport || 'football'}
           rounds={gameConfig?.rounds || 5}
+          onBack={() => setScreen('home')}
+        />
+      )}
+
+      {screen === 'dailyLeaderboard' && (
+        <DailyLeaderboard
+          sport={selectedSport}
+          highlightPlayerId={profile?.id}
           onBack={() => setScreen('home')}
         />
       )}
@@ -142,6 +225,11 @@ export default function App() {
           scores={finalScores}
           history={reviewData}
           config={{ ...gameConfig, totalQuestions: questions.length }}
+          resultMeta={resultMeta}
+          profile={profile}
+          saveState={saveState}
+          onSaveDailyScore={handleSaveDailyScore}
+          onViewDailyLeaderboard={() => handleViewDailyLeaderboard(gameConfig?.sport)}
           onHome={() => setScreen('home')}
           onPlayAgain={handlePlayAgain}
         />

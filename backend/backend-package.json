@@ -1,0 +1,23 @@
+{
+  "name": "football-trivia-push-server",
+  "version": "1.0.0",
+  "description": "Push notification server for Football Trivia PWA",
+  "main": "backend-push-server.js",
+  "scripts": {
+    "start": "node backend-push-server.js",
+    "dev": "nodemon backend-push-server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "web-push": "^3.6.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "node-cron": "^3.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["pwa", "push-notifications", "football-trivia"],
+  "author": "",
+  "license": "MIT"
+}

@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trivela Daily Challenge Prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="appShell">
+      <aside class="flowPanel">
+        <div class="brandLockup">
+          <div class="brandMark">
+            <img src="../../public/logo-mark.svg" alt="Trivela logo" />
+          </div>
+          <div>
+            <p class="eyebrow">Concept Prototype</p>
+            <h1>Daily Challenge + Leaderboard Signup</h1>
+          </div>
+        </div>
+
+        <p class="intro">
+          This is a standalone click-through mock. It shows how a guest can play first,
+          then claim a score to appear on the daily leaderboard.
+        </p>
+
+        <nav class="screenNav" aria-label="Prototype screens">
+          <button class="screenLink is-active" data-screen-target="home">1. Home</button>
+          <button class="screenLink" data-screen-target="results">2. Results</button>
+          <button class="screenLink" data-screen-target="claim">3. Claim Score</button>
+          <button class="screenLink" data-screen-target="profile">4. Pick Name</button>
+          <button class="screenLink" data-screen-target="leaderboard">5. Leaderboard</button>
+        </nav>
+
+        <section class="notesCard">
+          <p class="notesLabel">What we are testing</p>
+          <ul class="notesList">
+            <li>The game stays playable without forced signup.</li>
+            <li>The leaderboard feels valuable enough to justify sign-in.</li>
+            <li>The name-selection step feels like claiming an achievement, not filling a form.</li>
+          </ul>
+        </section>
+
+        <section class="notesCard accent">
+          <p class="notesLabel">Flow logic</p>
+          <p class="notesText">
+            Guest plays the challenge, sees the score, and only then gets the prompt to save it.
+            Official leaderboard entry happens after sign-in and display-name selection.
+          </p>
+        </section>
+      </aside>
+
+      <main class="phoneStage">
+        <div class="deviceFrame">
+          <div class="deviceTopBar">
+            <span>9:41</span>
+            <span>Trivela Prototype</span>
+            <span>100%</span>
+          </div>
+
+          <section class="screen is-visible" data-screen="home">
+            <div class="screenHeader">
+              <span class="pill">Today Only</span>
+              <span class="muted">April 16, 2026</span>
+            </div>
+
+            <div class="heroCard">
+              <p class="kicker">Daily Challenge</p>
+              <h2>Can you go 10 for 10 before the whistle?</h2>
+              <p>
+                Same questions for everyone today. One official run. Speed breaks ties.
+              </p>
+              <div class="heroStats">
+                <div>
+                  <strong>10</strong>
+                  <span>Questions</span>
+                </div>
+                <div>
+                  <strong>15s</strong>
+                  <span>Per pick</span>
+                </div>
+                <div>
+                  <strong>1</strong>
+                  <span>Official try</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="splitCard">
+              <div>
+                <p class="smallLabel">Reward</p>
+                <h3>Top 10 earns a gold matchday badge</h3>
+              </div>
+              <button class="ghostBtn" data-screen-target="leaderboard">Preview board</button>
+            </div>
+
+            <div class="actionStack">
+              <button class="primaryBtn" data-screen-target="results">Play today as guest</button>
+              <button class="secondaryBtn" data-screen-target="claim">Sign in before playing</button>
+            </div>
+
+            <p class="footNote">
+              Recommendation: let players start immediately, then ask them to claim the score after
+              the run.
+            </p>
+          </section>
+
+          <section class="screen" data-screen="results">
+            <div class="screenHeader">
+              <span class="pill success">Challenge Complete</span>
+              <span class="muted">Guest run</span>
+            </div>
+
+            <div class="scoreCard">
+              <p class="kicker">Today’s Score</p>
+              <div class="scoreLine">
+                <strong>8/10</strong>
+                <span>71.4s</span>
+              </div>
+              <p class="scoreSummary">
+                You missed two late-round questions. That would currently place you around
+                <strong>#14</strong> if you save it.
+              </p>
+            </div>
+
+            <div class="resultGrid">
+              <div class="metric">
+                <strong>80%</strong>
+                <span>Accuracy</span>
+              </div>
+              <div class="metric">
+                <strong>3</strong>
+                <span>Streak</span>
+              </div>
+              <div class="metric">
+                <strong>12.1s</strong>
+                <span>Avg answer</span>
+              </div>
+            </div>
+
+            <div class="calloutCard">
+              <p class="smallLabel">Next step</p>
+              <h3>Save your score to today’s leaderboard</h3>
+              <p>
+                Sign in to make this your official result. Guests can practice, but only accounts
+                appear on the leaderboard.
+              </p>
+            </div>
+
+            <div class="actionStack">
+              <button class="primaryBtn" data-screen-target="claim">Claim this score</button>
+              <button class="secondaryBtn" data-screen-target="leaderboard">Continue as guest</button>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="claim">
+            <div class="screenHeader">
+              <span class="pill warning">Protected Entry</span>
+              <span class="muted">Step 1 of 2</span>
+            </div>
+
+            <div class="calloutCard">
+              <p class="smallLabel">Why sign in?</p>
+              <h2>Lock your place on the board</h2>
+              <p>
+                Signing in protects your score, prevents duplicate names, and lets you build streaks
+                over time.
+              </p>
+            </div>
+
+            <div class="optionList">
+              <button class="authOption" data-screen-target="profile">
+                <span>Continue with Google</span>
+                <small>Fastest path for casual players</small>
+              </button>
+              <button class="authOption" data-screen-target="profile">
+                <span>Continue with Email Link</span>
+                <small>No password, just a secure sign-in link</small>
+              </button>
+            </div>
+
+            <p class="footNote">
+              Product call: this should be lightweight auth only. Anything heavier will hurt
+              conversion.
+            </p>
+          </section>
+
+          <section class="screen" data-screen="profile">
+            <div class="screenHeader">
+              <span class="pill">Almost there</span>
+              <span class="muted">Step 2 of 2</span>
+            </div>
+
+            <div class="calloutCard">
+              <p class="smallLabel">Public profile</p>
+              <h2>Choose the name everyone sees</h2>
+              <p>
+                This is your public leaderboard identity. You can change it later, but your official
+                daily score gets saved under this name now.
+              </p>
+            </div>
+
+            <label class="fieldLabel" for="displayName">Display name</label>
+            <input id="displayName" class="textInput" type="text" value="LagosLeftFoot" />
+
+            <div class="chipRow" aria-label="Suggested names">
+              <button class="chip">TopBinsTom</button>
+              <button class="chip">LagosLeftFoot</button>
+              <button class="chip">PressingMachine</button>
+            </div>
+
+            <div class="actionStack">
+              <button class="primaryBtn" data-screen-target="leaderboard">Save score and enter board</button>
+              <button class="secondaryBtn" data-screen-target="results">Back to result</button>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="leaderboard">
+            <div class="screenHeader">
+              <span class="pill">Official Board</span>
+              <span class="muted">Updated live</span>
+            </div>
+
+            <div class="leaderboardCard">
+              <div class="leaderboardTop">
+                <div>
+                  <p class="smallLabel">Daily Challenge</p>
+                  <h2>April 16 Standings</h2>
+                </div>
+                <span class="countdown">Next reset in 07:14:22</span>
+              </div>
+
+              <div class="rows">
+                <div class="row">
+                  <span class="rank">1</span>
+                  <span class="name">TopBinsTom</span>
+                  <span class="score">10/10</span>
+                  <span class="time">56.2s</span>
+                </div>
+                <div class="row">
+                  <span class="rank">2</span>
+                  <span class="name">PressingMachine</span>
+                  <span class="score">9/10</span>
+                  <span class="time">60.7s</span>
+                </div>
+                <div class="row highlight">
+                  <span class="rank">14</span>
+                  <span class="name">LagosLeftFoot</span>
+                  <span class="score">8/10</span>
+                  <span class="time">71.4s</span>
+                </div>
+                <div class="row">
+                  <span class="rank">15</span>
+                  <span class="name">CaptainCutback</span>
+                  <span class="score">8/10</span>
+                  <span class="time">74.8s</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="splitCard">
+              <div>
+                <p class="smallLabel">Retention hook</p>
+                <h3>You’re 1 spot away from the top 10</h3>
+              </div>
+              <button class="ghostBtn" data-screen-target="home">Tomorrow’s reset</button>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
