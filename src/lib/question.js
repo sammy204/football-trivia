@@ -1,6 +1,4 @@
-// ─── FOOTBALL QUESTIONS ───────────────────────────────────────────────
-
-// World Cup
+// ─── FOOTBALL QUESTIONS ───────────────────────────────────────────────  // World Cup
 const FOOTBALL_WORLD_CUP = [
   { question: 'Which country won the FIFA World Cup in 2018?', options: ['Brazil', 'France', 'Germany', 'Croatia'], answer: 'France', explanation: 'France defeated Croatia 4-2 in the 2018 final.' },
   { question: 'Which country won the FIFA World Cup in 2022?', options: ['Argentina', 'France', 'Germany', 'Brazil'], answer: 'Argentina', explanation: 'Argentina won their third World Cup title in Qatar.' },
@@ -18,6 +16,17 @@ const FOOTBALL_WORLD_CUP = [
   { question: 'Who scored the "Hand of God" goal?', options: ['Pelé', 'Ronaldo', 'Diego Maradona', 'Zinedine Zidane'], answer: 'Diego Maradona', explanation: 'Maradona scored the infamous Hand of God goal against England in the 1986 World Cup quarter-final.' },
   { question: 'Which trophy is awarded to the top scorer at the FIFA World Cup?', options: ['Golden Boot', 'Golden Ball', 'Bronze Boot', 'Silver Shoe'], answer: 'Golden Boot', explanation: 'The Golden Boot is awarded to the top goal scorer at the World Cup.' },
   { question: 'Which trophy is awarded to the best player at the FIFA World Cup?', options: ['Golden Ball', 'Ballon d\'Or', 'Player of the Match', 'World Cup Star'], answer: 'Golden Ball', explanation: 'The Golden Ball is awarded to the tournament\'s best player.' },
+  // ── NEW ──
+  { question: 'Who was the top scorer at the 2022 FIFA World Cup?', options: ['Lionel Messi', 'Kylian Mbappé', 'Olivier Giroud', 'Marcus Rashford'], answer: 'Kylian Mbappé', explanation: 'Mbappé won the Golden Boot with 8 goals at the 2022 World Cup.' },
+  { question: 'Which country hosted the 2014 FIFA World Cup?', options: ['Argentina', 'Brazil', 'Colombia', 'Mexico'], answer: 'Brazil', explanation: 'Brazil hosted the 2014 FIFA World Cup.' },
+  { question: 'How many goals did Just Fontaine score at the 1958 World Cup, a still-standing record?', options: ['11', '13', '15', '17'], answer: '13', explanation: 'Fontaine scored 13 goals for France at the 1958 World Cup, a record that still stands.' },
+  { question: 'Which country beat Germany 7-1 in the 2014 World Cup semi-final?', options: ['Argentina', 'Brazil', 'Netherlands', 'France'], answer: 'Brazil', explanation: 'Germany famously thrashed host nation Brazil 7-1 in the semi-final — known as the Mineirazo.' },
+  { question: 'Which World Cup had the tournament\'s first-ever penalty shootout?', options: ['1978', '1982', '1986', '1990'], answer: '1982', explanation: 'The 1982 World Cup in Spain featured the first penalty shootout, between West Germany and France.' },
+  { question: 'Who hosted the 2010 FIFA World Cup?', options: ['Nigeria', 'Egypt', 'South Africa', 'Kenya'], answer: 'South Africa', explanation: 'South Africa became the first African nation to host the FIFA World Cup in 2010.' },
+  { question: 'Which country did Italy beat in the final to win the 2006 World Cup?', options: ['Brazil', 'Germany', 'France', 'Portugal'], answer: 'France', explanation: 'Italy beat France on penalties in the 2006 World Cup final in Berlin.' },
+  { question: 'Who was sent off in the 2006 World Cup final for a headbutt on Marco Materazzi?', options: ['Thierry Henry', 'Patrick Vieira', 'Zinedine Zidane', 'Franck Ribéry'], answer: 'Zinedine Zidane', explanation: 'Zidane was sent off for headbutting Materazzi in his final professional match.' },
+  { question: 'Which country won the inaugural FIFA Women\'s World Cup in 1991?', options: ['Germany', 'Norway', 'USA', 'China'], answer: 'USA', explanation: 'The United States won the first FIFA Women\'s World Cup held in China in 1991.' },
+  { question: 'Who is the all-time top scorer in FIFA World Cup history?', options: ['Pelé', 'Ronaldo', 'Miroslav Klose', 'Gerd Müller'], answer: 'Miroslav Klose', explanation: 'Miroslav Klose scored 16 World Cup goals across four tournaments for Germany.' },
 ]
 
 // Players
@@ -37,6 +46,17 @@ const FOOTBALL_PLAYERS = [
   { question: 'What nationality is Robert Lewandowski?', options: ['German', 'Czech', 'Polish', 'Austrian'], answer: 'Polish', explanation: 'Robert Lewandowski is Polish and captains the Polish national team.' },
   { question: 'Which country does Sadio Mané represent?', options: ['Nigeria', 'Ghana', 'Senegal', 'Ivory Coast'], answer: 'Senegal', explanation: 'Sadio Mané plays for the Senegalese national team.' },
   { question: 'Who won the 2023 Ballon d\'Or?', options: ['Kylian Mbappé', 'Erling Haaland', 'Lionel Messi', 'Vinicius Jr'], answer: 'Lionel Messi', explanation: 'Messi won his 8th Ballon d\'Or in 2023 after winning the World Cup with Argentina.' },
+  // ── NEW ──
+  { question: 'Which player is nicknamed "La Pulga" (The Flea)?', options: ['Cristiano Ronaldo', 'Neymar', 'Lionel Messi', 'Luka Modrić'], answer: 'Lionel Messi', explanation: 'Messi earned the nickname "La Pulga" due to his small stature and quick dribbling.' },
+  { question: 'Who won the 2024 Ballon d\'Or?', options: ['Vinicius Jr', 'Erling Haaland', 'Rodri', 'Kylian Mbappé'], answer: 'Rodri', explanation: 'Manchester City midfielder Rodri won the 2024 Ballon d\'Or.' },
+  { question: 'Which country does Mohamed Salah represent?', options: ['Tunisia', 'Morocco', 'Egypt', 'Algeria'], answer: 'Egypt', explanation: 'Mohamed Salah is the captain of the Egyptian national football team.' },
+  { question: 'Which player scored the fastest hat-trick in Premier League history (2 minutes 56 seconds)?', options: ['Sergio Aguero', 'Robbie Fowler', 'Sadio Mané', 'Harry Kane'], answer: 'Sadio Mané', explanation: 'Sadio Mané scored the fastest Premier League hat-trick for Southampton against Aston Villa in 2015.' },
+  { question: 'How many goals did Ronaldo (R9) score at the 2002 World Cup?', options: ['6', '7', '8', '9'], answer: '8', explanation: 'Ronaldo scored 8 goals at the 2002 World Cup, winning the Golden Boot.' },
+  { question: 'Which club did Thierry Henry spend most of his career at?', options: ['Juventus', 'Barcelona', 'Arsenal', 'Monaco'], answer: 'Arsenal', explanation: 'Thierry Henry is Arsenal\'s all-time top scorer with 228 goals.' },
+  { question: 'Which country does Luka Modrić represent?', options: ['Serbia', 'Slovenia', 'Croatia', 'Bosnia'], answer: 'Croatia', explanation: 'Luka Modrić is captain of the Croatian national team.' },
+  { question: 'Who is the all-time leading scorer for the Brazilian national team?', options: ['Ronaldo', 'Pelé', 'Neymar', 'Romário'], answer: 'Neymar', explanation: 'Neymar surpassed Pelé\'s record and is Brazil\'s all-time top scorer.' },
+  { question: 'Which player scored a famous bicycle kick in the 2018 Champions League final?', options: ['Cristiano Ronaldo', 'Gareth Bale', 'Karim Benzema', 'Marco Asensio'], answer: 'Gareth Bale', explanation: 'Bale scored a stunning bicycle kick for Real Madrid in the 2018 Champions League final against Liverpool.' },
+  { question: 'Who was awarded the 2022 FIFA Best Men\'s Player award?', options: ['Erling Haaland', 'Kylian Mbappé', 'Lionel Messi', 'Karim Benzema'], answer: 'Lionel Messi', explanation: 'Messi won the FIFA Best Men\'s Player award in 2022 following his World Cup triumph.' },
 ]
 
 // Clubs
@@ -57,6 +77,17 @@ const FOOTBALL_CLUBS = [
   { question: 'How many times has Liverpool won the UEFA Champions League?', options: ['4', '5', '6', '7'], answer: '6', explanation: 'Liverpool have won the Champions League 6 times.' },
   { question: 'Which team won the 2019 UEFA Champions League?', options: ['Manchester City', 'Juventus', 'Liverpool', 'Ajax'], answer: 'Liverpool', explanation: 'Liverpool defeated Tottenham Hotspur 2-0 in the 2019 Champions League final.' },
   { question: 'Which club does Erling Haaland play for?', options: ['Borussia Dortmund', 'Manchester City', 'Real Madrid', 'Bayern Munich'], answer: 'Manchester City', explanation: 'Erling Haaland joined Manchester City from Borussia Dortmund in 2022.' },
+  // ── NEW ──
+  { question: 'Which club is nicknamed "The Gunners"?', options: ['Chelsea', 'Arsenal', 'Tottenham', 'West Ham'], answer: 'Arsenal', explanation: 'Arsenal are nicknamed The Gunners, a nod to the club\'s origins near a munitions factory.' },
+  { question: 'Which club won the UEFA Champions League in 2024?', options: ['Bayern Munich', 'Arsenal', 'Real Madrid', 'PSG'], answer: 'Real Madrid', explanation: 'Real Madrid beat Borussia Dortmund 2-0 in the 2024 Champions League final at Wembley.' },
+  { question: 'Which German club is nicknamed "Der Rekordmeister" (The Record Champions)?', options: ['Borussia Dortmund', 'Bayer Leverkusen', 'Bayern Munich', 'RB Leipzig'], answer: 'Bayern Munich', explanation: 'Bayern Munich are called Der Rekordmeister as the most decorated club in German football.' },
+  { question: 'Which club did Pep Guardiola manage before Manchester City?', options: ['Barcelona', 'Bayern Munich', 'Juventus', 'PSG'], answer: 'Bayern Munich', explanation: 'Guardiola managed Bayern Munich from 2013 to 2016 after leaving Barcelona.' },
+  { question: 'Which Premier League club plays their home games at Stamford Bridge?', options: ['Arsenal', 'Chelsea', 'Tottenham', 'Fulham'], answer: 'Chelsea', explanation: 'Chelsea FC plays their home matches at Stamford Bridge in west London.' },
+  { question: 'Which club did Zinedine Zidane manage to win three consecutive Champions League titles?', options: ['Barcelona', 'Juventus', 'PSG', 'Real Madrid'], answer: 'Real Madrid', explanation: 'Zidane guided Real Madrid to three successive Champions League trophies from 2016 to 2018.' },
+  { question: 'Which club is known as "The Old Lady" of Italian football?', options: ['AC Milan', 'Inter Milan', 'Roma', 'Juventus'], answer: 'Juventus', explanation: 'Juventus are nicknamed "La Vecchia Signora" (The Old Lady) in Italy.' },
+  { question: 'Which English club won the treble (Premier League, FA Cup, Champions League) in 1999?', options: ['Chelsea', 'Arsenal', 'Manchester United', 'Liverpool'], answer: 'Manchester United', explanation: 'Manchester United won an historic treble in the 1998-99 season under Sir Alex Ferguson.' },
+  { question: 'Which club has won the most Bundesliga titles?', options: ['Borussia Dortmund', 'Bayer Leverkusen', 'Bayern Munich', 'Schalke'], answer: 'Bayern Munich', explanation: 'Bayern Munich have dominated the Bundesliga with the most title wins.' },
+  { question: 'Which French club did Kylian Mbappé leave to join Real Madrid in 2024?', options: ['Monaco', 'Lyon', 'PSG', 'Marseille'], answer: 'PSG', explanation: 'Mbappé left Paris Saint-Germain on a free transfer to join Real Madrid in 2024.' },
 ]
 
 // Transfers
@@ -71,6 +102,17 @@ const FOOTBALL_TRANSFERS = [
   { question: 'What was the reported transfer fee for Gareth Bale to Real Madrid in 2013?', options: ['€85m', '€100m', '€110m', '€90m'], answer: '€100m', explanation: 'Gareth Bale joined Real Madrid from Tottenham for a then-world record fee of around €100m.' },
   { question: 'Which player joined Barcelona from Liverpool for €160m in January 2018?', options: ['Philippe Coutinho', 'Luis Suárez', 'Neymar', 'Andrés Iniesta'], answer: 'Philippe Coutinho', explanation: 'Philippe Coutinho joined Barcelona from Liverpool during the January 2018 transfer window.' },
   { question: 'Which Ajax midfielder joined Barcelona for around €86m in the summer of 2019?', options: ['Frenkie de Jong', 'Donny van de Beek', 'Matthijs de Ligt', 'Daley Blind'], answer: 'Frenkie de Jong', explanation: 'Frenkie de Jong completed a high-profile move from Ajax to Barcelona for around €86m in 2019.' },
+  // ── NEW ──
+  { question: 'Which club did Jack Grealish join in 2021 for a then-British record fee of £100m?', options: ['Chelsea', 'Manchester City', 'Liverpool', 'Arsenal'], answer: 'Manchester City', explanation: 'Manchester City signed Jack Grealish from Aston Villa for £100m in 2021.' },
+  { question: 'Which club did Romelu Lukaku return to on loan from Chelsea in 2022?', options: ['Manchester United', 'Everton', 'Inter Milan', 'Juventus'], answer: 'Inter Milan', explanation: 'Lukaku returned to Inter Milan on loan from Chelsea just one season after leaving the Italian club.' },
+  { question: 'Which club signed Erling Haaland from Borussia Dortmund in 2022?', options: ['Real Madrid', 'Bayern Munich', 'Manchester City', 'PSG'], answer: 'Manchester City', explanation: 'Manchester City activated Haaland\'s release clause of around €60m to sign him from Dortmund.' },
+  { question: 'Which club did Luis Suárez join after leaving Liverpool in 2014?', options: ['Real Madrid', 'Juventus', 'Barcelona', 'PSG'], answer: 'Barcelona', explanation: 'Luis Suárez joined Barcelona from Liverpool for around €82m following his 2014 World Cup ban.' },
+  { question: 'Which club signed Jude Bellingham in the summer of 2023?', options: ['Manchester City', 'Bayern Munich', 'Liverpool', 'Real Madrid'], answer: 'Real Madrid', explanation: 'Real Madrid signed Jude Bellingham from Borussia Dortmund for around €103m in 2023.' },
+  { question: 'What was the world record transfer fee paid for Neymar in 2017?', options: ['€150m', '€180m', '€200m', '€222m'], answer: '€222m', explanation: 'PSG paid Barcelona a world record €222m to sign Neymar in 2017, a record that still stands.' },
+  { question: 'Which club did Kaká join for a then-world record fee in 2009?', options: ['Chelsea', 'Manchester City', 'Real Madrid', 'Barcelona'], answer: 'Real Madrid', explanation: 'Real Madrid paid AC Milan around €65m for Kaká in 2009, a world record at the time.' },
+  { question: 'Which English club did Mohamed Salah join in 2017?', options: ['Chelsea', 'Arsenal', 'Liverpool', 'Manchester United'], answer: 'Liverpool', explanation: 'Mohamed Salah joined Liverpool from AS Roma for around £36.9m in 2017.' },
+  { question: 'Which club did Virgil van Dijk join Liverpool from in January 2018?', options: ['Sunderland', 'Southampton', 'Celtic', 'PSV Eindhoven'], answer: 'Southampton', explanation: 'Liverpool signed Virgil van Dijk from Southampton for £75m, a then-world record for a defender.' },
+  { question: 'Which club did Cristiano Ronaldo leave to join Juventus in 2018?', options: ['Manchester United', 'Sporting CP', 'Real Madrid', 'PSG'], answer: 'Real Madrid', explanation: 'Ronaldo joined Juventus from Real Madrid for €100m in the summer of 2018.' },
 ]
 
 // Trophies & Rules
@@ -90,6 +132,17 @@ const FOOTBALL_RULES = [
   { question: 'What is an offside position in football?', options: ['Standing too close to opponent', 'Nearer to goal than both ball and second-to-last opponent', 'Standing on sidelines', 'In goalkeeper\'s area'], answer: 'Nearer to goal than both ball and second-to-last opponent', explanation: 'A player is in an offside position if they are nearer to the opponent\'s goal line than both the ball and the second-to-last opponent.' },
   { question: 'How long is each halftime break in a standard match?', options: ['10 minutes', '15 minutes', '20 minutes', '25 minutes'], answer: '15 minutes', explanation: 'Halftime lasts 15 minutes between the two halves.' },
   { question: 'In what country is the La Liga football league based?', options: ['Italy', 'France', 'Spain', 'Portugal'], answer: 'Spain', explanation: 'La Liga is the top professional football division in Spain.' },
+  // ── NEW ──
+  { question: 'What is the distance from the penalty spot to the goal line?', options: ['10 yards', '11 yards', '12 yards', '15 yards'], answer: '12 yards', explanation: 'The penalty spot is placed 12 yards (approximately 11 metres) from the goal line.' },
+  { question: 'How many minutes of added time does the fourth official typically display?', options: ['It varies based on stoppages', '3 minutes always', '5 minutes always', '2 minutes always'], answer: 'It varies based on stoppages', explanation: 'Added time is calculated based on time lost through stoppages such as injuries, substitutions and VAR checks.' },
+  { question: 'What happens if a goalkeeper saves a penalty but is off their line at the moment of the kick?', options: ['Goal is given', 'Penalty is retaken', 'Corner kick is awarded', 'Free kick to attacking team'], answer: 'Penalty is retaken', explanation: 'If the goalkeeper moves off the line before the penalty is struck and saves it, the kick must be retaken.' },
+  { question: 'What is the minimum number of players a team can have on the pitch before the referee abandons the match?', options: ['5', '6', '7', '8'], answer: '7', explanation: 'A match is abandoned if a team has fewer than 7 players remaining on the pitch.' },
+  { question: 'In football, what does the acronym IFAB stand for?', options: ['International Federation of Amateur Ball', 'International Football Association Board', 'Integrated Football Authority Board', 'International Football Administration Bureau'], answer: 'International Football Association Board', explanation: 'IFAB is the body responsible for determining and maintaining the Laws of the Game.' },
+  { question: 'What is the diameter of a standard football goal post?', options: ['3 inches', '4 inches', '5 inches', '6 inches'], answer: '5 inches', explanation: 'According to FIFA rules, goalposts must not exceed 5 inches (12 cm) in diameter.' },
+  { question: 'How wide is a standard football goal?', options: ['6 yards', '7 yards', '8 yards', '9 yards'], answer: '8 yards', explanation: 'A standard football goal is 8 yards (7.32 metres) wide.' },
+  { question: 'What does a corner kick replace?', options: ['A goal kick', 'A throw-in', 'A free kick', 'A penalty'], answer: 'A goal kick', explanation: 'A corner kick is awarded to the attacking team when the defending team puts the ball behind their own goal line.' },
+  { question: 'In which competition is the AFCON trophy awarded?', options: ['Africa Cup of Nations', 'African Football Championship', 'All African Nations Cup', 'African Continental Trophy'], answer: 'Africa Cup of Nations', explanation: 'AFCON stands for the Africa Cup of Nations, the premier international football competition in Africa.' },
+  { question: 'How many times has Nigeria won the Africa Cup of Nations?', options: ['1', '2', '3', '4'], answer: '3', explanation: 'Nigeria have won the Africa Cup of Nations three times: in 1980, 1994, and 2013.' },
 ]
 
 // ─── BASKETBALL QUESTIONS ─────────────────────────────────────────────
@@ -106,6 +159,17 @@ const BASKETBALL_HISTORY = [
   { question: 'What is the name of the trophy awarded to the NBA champion?', options: ['The Golden Trophy', 'Larry O\'Brien Championship Trophy', 'The NBA Cup', 'Bill Russell Trophy'], answer: 'Larry O\'Brien Championship Trophy', explanation: 'The Larry O\'Brien Championship Trophy is awarded to the NBA champion each year.' },
   { question: 'Who coached the Chicago Bulls during their 1990s dynasty?', options: ['Pat Riley', 'Phil Jackson', 'Larry Bird', 'Chuck Daly'], answer: 'Phil Jackson', explanation: 'Phil Jackson coached the Chicago Bulls to 6 championships in the 1990s.' },
   { question: 'Which team has appeared in the most NBA Finals?', options: ['Chicago Bulls', 'Los Angeles Lakers', 'Boston Celtics', 'Golden State Warriors'], answer: 'Los Angeles Lakers', explanation: 'The Los Angeles Lakers have appeared in the NBA Finals more times than any other team.' },
+  // ── NEW ──
+  { question: 'Which team won the NBA championship in 2024?', options: ['Miami Heat', 'Oklahoma City Thunder', 'Boston Celtics', 'Denver Nuggets'], answer: 'Boston Celtics', explanation: 'The Boston Celtics defeated the Dallas Mavericks in the 2024 NBA Finals to win their 18th title.' },
+  { question: 'Which team became the first Canadian franchise to win the NBA championship?', options: ['Vancouver Grizzlies', 'Toronto Raptors', 'Ottawa Senators', 'Montreal Royals'], answer: 'Toronto Raptors', explanation: 'The Toronto Raptors won their first and only NBA title in 2019, defeating the Golden State Warriors.' },
+  { question: 'In which city was basketball invented in 1891?', options: ['Boston', 'New York', 'Springfield', 'Chicago'], answer: 'Springfield', explanation: 'Dr. James Naismith invented basketball in Springfield, Massachusetts in 1891.' },
+  { question: 'How many times did the Golden State Warriors win the NBA championship between 2015 and 2022?', options: ['2', '3', '4', '5'], answer: '4', explanation: 'The Warriors won NBA titles in 2015, 2017, 2018, and 2022.' },
+  { question: 'Which team did LeBron James lead to the 2016 NBA title, coming back from 3-1 down?', options: ['Miami Heat', 'Los Angeles Lakers', 'Cleveland Cavaliers', 'Boston Celtics'], answer: 'Cleveland Cavaliers', explanation: 'LeBron James led the Cavaliers to a historic comeback victory over the Golden State Warriors in 2016.' },
+  { question: 'Who won the NBA Finals MVP in 2016?', options: ['Kyrie Irving', 'Kevin Love', 'LeBron James', 'Stephen Curry'], answer: 'LeBron James', explanation: 'LeBron James won the Finals MVP after delivering a historic performance, including a legendary chase-down block.' },
+  { question: 'Which NBA team moved from Seattle to Oklahoma City in 2008?', options: ['New Jersey Nets', 'Seattle SuperSonics', 'Vancouver Grizzlies', 'New Orleans Hornets'], answer: 'Seattle SuperSonics', explanation: 'The Seattle SuperSonics relocated to Oklahoma City and became the Oklahoma City Thunder in 2008.' },
+  { question: 'How many NBA championships did the San Antonio Spurs win between 1999 and 2014?', options: ['3', '4', '5', '6'], answer: '5', explanation: 'The Spurs won five championships in 1999, 2003, 2005, 2007, and 2014.' },
+  { question: 'Which legendary coach led the Los Angeles Lakers to 5 NBA titles?', options: ['Red Auerbach', 'Doc Rivers', 'Phil Jackson', 'Pat Riley'], answer: 'Phil Jackson', explanation: 'Phil Jackson won 5 NBA titles with the Lakers (2000, 2001, 2002, 2009, 2010), adding to his 6 with Chicago.' },
+  { question: 'What year did the NBA introduce the three-point line?', options: ['1976', '1979', '1984', '1990'], answer: '1979', explanation: 'The NBA introduced the three-point line at the start of the 1979-80 season.' },
 ]
 
 // Players
@@ -130,6 +194,17 @@ const BASKETBALL_PLAYERS = [
   { question: 'Which team did Kevin Durant join in 2016?', options: ['Brooklyn Nets', 'Golden State Warriors', 'Oklahoma City Thunder', 'Phoenix Suns'], answer: 'Golden State Warriors', explanation: 'Kevin Durant joined the Golden State Warriors in 2016, forming a superteam.' },
   { question: 'Which team did LeBron James win his first NBA championship with?', options: ['Cleveland Cavaliers', 'Miami Heat', 'Los Angeles Lakers', 'Boston Celtics'], answer: 'Miami Heat', explanation: 'LeBron James won his first championship with the Miami Heat in 2012.' },
   { question: 'How many rings did Shaquille O\'Neal win in his career?', options: ['2', '3', '4', '5'], answer: '4', explanation: 'Shaquille O\'Neal won 4 NBA championships: three with the Lakers and one with the Heat.' },
+  // ── NEW ──
+  { question: 'Which player is nicknamed "The Joker"?', options: ['Luka Dončić', 'Joel Embiid', 'Nikola Jokić', 'Domantas Sabonis'], answer: 'Nikola Jokić', explanation: 'Serbian center Nikola Jokić is nicknamed "The Joker" and has won multiple NBA MVP awards.' },
+  { question: 'Who was the first overall pick in the 2019 NBA Draft?', options: ['Ja Morant', 'RJ Barrett', 'Zion Williamson', 'Darius Garland'], answer: 'Zion Williamson', explanation: 'Zion Williamson was selected first overall by the New Orleans Pelicans in the 2019 NBA Draft.' },
+  { question: 'Which player holds the NBA record for most rebounds in a single game?', options: ['Dennis Rodman', 'Bill Russell', 'Wilt Chamberlain', 'Kareem Abdul-Jabbar'], answer: 'Wilt Chamberlain', explanation: 'Wilt Chamberlain grabbed 55 rebounds in a single NBA game in 1960, a record that still stands.' },
+  { question: 'Which guard is nicknamed "Luka Magic"?', options: ['Trae Young', 'Luka Dončić', 'Damian Lillard', 'Donovan Mitchell'], answer: 'Luka Dončić', explanation: 'Slovenian star Luka Dončić is nicknamed "Luka Magic" for his ability to produce clutch moments.' },
+  { question: 'Who is the all-time leader in NBA rebounds?', options: ['Bill Russell', 'Wilt Chamberlain', 'Dennis Rodman', 'Kareem Abdul-Jabbar'], answer: 'Wilt Chamberlain', explanation: 'Wilt Chamberlain holds the all-time NBA record with 23,924 rebounds.' },
+  { question: 'Which player scored 73 points in a single game to set the NBA regular season record in 2006?', options: ['Kobe Bryant', 'LeBron James', 'Devin Booker', 'David Thompson'], answer: 'Kobe Bryant', explanation: 'Kobe Bryant scored 81 points in a game. The highest individual game score in NBA history was actually 100 by Wilt Chamberlain. Devin Booker holds the Phoenix Suns record with 70.' },
+  { question: 'Which team drafted Steph Curry in 2009?', options: ['Oklahoma City Thunder', 'Charlotte Bobcats', 'Golden State Warriors', 'Minnesota Timberwolves'], answer: 'Golden State Warriors', explanation: 'The Golden State Warriors selected Stephen Curry with the 7th pick in the 2009 NBA Draft.' },
+  { question: 'Who was Bill Russell\'s primary rival during the Boston Celtics\' dynasty?', options: ['Jerry West', 'Wilt Chamberlain', 'Oscar Robertson', 'Elgin Baylor'], answer: 'Wilt Chamberlain', explanation: 'The rivalry between Bill Russell and Wilt Chamberlain is one of the greatest in NBA history.' },
+  { question: 'Which player won the NBA MVP award in both 2019 and 2020?', options: ['LeBron James', 'Nikola Jokić', 'Giannis Antetokounmpo', 'James Harden'], answer: 'Giannis Antetokounmpo', explanation: 'Giannis won back-to-back MVP awards in 2019 and 2020 with the Milwaukee Bucks.' },
+  { question: 'Which player was famously traded for three first-round picks and more to the Los Angeles Lakers in 1975?', options: ['Wilt Chamberlain', 'Kareem Abdul-Jabbar', 'Oscar Robertson', 'Jerry West'], answer: 'Kareem Abdul-Jabbar', explanation: 'Kareem Abdul-Jabbar was traded from the Milwaukee Bucks to the Los Angeles Lakers in 1975 in a blockbuster deal.' },
 ]
 
 // Rules & Facts
@@ -152,6 +227,17 @@ const BASKETBALL_RULES = [
   { question: 'Which NBA team does Stephen Curry play for?', options: ['Los Angeles Lakers', 'Golden State Warriors', 'Phoenix Suns', 'Brooklyn Nets'], answer: 'Golden State Warriors', explanation: 'Stephen Curry has played for the Golden State Warriors his entire career.' },
   { question: 'Which NBA team is based in San Antonio?', options: ['Houston Rockets', 'Dallas Mavericks', 'San Antonio Spurs', 'Oklahoma City Thunder'], answer: 'San Antonio Spurs', explanation: 'The San Antonio Spurs are the NBA franchise based in San Antonio, Texas.' },
   { question: 'Who won the NBA Slam Dunk Contest in 2016?', options: ['LeBron James', 'Zach LaVine', 'Aaron Gordon', 'Vince Carter'], answer: 'Zach LaVine', explanation: 'Zach LaVine won the 2016 NBA Slam Dunk Contest with an outstanding performance.' },
+  // ── NEW ──
+  { question: 'How many timeouts does each NBA team get per game?', options: ['4', '5', '6', '7'], answer: '7', explanation: 'Each NBA team is allocated 7 timeouts per regulation game.' },
+  { question: 'What is a "flagrant foul" in basketball?', options: ['A foul resulting in a free throw', 'Unnecessary or excessive contact against an opponent', 'A foul in the final two minutes', 'A technical foul on a coach'], answer: 'Unnecessary or excessive contact against an opponent', explanation: 'A flagrant foul involves unnecessary or excessive contact and can result in free throws and possession for the opposing team.' },
+  { question: 'How long does an NBA overtime period last?', options: ['3 minutes', '5 minutes', '7 minutes', '10 minutes'], answer: '5 minutes', explanation: 'Each NBA overtime period lasts 5 minutes.' },
+  { question: 'What is a "pick and roll" in basketball?', options: ['A defensive formation', 'A play where a screener blocks a defender then moves toward the basket', 'A passing drill', 'A type of jump shot'], answer: 'A play where a screener blocks a defender then moves toward the basket', explanation: 'The pick and roll is one of basketball\'s most common offensive plays — a screen is set, then the screener rolls toward the basket.' },
+  { question: 'In basketball, what is a "turnover"?', options: ['Switching defensive assignments', 'Losing possession of the ball to the opposing team', 'A backcourt violation', 'A failed inbound pass'], answer: 'Losing possession of the ball to the opposing team', explanation: 'A turnover occurs when the offensive team loses possession through a steal, bad pass, or violation.' },
+  { question: 'What does "paint" refer to in basketball?', options: ['The free throw line', 'The key or lane area under the basket', 'The half-court line', 'The three-point arc'], answer: 'The key or lane area under the basket', explanation: 'The "paint" refers to the painted rectangular area under the basket, also called the key or lane.' },
+  { question: 'How many players are on a standard NBA roster?', options: ['12', '13', '15', '17'], answer: '15', explanation: 'An NBA roster consists of 15 players, with 13 active on game day.' },
+  { question: 'What is a "block" in basketball?', options: ['Setting a screen', 'Legally deflecting an opponent\'s shot attempt', 'A charging foul', 'An illegal pick'], answer: 'Legally deflecting an opponent\'s shot attempt', explanation: 'A block occurs when a defensive player legally deflects a field goal attempt by an offensive player.' },
+  { question: 'What is the width of an NBA basketball court?', options: ['44 feet', '50 feet', '54 feet', '60 feet'], answer: '50 feet', explanation: 'An NBA basketball court is 50 feet (15.24 metres) wide.' },
+  { question: 'What is a "technical foul" in basketball?', options: ['Excessive physical contact', 'Unsportsmanlike conduct or rule violation not involving physical contact', 'A flagrant hit on a player', 'A foul on a fast break'], answer: 'Unsportsmanlike conduct or rule violation not involving physical contact', explanation: 'A technical foul is called for unsportsmanlike behaviour or certain rule violations not involving direct physical contact.' },
 ]
 
 // ─── COMBINE ALL QUESTIONS ────────────────────────────────────────────

@@ -48,14 +48,14 @@ async function subscribeUserToPush() {
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlB64ToUint8Array(
-        process.env.VITE_VAPID_PUBLIC_KEY
+         import.meta.env.VITE_VAPID_PUBLIC_KEY
       ),
     })
 
     // Send subscription to your backend
-    const backendUrl = process.env.VITE_PUSH_BACKEND_URL
-      ? `${process.env.VITE_PUSH_BACKEND_URL.replace(/\/$/, '')}/api/subscriptions`
-      : '/api/subscriptions'
+    const backendUrl = import.meta.env.VITE_PUSH_BACKEND_URL
+  ? `${import.meta.env.VITE_PUSH_BACKEND_URL.replace(/\/$/, '')}/api/subscriptions`
+  : '/api/subscriptions'
 
     await fetch(backendUrl, {
       method: 'POST',
