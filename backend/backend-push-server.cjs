@@ -41,13 +41,12 @@ app.post('/api/subscriptions', async (req, res) => {
   }
 
   try {
-    // Use endpoint as document ID to avoid duplicates
     const id = Buffer.from(subscription.endpoint).toString('base64').slice(0, 100)
     await subscriptionsCollection.doc(id).set({
       ...subscription,
       registeredAt: admin.firestore.FieldValue.serverTimestamp()
     })
-    console.log(`Subscription saved to Firestore`)
+    console.log('Subscription saved to Firestore')
     const snapshot = await subscriptionsCollection.get()
     res.status(201).json({ success: true, count: snapshot.size })
   } catch (error) {
@@ -144,7 +143,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
-  console.log(`Push notification server running on port ${PORT}`)
+  console.log(`🚀 Push notification server running on port ${PORT}`)
 })
 
 process.on('SIGTERM', () => {
