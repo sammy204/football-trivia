@@ -1,3 +1,5 @@
+console.log('pushNotifications.js loaded!')
+console.log('ENV CHECK:', import.meta.env)
 // Push notification subscription management
 // Uses Firebase Cloud Messaging for cross-platform push notifications
 
