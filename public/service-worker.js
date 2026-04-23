@@ -1,9 +1,7 @@
 // Service Worker for Football Trivia PWA with Push Notifications
 
-const CACHE_NAME = 'football-trivia-v1'
+const CACHE_NAME = 'football-trivia-v2'
 const urlsToCache = [
-  '/',
-  '/index.html',
   '/logo-mark.svg',
 ]
 
@@ -35,30 +33,60 @@ self.addEventListener('activate', (event) => {
   self.clients.claim()
 })
 
-// Fetch event - serve from cache, fall back to network
+function isNavigationRequest(request) {
+  return request.mode === 'navigate'
+}
+
+function isAppShellAsset(url) {
+  return (
+    url.pathname === '/' ||
+    url.pathname.endsWith('.html') ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css')
+  )
+}
+
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE_NAME)
+
+  try {
+    const response = await fetch(request)
+    if (response && response.status === 200) {
+      cache.put(request, response.clone())
+    }
+    return response
+  } catch {
+    const cachedResponse = await caches.match(request)
+    if (cachedResponse) return cachedResponse
+    throw new Error('Network request failed and no cache entry was found.')
+  }
+}
+
+async function cacheFirst(request) {
+  const cachedResponse = await caches.match(request)
+  if (cachedResponse) return cachedResponse
+
+  const response = await fetch(request)
+  if (response && response.status === 200) {
+    const cache = await caches.open(CACHE_NAME)
+    cache.put(request, response.clone())
+  }
+  return response
+}
+
+// Fetch event - prefer fresh app shell, cache static assets for offline fallback
 self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return
 
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      if (response) return response
-      return fetch(event.request)
-        .then((response) => {
-          // Don't cache if response is not ok
-          if (!response || response.status !== 200) return response
-          const responseToCache = response.clone()
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache)
-          })
-          return response
-        })
-        .catch(() => {
-          // Return cached response if network fails
-          return caches.match(event.request)
-        })
-    })
-  )
+  const url = new URL(event.request.url)
+
+  if (isNavigationRequest(event.request) || isAppShellAsset(url)) {
+    event.respondWith(networkFirst(event.request))
+    return
+  }
+
+  event.respondWith(cacheFirst(event.request))
 })
 
 // Push notification event
