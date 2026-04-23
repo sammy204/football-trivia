@@ -7,9 +7,15 @@ import { registerServiceWorker } from './lib/pushNotifications'
 
 inject()
 
-// Register service worker for PWA
+// Keep localhost fresh during development by removing any previously installed service worker.
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
+  window.addEventListener('load', async () => {
+    if (import.meta.env.DEV) {
+      const registrations = await navigator.serviceWorker.getRegistrations()
+      await Promise.all(registrations.map((registration) => registration.unregister()))
+      return
+    }
+
     registerServiceWorker()
   })
 }

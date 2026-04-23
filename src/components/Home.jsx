@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { getDailyChallengeInfo } from '../lib/dailyChallenge'
+import { getDailyChallengeInfo, hasPlayedDailyChallenge } from '../lib/dailyChallenge'
 import { subscribeUserToPush } from '../lib/pushNotifications'
 import styles from './Home.module.css'
 
@@ -26,6 +26,7 @@ export default function Home({
   const [tab, setTab] = useState('solo')
   const [rounds, setRounds] = useState(5)
   const [soloName, setSoloName] = useState('')
+  const [countdown, setCountdown] = useState('00:00:00')
 
   const isBasketball = sport === 'basketball'
   const accent = isBasketball ? '#FF6B35' : '#00FF87'
@@ -48,17 +49,54 @@ export default function Home({
     [sport, now]
   )
 
-  const dailyAvailable = dailyChallenge.available
-  const dailyButtonLabel = dailyAvailable
-    ? isBasketball ? 'Start daily tip-off' : 'Start daily kickoff'
-    : 'Locked until 12:00 UTC'
+  const dailyPlayed = useMemo(
+    () => hasPlayedDailyChallenge({ dateKey: dailyChallenge.dateKey, sport }),
+    [dailyChallenge.dateKey, sport]
+  )
 
-  const countdown = formatCountdown(dailyChallenge.nextRelease.getTime() - now)
-  const countdownLabel = dailyAvailable
+  const dailyAvailable = dailyChallenge.available
+  const beforeRelease = now < dailyChallenge.releaseTime.getTime()
+  const dailyButtonLabel = dailyPlayed
+    ? 'Already played today'
+    : dailyAvailable
+    ? isBasketball ? 'Start daily tip-off' : 'Start daily kickoff'
+    : beforeRelease
+    ? 'Opens at 12 PM'
+    : 'Back tomorrow at 12 PM'
+
+  const dailyStatusMessage = dailyPlayed
+    ? 'You have played today\'s daily challenge. A new one drops tomorrow.'
+    : dailyAvailable
+    ? 'Today\'s daily challenge is live now.'
+    : beforeRelease
+    ? 'Today\'s daily challenge opens at 12 PM.'
+    : 'Today\'s challenge has ended. A new one drops tomorrow.'
+
+  const countdownLabel = dailyPlayed
+    ? 'Back in'
+    : dailyAvailable
     ? 'Ends in'
-    : now < dailyChallenge.releaseTime.getTime()
-    ? 'Unlocks in'
-    : 'Next challenge in'
+    : beforeRelease
+    ? 'Opens in'
+    : 'Back in'
+
+  const countdownTarget = dailyPlayed
+    ? dailyChallenge.nextRelease.getTime()
+    : dailyAvailable
+    ? dailyChallenge.cutoffTime.getTime()
+    : beforeRelease
+    ? dailyChallenge.releaseTime.getTime()
+    : dailyChallenge.nextRelease.getTime()
+
+  useEffect(() => {
+    setCountdown(formatCountdown(countdownTarget - Date.now()))
+
+    const interval = window.setInterval(() => {
+      setCountdown(formatCountdown(countdownTarget - Date.now()))
+    }, 1000)
+
+    return () => window.clearInterval(interval)
+  }, [countdownTarget])
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('Notification' in window)) return
@@ -82,7 +120,7 @@ export default function Home({
 
     const timeout = window.setTimeout(() => {
       new Notification('Daily challenge unlocks soon', {
-        body: `${sportLabel} daily challenge starts at 12:00 UTC. Get ready!`,
+        body: `${sportLabel} daily challenge starts at 12 PM. Get ready!`,
       })
     }, reminderTime - now)
 
@@ -157,8 +195,14 @@ export default function Home({
         </div>
 
         <div className={styles.countdownRow}>
-          <span className={styles.countdownLabel}>{countdownLabel}</span>
-          <span className={styles.countdownValue}>{countdown}</span>
+          <div className={styles.countdownText}>
+            <span className={styles.countdownLabel}>Daily status</span>
+            <span className={styles.countdownMessage}>{dailyStatusMessage}</span>
+          </div>
+          <div className={styles.countdownTimer}>
+            <span className={styles.countdownLabel}>{countdownLabel}</span>
+            <span className={styles.countdownValue}>{countdown}</span>
+          </div>
         </div>
 
         {!dailyAvailable && typeof window !== 'undefined' && 'Notification' in window && notificationPermission !== 'granted' && (
@@ -171,7 +215,7 @@ export default function Home({
           className={styles.dailyBtn}
           style={startBtnStyle}
           onClick={() => onStartDaily({ sport })}
-          disabled={!dailyAvailable}
+          disabled={!dailyAvailable || dailyPlayed}
         >
           {dailyButtonLabel}
         </button>

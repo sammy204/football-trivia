@@ -59,7 +59,7 @@
 
 .countdownRow {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 14px;
@@ -67,6 +67,28 @@
   border-radius: 14px;
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.08);
+}
+
+.countdownText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.countdownMessage {
+  color: var(--white);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.countdownTimer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+  min-width: 88px;
 }
 
 .countdownLabel {
@@ -78,6 +100,8 @@
   color: var(--white);
   font-size: 16px;
   font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .reminderBtn {
@@ -317,6 +341,20 @@
   .startBtn {
     padding: 18px;
     font-size: 16px;
+  }
+}
+
+@media (max-width: 520px) {
+  .countdownRow {
+    flex-direction: column;
+  }
+
+  .countdownTimer {
+    align-items: flex-start;
+  }
+
+  .countdownValue {
+    text-align: left;
   }
 }
 

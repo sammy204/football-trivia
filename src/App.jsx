@@ -7,7 +7,12 @@ import Loading from './components/Loading'
 import OnlineMulti from './components/OnlineMulti'
 import DailyLeaderboard from './components/DailyLeaderboard'
 import { generateQuestions } from './lib/question'
-import { getDailyChallengeInfo, saveDailyLeaderboardEntry } from './lib/dailyChallenge'
+import {
+  getDailyChallengeInfo,
+  hasPlayedDailyChallenge,
+  markDailyChallengePlayed,
+  saveDailyLeaderboardEntry,
+} from './lib/dailyChallenge'
 import { loadProfile, saveProfile } from './lib/profile'
 import { track } from '@vercel/analytics'
 
@@ -81,7 +86,12 @@ export default function App() {
   function handleStartDaily({ sport }) {
     const challenge = getDailyChallengeInfo({ sport })
     if (!challenge.available) {
-      setError('Daily challenge unlocks at 12:00 UTC. Please come back then.')
+      setError('Today\'s daily challenge opens at 12 PM. Please come back then.')
+      return
+    }
+
+    if (hasPlayedDailyChallenge({ dateKey: challenge.dateKey, sport })) {
+      setError('You have already played today\'s daily challenge. A new one drops tomorrow at 12 PM.')
       return
     }
 
@@ -102,6 +112,13 @@ export default function App() {
   }
 
   function handleFinish({ scores, history, totalTimeMs }) {
+    if (gameConfig?.mode === 'daily' && gameConfig?.challengeKey && gameConfig?.sport) {
+      markDailyChallengePlayed({
+        dateKey: gameConfig.challengeKey,
+        sport: gameConfig.sport,
+      })
+    }
+
     setFinalScores(scores)
     setReviewData(history)
     setResultMeta({ totalTimeMs })

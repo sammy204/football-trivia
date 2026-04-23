@@ -3,8 +3,10 @@ import { db } from './firebase'
 import { getQuestionBank } from './question'
 
 const DEFAULT_ROUNDS = 10
-export const DAILY_RELEASE_HOUR_UTC = 12
+export const DAILY_RELEASE_HOUR_NIGERIA = 12
 export const DAILY_DURATION_MINUTES = 30
+const NIGERIA_UTC_OFFSET_HOURS = 1
+const DAILY_PLAYED_KEY = 'trivela-daily-played'
 
 function hashSeed(input) {
   let hash = 2166136261
@@ -26,18 +28,20 @@ function seededOrder(items, seed) {
 }
 
 export function getDateKey(date = new Date()) {
-  const year = date.getUTCFullYear()
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-  const day = String(date.getUTCDate()).padStart(2, '0')
+  const nigeriaDate = new Date(date.getTime() + NIGERIA_UTC_OFFSET_HOURS * 60 * 60 * 1000)
+  const year = nigeriaDate.getUTCFullYear()
+  const month = String(nigeriaDate.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(nigeriaDate.getUTCDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
 
 function getReleaseTimeUTC(date = new Date()) {
+  const nigeriaDate = new Date(date.getTime() + NIGERIA_UTC_OFFSET_HOURS * 60 * 60 * 1000)
   return new Date(Date.UTC(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate(),
-    DAILY_RELEASE_HOUR_UTC,
+    nigeriaDate.getUTCFullYear(),
+    nigeriaDate.getUTCMonth(),
+    nigeriaDate.getUTCDate(),
+    DAILY_RELEASE_HOUR_NIGERIA - NIGERIA_UTC_OFFSET_HOURS,
     0,
     0,
     0
@@ -45,11 +49,12 @@ function getReleaseTimeUTC(date = new Date()) {
 }
 
 function getCutoffTimeUTC(date = new Date()) {
+  const nigeriaDate = new Date(date.getTime() + NIGERIA_UTC_OFFSET_HOURS * 60 * 60 * 1000)
   return new Date(Date.UTC(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate(),
-    DAILY_RELEASE_HOUR_UTC,
+    nigeriaDate.getUTCFullYear(),
+    nigeriaDate.getUTCMonth(),
+    nigeriaDate.getUTCDate(),
+    DAILY_RELEASE_HOUR_NIGERIA - NIGERIA_UTC_OFFSET_HOURS,
     DAILY_DURATION_MINUTES,
     0,
     0
@@ -108,6 +113,40 @@ export function getDailyChallenge({ sport, date = new Date(), rounds = DEFAULT_R
     questions,
     title: `${sport === 'basketball' ? 'Basketball' : 'Football'} Daily Challenge`,
   }
+}
+
+function canUseStorage() {
+  return typeof window !== 'undefined' && Boolean(window.localStorage)
+}
+
+function getPlayedMap() {
+  if (!canUseStorage()) return {}
+
+  try {
+    const raw = window.localStorage.getItem(DAILY_PLAYED_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function setPlayedMap(nextMap) {
+  if (!canUseStorage()) return
+  window.localStorage.setItem(DAILY_PLAYED_KEY, JSON.stringify(nextMap))
+}
+
+function getPlayedEntryKey({ dateKey, sport }) {
+  return `${sport}:${dateKey}`
+}
+
+export function hasPlayedDailyChallenge({ dateKey, sport }) {
+  return Boolean(getPlayedMap()[getPlayedEntryKey({ dateKey, sport })])
+}
+
+export function markDailyChallengePlayed({ dateKey, sport, playedAt = Date.now() }) {
+  const playedMap = getPlayedMap()
+  playedMap[getPlayedEntryKey({ dateKey, sport })] = playedAt
+  setPlayedMap(playedMap)
 }
 
 function getLeaderboardPath({ dateKey, sport }) {

@@ -1,5 +1,3 @@
-console.log('pushNotifications.js loaded!')
-console.log('ENV CHECK:', import.meta.env)
 // Push notification subscription management
 // Uses Firebase Cloud Messaging for cross-platform push notifications
 
@@ -40,8 +38,6 @@ async function requestPushNotificationPermission() {
 }
 
 async function subscribeUserToPush() {
-  console.log('VAPID KEY:', import.meta.env.VITE_VAPID_PUBLIC_KEY)
-  console.log('BACKEND URL:', import.meta.env.VITE_PUSH_BACKEND_URL)
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     console.log('Push notifications not available')
     return null

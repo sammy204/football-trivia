@@ -136,9 +136,11 @@ export default function Results({
 
       <div className={styles.actions}>
         <button className={styles.ghostBtn} onClick={onHome}>Home</button>
-        <button className={styles.mainBtn} onClick={onPlayAgain}>
-          {isDaily ? 'Replay daily challenge ->' : 'Play again ->'}
-        </button>
+        {!isDaily && (
+          <button className={styles.mainBtn} onClick={onPlayAgain}>
+            Play again -&gt;
+          </button>
+        )}
       </div>
     </div>
   )
