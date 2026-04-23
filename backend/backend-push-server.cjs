@@ -1,28 +1,20 @@
-/**
- * Push Notification Server Backend (Node.js + Express + web-push)
- * 
- * Usage:
- * 1. npm install express web-push cors dotenv
- * 2. Create .env with:
- *    VAPID_PUBLIC_KEY=<your_public_key>
- *    VAPID_PRIVATE_KEY=<your_private_key>
- *    VAPID_EMAIL=admin@footballtrivia.com
- * 3. node server.js
- * 
- * Deploy to:
- * - Heroku
- * - Railway
- * - Render
- * - Vercel (as serverless function)
- */
-
 require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const webpush = require('web-push')
 const cron = require('node-cron')
+const admin = require('firebase-admin')
+const serviceAccount = require('./serviceAccountKey.json')
 
 const app = express()
+
+// Initialize Firebase Admin
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+})
+
+const db = admin.firestore()
+const subscriptionsCollection = db.collection('push_subscriptions')
 
 // Middleware
 app.use(cors())
@@ -35,38 +27,46 @@ if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
 }
 
 webpush.setVapidDetails(
-  process.env.VAPID_EMAIL || 'admin@footballtrivia.com',
+  process.env.VAPID_EMAIL || 'mailto:support@footballtrivia.com',
   process.env.VAPID_PUBLIC_KEY,
   process.env.VAPID_PRIVATE_KEY
 )
 
-// In-memory subscription store (replace with database in production)
-const subscriptions = new Map()
-
 // POST /api/subscriptions - Register push subscription
-app.post('/api/subscriptions', (req, res) => {
+app.post('/api/subscriptions', async (req, res) => {
   const subscription = req.body
 
   if (!subscription || !subscription.endpoint) {
     return res.status(400).json({ error: 'Invalid subscription' })
   }
 
-  // Store subscription (keyed by endpoint for deduplication)
-  subscriptions.set(subscription.endpoint, {
-    ...subscription,
-    registeredAt: new Date(),
-  })
-
-  console.log(`Subscription registered: ${subscription.endpoint.slice(0, 50)}...`)
-  res.status(201).json({ success: true, count: subscriptions.size })
+  try {
+    // Use endpoint as document ID to avoid duplicates
+    const id = Buffer.from(subscription.endpoint).toString('base64').slice(0, 100)
+    await subscriptionsCollection.doc(id).set({
+      ...subscription,
+      registeredAt: admin.firestore.FieldValue.serverTimestamp()
+    })
+    console.log(`Subscription saved to Firestore`)
+    const snapshot = await subscriptionsCollection.get()
+    res.status(201).json({ success: true, count: snapshot.size })
+  } catch (error) {
+    console.error('Error saving subscription:', error)
+    res.status(500).json({ error: 'Failed to save subscription' })
+  }
 })
 
 // GET /api/subscriptions/count - Get subscription count
-app.get('/api/subscriptions/count', (req, res) => {
-  res.json({ count: subscriptions.size })
+app.get('/api/subscriptions/count', async (req, res) => {
+  try {
+    const snapshot = await subscriptionsCollection.get()
+    res.json({ count: snapshot.size })
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get count' })
+  }
 })
 
-// POST /api/notify - Manually trigger notifications (for testing)
+// POST /api/notify - Manually trigger notifications
 app.post('/api/notify', async (req, res) => {
   const { title, body } = req.body
 
@@ -78,25 +78,30 @@ app.post('/api/notify', async (req, res) => {
   let sent = 0
   let failed = 0
 
-  for (const [endpoint, subscription] of subscriptions.entries()) {
-    try {
-      await webpush.sendNotification(subscription, payload)
-      sent++
-    } catch (error) {
-      if (error.statusCode === 410) {
-        // Subscription expired
-        subscriptions.delete(endpoint)
+  try {
+    const snapshot = await subscriptionsCollection.get()
+    for (const doc of snapshot.docs) {
+      const subscription = doc.data()
+      try {
+        await webpush.sendNotification(subscription, payload)
+        sent++
+      } catch (error) {
+        if (error.statusCode === 410) {
+          await doc.ref.delete()
+        }
+        failed++
       }
-      failed++
     }
+    res.json({ sent, failed, total: snapshot.size })
+  } catch (error) {
+    console.error('Error sending notifications:', error)
+    res.status(500).json({ error: 'Failed to send notifications' })
   }
-
-  res.json({ sent, failed, total: subscriptions.size })
 })
 
 // Scheduled job: Send daily challenge notification at 12:00 UTC
 cron.schedule('0 12 * * *', async () => {
-  console.log('🎯 Sending daily challenge notifications...')
+  console.log('Sending daily challenge notifications...')
 
   const payload = JSON.stringify({
     title: 'Daily Challenge Ready!',
@@ -106,24 +111,29 @@ cron.schedule('0 12 * * *', async () => {
   let sent = 0
   let failed = 0
 
-  for (const [endpoint, subscription] of subscriptions.entries()) {
-    try {
-      await webpush.sendNotification(subscription, payload)
-      sent++
-    } catch (error) {
-      if (error.statusCode === 410) {
-        subscriptions.delete(endpoint)
+  try {
+    const snapshot = await subscriptionsCollection.get()
+    for (const doc of snapshot.docs) {
+      const subscription = doc.data()
+      try {
+        await webpush.sendNotification(subscription, payload)
+        sent++
+      } catch (error) {
+        if (error.statusCode === 410) {
+          await doc.ref.delete()
+        }
+        failed++
       }
-      failed++
     }
+    console.log(`Sent to ${sent} users, ${failed} failed`)
+  } catch (error) {
+    console.error('Error in cron job:', error)
   }
-
-  console.log(`✅ Sent to ${sent} users, ${failed} failed, ${subscriptions.size} active`)
 })
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', subscriptions: subscriptions.size, time: new Date().toISOString() })
+  res.json({ status: 'ok', time: new Date().toISOString() })
 })
 
 // Error handling
@@ -134,11 +144,9 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
-  console.log(`🚀 Push notification server running on port ${PORT}`)
-  console.log(`📍 Subscriptions active: ${subscriptions.size}`)
+  console.log(`Push notification server running on port ${PORT}`)
 })
 
-// Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('Shutting down gracefully...')
   process.exit(0)
