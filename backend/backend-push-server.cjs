@@ -99,7 +99,7 @@ app.post('/api/notify', async (req, res) => {
 })
 
 // Scheduled job: Send daily challenge notification at 12:00 UTC
-cron.schedule('0 12 * * *', async () => {
+cron.schedule('0 11 * * *', async () => {
   console.log('Sending daily challenge notifications...')
 
   const payload = JSON.stringify({
