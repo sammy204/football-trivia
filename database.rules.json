@@ -1,0 +1,45 @@
+{
+  "rules": {
+    "rooms": {
+      // Allow anyone to read/write rooms for multiplayer games
+      ".read": true,
+      ".write": true,
+      // Validate room data structure
+      ".validate": "newData.hasChildren(['code', 'sport', 'rounds', 'status'])",
+      "$roomId": {
+        // Room code must match the key
+        ".validate": "newData.child('code').val() === $roomId",
+        "players": {
+          ".validate": "newData.hasChildren() && newData.childrenCount() <= 2"
+        },
+        "answers": {
+          "$questionIndex": {
+            ".validate": "newData.hasChildren() && newData.childrenCount() <= 2"
+          }
+        }
+      }
+    },
+    "dailyLeaderboards": {
+      // Allow anyone to read leaderboards
+      ".read": true,
+      ".write": false, // Don't allow direct writes to the root
+      "$dateKey": {
+        "$sport": {
+          "entries": {
+            // Allow writes to individual entries
+            ".write": true,
+            ".validate": "newData.hasChildren(['playerId', 'displayName', 'score', 'totalQuestions', 'totalTimeMs', 'accuracyPct', 'updatedAt'])",
+            "$playerId": {
+              // Player ID in path must match data
+              ".validate": "newData.child('playerId').val() === $playerId",
+              // Validate score data
+              ".validate": "newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= newData.child('totalQuestions').val()",
+              // Validate time
+              ".validate": "newData.child('totalTimeMs').isNumber() && newData.child('totalTimeMs').val() >= 0"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState, useEffect } from 'react'
 import Landing from './components/Landing'
 import Home from './components/Home'
 import Quiz from './components/Quiz'
@@ -6,6 +6,9 @@ import Results from './components/Results'
 import Loading from './components/Loading'
 import OnlineMulti from './components/OnlineMulti'
 import DailyLeaderboard from './components/DailyLeaderboard'
+import Profile from './components/Profile'
+import Auth from './components/Auth'
+import VerifyEmail from './components/VerifyEmail'
 import { generateQuestions } from './lib/question'
 import {
   getDailyChallengeInfo,
@@ -14,7 +17,10 @@ import {
   saveDailyLeaderboardEntry,
 } from './lib/dailyChallenge'
 import { loadProfile, saveProfile } from './lib/profile'
+import { logOut } from './lib/auth'
 import { track } from '@vercel/analytics'
+import { auth } from './lib/firebase'
+import { onAuthStateChanged } from 'firebase/auth'
 
 export default function App() {
   const [screen, setScreen] = useState('landing')
@@ -27,6 +33,22 @@ export default function App() {
   const [profile, setProfile] = useState(() => loadProfile())
   const [resultMeta, setResultMeta] = useState(null)
   const [saveState, setSaveState] = useState({ status: 'idle', rank: null })
+  const [user, setUser] = useState(null)
+  const [authChecked, setAuthChecked] = useState(false)
+  const [showAuth, setShowAuth] = useState(false)
+  const [showVerify, setShowVerify] = useState(false)
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser)
+      setAuthChecked(true)
+      // If user is already signed in, go to home instead of landing
+      if (firebaseUser) {
+        setScreen('home')
+      }
+    })
+    return unsubscribe
+  }, [])
 
   const sport = gameConfig?.sport || selectedSport
   const isBasketball = sport === 'basketball'
@@ -54,6 +76,32 @@ export default function App() {
         '--muted': 'rgba(245,245,240,0.5)',
       }
 
+  function handleAuthSuccess(firebaseUser, status) {
+    setUser(firebaseUser)
+    setShowAuth(false)
+    if (status === 'verify') {
+      setShowVerify(true)
+    } else if (status === 'verified') {
+      setScreen('home')
+    } else if (status === 'unverified') {
+      setShowVerify(true)
+    }
+  }
+
+  function handlePlaySolo() {
+    setShowAuth(false)
+    setScreen('home')
+  }
+
+  async function handleLogout() {
+    try {
+      await logOut()
+    } catch (e) {
+      console.warn('Logout failed', e)
+    }
+    setUser(null)
+  }
+
   async function launchGame(config) {
     setGameConfig(config)
     setSelectedSport(config.sport)
@@ -78,12 +126,17 @@ export default function App() {
   }
 
   function handleStartOnline({ sport, rounds }) {
+    if (!user) { setShowAuth(true); return }
+    if (!user.emailVerified) { setShowVerify(true); return }
     setSelectedSport(sport)
     setGameConfig({ sport, rounds })
     setScreen('online')
   }
 
   function handleStartDaily({ sport }) {
+    if (!user) { setShowAuth(true); return }
+    if (!user.emailVerified) { setShowVerify(true); return }
+
     const challenge = getDailyChallengeInfo({ sport })
     if (!challenge.available) {
       setError('Today\'s daily challenge opens at 12 PM. Please come back then.')
@@ -100,7 +153,7 @@ export default function App() {
       mode: 'daily',
       sport,
       rounds: challenge.rounds,
-      players: [profile?.displayName || 'Guest'],
+      players: [user.displayName || 'Guest'],
       challengeKey: challenge.dateKey,
     })
     setQuestions(challenge.questions)
@@ -127,7 +180,7 @@ export default function App() {
 
   function handlePlayAgain() {
     if (gameConfig?.mode === 'daily') {
-      handleStartDaily({ sport: gameConfig.sport })
+      setScreen('home')
       return
     }
     launchGame(gameConfig)
@@ -174,6 +227,8 @@ export default function App() {
     setScreen('dailyLeaderboard')
   }
 
+  if (!authChecked) return null
+
   return (
     <div
       style={{
@@ -196,7 +251,7 @@ export default function App() {
       )}
 
       {screen === 'landing' && (
-        <Landing onPlay={() => setScreen('home')} />
+        <Landing onPlay={() => setShowAuth(true)} />
       )}
 
       {screen === 'home' && (
@@ -208,6 +263,16 @@ export default function App() {
           onStartDaily={handleStartDaily}
           onViewDailyLeaderboard={handleViewDailyLeaderboard}
           profile={profile}
+          user={user}
+          onViewProfile={() => setScreen('profile')}
+          onLogout={handleLogout}
+        />
+      )}
+
+      {screen === 'profile' && user && (
+        <Profile
+          user={user}
+          onBack={() => setScreen('home')}
         />
       )}
 
@@ -249,6 +314,25 @@ export default function App() {
           onViewDailyLeaderboard={() => handleViewDailyLeaderboard(gameConfig?.sport)}
           onHome={() => setScreen('home')}
           onPlayAgain={handlePlayAgain}
+        />
+      )}
+
+      {showAuth && (
+        <Auth
+          onSuccess={handleAuthSuccess}
+          onPlaySolo={handlePlaySolo}
+          onClose={() => setShowAuth(false)}
+        />
+      )}
+
+      {showVerify && user && (
+        <VerifyEmail
+          user={user}
+          onVerified={() => {
+            setShowVerify(false)
+            setUser({ ...user, emailVerified: true })
+          }}
+          onPlaySolo={() => setShowVerify(false)}
         />
       )}
     </div>

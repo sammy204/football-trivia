@@ -22,6 +22,9 @@ export default function Home({
   onStartDaily,
   onViewDailyLeaderboard,
   profile,
+  user,
+  onViewProfile,
+  onLogout,
 }) {
   const [tab, setTab] = useState('solo')
   const [rounds, setRounds] = useState(5)
@@ -53,6 +56,8 @@ export default function Home({
     () => hasPlayedDailyChallenge({ dateKey: dailyChallenge.dateKey, sport }),
     [dailyChallenge.dateKey, sport]
   )
+
+  const currentPlayerName = user?.displayName || profile?.displayName || 'Player'
 
   const dailyAvailable = dailyChallenge.available
   const beforeRelease = now < dailyChallenge.releaseTime.getTime()
@@ -162,8 +167,20 @@ export default function Home({
   return (
     <div className={styles.wrap}>
       <header className={styles.header}>
-        <div className={styles.logoWrap}>
-          <img className={styles.logo} src="/logo-mark.svg" alt="Sports trivia logo" />
+        <div className={styles.headerTop}>
+          <div className={styles.logoWrap}>
+            <img className={styles.logo} src="/logo-mark.svg" alt="Sports trivia logo" />
+          </div>
+          {user && (
+            <div className={styles.headerActions}>
+              <button className={styles.profileBtn} onClick={onViewProfile} title="View profile">
+                👤
+              </button>
+              <button className={styles.logoutBtn} onClick={onLogout} title="Logout">
+                Log out
+              </button>
+            </div>
+          )}
         </div>
         <h1 className={styles.title}>
           {isBasketball ? <>Basketball<br />Trivia</> : <>Football<br />Trivia</>}
@@ -191,7 +208,7 @@ export default function Home({
         <div className={styles.dailyMeta}>
           <span>{dailyChallenge?.rounds || 10} questions</span>
           <span>{dailyChallenge?.dateKey}</span>
-          <span>{profile?.displayName ? `Playing as ${profile.displayName}` : 'Play first, save score after'}</span>
+          <span>{currentPlayerName ? `Playing as ${currentPlayerName}` : 'Play first, save score after'}</span>
         </div>
 
         <div className={styles.countdownRow}>
