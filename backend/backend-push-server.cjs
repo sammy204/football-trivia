@@ -4,7 +4,7 @@ const cors = require('cors')
 const webpush = require('web-push')
 const cron = require('node-cron')
 const admin = require('firebase-admin')
-const serviceAccount = require('./serviceAccountKey.json')
+const serviceAccount = require('/etc/secrets/serviceAccountKey.json')
 
 const app = express()
 
