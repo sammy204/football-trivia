@@ -21,8 +21,14 @@ export async function signInWithEmail({ email, password }) {
 }
 
 export async function signInWithGoogle() {
-  const userCredential = await signInWithPopup(auth, googleProvider)
-  return userCredential.user
+  try {
+    const userCredential = await signInWithPopup(auth, googleProvider)
+    return userCredential.user
+  } catch (e) {
+    console.error('Google error code:', e.code)
+    console.error('Google error message:', e.message)
+    throw e
+  }
 }
 
 export async function logOut() {
