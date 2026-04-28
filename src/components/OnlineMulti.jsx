@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { generateQuestions } from '../lib/question'
 import { createRoom, joinRoom, startGame, listenToRoom, submitAnswer, nextQuestion } from '../lib/multiplayer'
+import { saveMatchResult } from '../lib/userStats'
 import styles from './OnlineMulti.module.css'
 
-export default function OnlineMulti({ sport, rounds, onBack }) {
+export default function OnlineMulti({ sport, rounds, onBack, user }) {
   const [screen, setScreen] = useState('intro')
+  console.log('OnlineMulti user prop:', user)
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [roomCode, setRoomCode] = useState('')
@@ -13,12 +15,18 @@ export default function OnlineMulti({ sport, rounds, onBack }) {
   const [selected, setSelected] = useState(null)
   const [answered, setAnswered] = useState(false)
   const [error, setError] = useState('')
+  const [matchSaved, setMatchSaved] = useState(false)
   const advancedQuestionRef = useRef(-1)
   const advanceTimerRef = useRef(null)
 
   const accent = sport === 'basketball' ? '#FF6B35' : '#00FF87'
   const accentText = sport === 'basketball' ? '#fff' : '#0a1f0f'
   const sportLabel = sport === 'basketball' ? 'Basketball' : 'Football'
+
+  const hostScore = room?.players?.host?.score || 0
+  const guestScore = room?.players?.guest?.score || 0
+  const hostName = room?.players?.host?.name || 'Host'
+  const guestName = room?.players?.guest?.name || 'Guest'
 
   async function handleCreate() {
     if (!name.trim()) return setError('Enter your name.')
@@ -69,9 +77,38 @@ export default function OnlineMulti({ sport, rounds, onBack }) {
     setSelected(choice)
     const q = room.questions[room.currentQuestion]
     const correct = choice === q.answer
-
     await submitAnswer({ code: roomCode, role, qIndex: room.currentQuestion, answer: choice, correct })
   }
+
+  // Save match result when results screen shows
+ useEffect(() => {
+    if (screen !== 'results') return
+    
+    async function save() {
+      if (matchSaved || !user) return
+      try {
+        const myScore = role === 'host' ? hostScore : guestScore
+        const oppScore = role === 'host' ? guestScore : hostScore
+        const opponentName = role === 'host' ? guestName : hostName
+
+        await saveMatchResult({
+          userId: user.uid,
+          username: user.displayName || name,
+          opponent: 'unknown',
+          opponentName,
+          myScore,
+          opponentScore: oppScore,
+          sport,
+          rounds,
+        })
+        setMatchSaved(true)
+        console.log('Match saved!')
+      } catch (e) {
+        console.error('Failed to save match:', e)
+      }
+    }
+    save()
+  }, [screen])
 
   useEffect(() => {
     setSelected(null)
@@ -95,11 +132,14 @@ export default function OnlineMulti({ sport, rounds, onBack }) {
     }
   }, [role, room?.questionState?.resolved, room?.currentQuestion, room?.questions?.length, roomCode])
 
+  useEffect(() => {
+    console.log('User in OnlineMulti:', user)
+  }, [user])
+  
   const q = room?.questions?.[room?.currentQuestion]
-  const hostScore = room?.players?.host?.score || 0
-  const guestScore = room?.players?.guest?.score || 0
-  const hostName = room?.players?.host?.name || 'Host'
-  const guestName = room?.players?.guest?.name || 'Guest'
+  const myScore = role === 'host' ? hostScore : guestScore
+  const opponentScore = role === 'host' ? guestScore : hostScore
+  const result = myScore > opponentScore ? 'win' : myScore < opponentScore ? 'loss' : 'draw'
 
   return (
     <div className={styles.wrap}>
@@ -130,6 +170,7 @@ export default function OnlineMulti({ sport, rounds, onBack }) {
           </button>
         </>
       )}
+
       {screen === 'lobby' && (
         <>
           <button className={styles.back} onClick={() => setScreen('intro')}>← Back</button>
@@ -173,11 +214,9 @@ export default function OnlineMulti({ sport, rounds, onBack }) {
       {screen === 'quiz' && q && (
         <>
           <p className={styles.qNum}>Q{room.currentQuestion + 1} / {room.questions.length}</p>
-
           <div className={styles.questionCard}>
             <p className={styles.question}>{q.question}</p>
           </div>
-
           <div className={styles.options}>
             {q.options.map((opt, i) => (
               <button
@@ -210,12 +249,13 @@ export default function OnlineMulti({ sport, rounds, onBack }) {
             </div>
           </div>
           <p className={styles.winner} style={{ color: accent }}>
-            {hostScore > guestScore
-              ? `🏆 ${hostName} wins!`
-              : guestScore > hostScore
-              ? `🏆 ${guestName} wins!`
-              : "🤝 It's a draw!"}
+            {result === 'win' ? '🏆 You win!' : result === 'loss' ? '😔 You lost!' : "🤝 It's a draw!"}
           </p>
+          {matchSaved && (
+            <p style={{ color: accent, fontSize: 13, textAlign: 'center', marginBottom: 8 }}>
+              ✓ Match saved to your profile
+            </p>
+          )}
           <button className={styles.btn} style={{ background: accent, color: accentText }} onClick={onBack}>
             Back to Home
           </button>

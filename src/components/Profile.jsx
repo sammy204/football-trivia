@@ -21,7 +21,7 @@ export default function Profile({ user, onBack }) {
         // Load stats
         const statsRef = ref(db, `users/${user.uid}/stats`)
         const statsSnap = await get(statsRef)
-        setStats(statsSnap.val() || { wins: 0, losses: 0, gamesPlayed: 0 })
+       setStats(statsSnap.val() || { wins: 0, losses: 0, totalGames: 0, draws: 0 })
 
         // Load recent matches
         const matchesRef = ref(db, `users/${user.uid}/matches`)
@@ -68,7 +68,7 @@ export default function Profile({ user, onBack }) {
             <div className={styles.statGrid}>
               <div className={styles.statBox}>
                 <span className={styles.statLabel}>Games Played</span>
-                <span className={styles.statValue}>{stats?.gamesPlayed || 0}</span>
+                <span className={styles.statValue}>{stats?.totalGames || 0}</span>
               </div>
               <div className={styles.statBox}>
                 <span className={styles.statLabel}>Wins</span>
@@ -107,7 +107,7 @@ export default function Profile({ user, onBack }) {
                     <div className={styles.matchDetails}>
                       <span>{match.sport === 'basketball' ? '🏀' : '⚽'} {match.sport}</span>
                       <span>
-                        {new Date(match.timestamp || 0).toLocaleDateString()}
+                        {match.date ? new Date(match.date).toLocaleDateString() : 'Unknown date'}
                       </span>
                     </div>
                   </div>

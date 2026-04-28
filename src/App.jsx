@@ -276,13 +276,15 @@ export default function App() {
         />
       )}
 
-      {screen === 'online' && (
-        <OnlineMulti
-          sport={gameConfig?.sport || 'football'}
-          rounds={gameConfig?.rounds || 5}
-          onBack={() => setScreen('home')}
-        />
-      )}
+     {screen === 'online' && (
+  <OnlineMulti
+    key={user?.uid || 'guest'}
+    sport={gameConfig?.sport || 'football'}
+    rounds={gameConfig?.rounds || 5}
+    onBack={() => setScreen('home')}
+    user={user}
+  />
+)}
 
       {screen === 'dailyLeaderboard' && (
         <DailyLeaderboard
