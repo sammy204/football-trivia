@@ -64,7 +64,6 @@ export default function Auth({ onSuccess, onPlaySolo }) {
         {tab === 'signup' && (
           <>
             <label className={styles.label}>Username</label>
-            <input className={styles.input} placeholder="e.g. QuizKing99" value={username} onChange={e => setUsername(e.target.value)} />
           </>
         )}
 

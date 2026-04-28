@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import styles from './Results.module.css'
 
 function formatTime(totalTimeMs) {
@@ -17,10 +17,13 @@ export default function Results({
   onViewDailyLeaderboard,
   onHome,
   onPlayAgain,
+  user,
 }) {
   const { mode, totalQuestions } = config
   const [showReview, setShowReview] = useState(false)
-  const [displayName, setDisplayName] = useState(profile?.displayName || '')
+  const [displayName, setDisplayName] = useState(
+    user?.displayName || profile?.displayName || ''
+  )
   const isDaily = mode === 'daily'
 
   const pct = Math.round((scores[0] / totalQuestions) * 100)
@@ -28,6 +31,13 @@ export default function Results({
     if (!resultMeta?.totalTimeMs || !totalQuestions) return '--'
     return `${(resultMeta.totalTimeMs / totalQuestions / 1000).toFixed(1)}s`
   }, [resultMeta, totalQuestions])
+
+  // Auto-save if user is logged in
+  useEffect(() => {
+    if (isDaily && user?.displayName && saveState.status === 'idle') {
+      onSaveDailyScore(user.displayName)
+    }
+  }, [isDaily, user])
 
   function getMessage() {
     if (isDaily && pct === 100) return 'Daily domination!'
@@ -73,7 +83,7 @@ export default function Results({
             <div>
               <p className={styles.dailyKicker}>Leaderboard</p>
               <h2 className={styles.dailyTitle}>
-                {saveState.status === 'saved' ? 'Score saved' : 'Save today&apos;s run'}
+                {saveState.status === 'saved' ? 'Score saved ✓' : saveState.status === 'saving' ? 'Saving...' : "Save today's run"}
               </h2>
             </div>
             <button className={styles.dailyGhost} onClick={onViewDailyLeaderboard}>
@@ -81,29 +91,33 @@ export default function Results({
             </button>
           </div>
 
-          <p className={styles.dailyCopy}>
-            Claim your result with a display name so it can appear on today&apos;s {config.sport} leaderboard.
-          </p>
-
-          <div className={styles.saveRow}>
-            <input
-              className={styles.nameInput}
-              placeholder="Choose a display name"
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-            />
-            <button
-              className={styles.saveBtn}
-              onClick={handleSave}
-              disabled={saveState.status === 'saving' || !displayName.trim()}
-            >
-              {saveState.status === 'saving' ? 'Saving...' : saveState.status === 'saved' ? 'Saved' : 'Save score'}
-            </button>
-          </div>
+          {/* Only show manual save if not logged in */}
+          {!user?.displayName && (
+            <>
+              <p className={styles.dailyCopy}>
+                Enter a display name to appear on today's {config.sport} leaderboard.
+              </p>
+              <div className={styles.saveRow}>
+                <input
+                  className={styles.nameInput}
+                  placeholder="Choose a display name"
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                />
+                <button
+                  className={styles.saveBtn}
+                  onClick={handleSave}
+                  disabled={saveState.status === 'saving' || !displayName.trim()}
+                >
+                  {saveState.status === 'saving' ? 'Saving...' : saveState.status === 'saved' ? 'Saved' : 'Save score'}
+                </button>
+              </div>
+            </>
+          )}
 
           {saveState.status === 'saved' && (
             <p className={styles.saveMessage}>
-              You&apos;re currently #{saveState.rank} on today&apos;s board.
+              You're currently #{saveState.rank} on today's board.
             </p>
           )}
 
@@ -138,7 +152,7 @@ export default function Results({
         <button className={styles.ghostBtn} onClick={onHome}>Home</button>
         {!isDaily && (
           <button className={styles.mainBtn} onClick={onPlayAgain}>
-            Play again -&gt;
+            Play again →
           </button>
         )}
       </div>

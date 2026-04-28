@@ -304,20 +304,21 @@ export default function App() {
         />
       )}
 
-      {screen === 'results' && (
-        <Results
-          scores={finalScores}
-          history={reviewData}
-          config={{ ...gameConfig, totalQuestions: questions.length }}
-          resultMeta={resultMeta}
-          profile={profile}
-          saveState={saveState}
-          onSaveDailyScore={handleSaveDailyScore}
-          onViewDailyLeaderboard={() => handleViewDailyLeaderboard(gameConfig?.sport)}
-          onHome={() => setScreen('home')}
-          onPlayAgain={handlePlayAgain}
-        />
-      )}
+     {screen === 'results' && (
+  <Results
+    scores={finalScores}
+    history={reviewData}
+    config={{ ...gameConfig, totalQuestions: questions.length }}
+    resultMeta={resultMeta}
+    profile={profile}
+    saveState={saveState}
+    onSaveDailyScore={handleSaveDailyScore}
+    onViewDailyLeaderboard={() => handleViewDailyLeaderboard(gameConfig?.sport)}
+    onHome={() => setScreen('home')}
+    onPlayAgain={handlePlayAgain}
+    user={user}
+  />
+)}
 
       {showAuth && (
         <Auth

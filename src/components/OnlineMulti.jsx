@@ -7,7 +7,7 @@ import styles from './OnlineMulti.module.css'
 export default function OnlineMulti({ sport, rounds, onBack, user }) {
   const [screen, setScreen] = useState('intro')
   console.log('OnlineMulti user prop:', user)
-  const [name, setName] = useState('')
+  const [name, setName] = useState(user?.displayName || '')
   const [code, setCode] = useState('')
   const [roomCode, setRoomCode] = useState('')
   const [role, setRole] = useState(null)
@@ -29,7 +29,7 @@ export default function OnlineMulti({ sport, rounds, onBack, user }) {
   const guestName = room?.players?.guest?.name || 'Guest'
 
   async function handleCreate() {
-    if (!name.trim()) return setError('Enter your name.')
+      if (!name.trim()) return setError('No username found.')
     setError('')
     try {
       const questions = await generateQuestions({ rounds, sport })
@@ -135,7 +135,7 @@ export default function OnlineMulti({ sport, rounds, onBack, user }) {
   useEffect(() => {
     console.log('User in OnlineMulti:', user)
   }, [user])
-  
+
   const q = room?.questions?.[room?.currentQuestion]
   const myScore = role === 'host' ? hostScore : guestScore
   const opponentScore = role === 'host' ? guestScore : hostScore
@@ -176,7 +176,6 @@ export default function OnlineMulti({ sport, rounds, onBack, user }) {
           <button className={styles.back} onClick={() => setScreen('intro')}>← Back</button>
           <h2 className={styles.title}>Online Multiplayer</h2>
           {error && <p className={styles.error}>{error}</p>}
-          <input className={styles.input} placeholder="Your name" value={name} onChange={e => setName(e.target.value)} />
           <button className={styles.btn} style={{ background: accent, color: accentText }} onClick={handleCreate}>
             Create Room
           </button>
