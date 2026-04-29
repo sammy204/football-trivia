@@ -131,6 +131,16 @@
   margin-bottom: 12px;
 }
 
+.success {
+  background: rgba(72, 187, 120, 0.12);
+  border: 1px solid #48BB78;
+  color: #48BB78;
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
 .footerText { text-align: center; font-size: 12px; color: var(--muted); }
 .footerLink { color: var(--accent); cursor: pointer; }
 

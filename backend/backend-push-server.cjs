@@ -130,6 +130,38 @@ cron.schedule('0 11 * * *', async () => {
   }
 })
 
+// Scheduled job: Send daily challenge closed notification at 11:30 UTC (12:30 PM Nigeria)
+cron.schedule('30 11 * * *', async () => {
+  console.log('Sending daily challenge closed notifications...')
+
+  const payload = JSON.stringify({
+    title: 'Daily Challenge Closed ⛔',
+    body: 'The daily football/basketball challenge has ended. Come back tomorrow for a new one!',
+  })
+
+  let sent = 0
+  let failed = 0
+
+  try {
+    const snapshot = await subscriptionsCollection.get()
+    for (const doc of snapshot.docs) {
+      const subscription = doc.data()
+      try {
+        await webpush.sendNotification(subscription, payload)
+        sent++
+      } catch (error) {
+        if (error.statusCode === 410) {
+          await doc.ref.delete()
+        }
+        failed++
+      }
+    }
+    console.log(`Closed notification sent to ${sent} users, ${failed} failed`)
+  } catch (error) {
+    console.error('Error in closing cron job:', error)
+  }
+})
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() })

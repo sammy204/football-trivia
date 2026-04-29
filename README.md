@@ -5,9 +5,18 @@ Sports trivia app built with React + Vite. Supports solo, local multiplayer, and
 ## Stack
 
 - **Frontend**: React + Vite
+- **Build tool**: Vite with `@vitejs/plugin-react`
+- **PWA / offline**: service worker + push notification support
+- **Authentication**: Firebase Authentication (email + Google sign-in)
 - **Realtime Multiplayer**: Firebase Realtime Database
-- **Questions**: Built-in football and basketball question banks
+- **Questions**: Built-in football and basketball question banks in source code
+- **Push backend server**: Node.js + Express + Firebase Admin + web-push (optional)
 - **Deployment**: Vercel
+
+---
+
+## Detailed documentation
+See [TECHNOLOGY_STACK.md](./TECHNOLOGY_STACK.md) for a full architecture overview, dependency list, app flow, and backend server details.
 
 ---
 
