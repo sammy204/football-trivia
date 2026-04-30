@@ -29,14 +29,17 @@ export default function Auth({ onSuccess, onPlaySolo }) {
         const user = await signInWithEmail({ email, password })
         onSuccess(user, user.emailVerified ? 'verified' : 'unverified')
       }
-    } catch (e) {
-      if (e.code === 'auth/email-already-in-use') setError('Email already in use. Please log in.')
-      else if (e.code === 'auth/invalid-email') setError('Invalid email address.')
-      else if (e.code === 'auth/wrong-password') setError('Incorrect password.')
-      else if (e.code === 'auth/user-not-found') setError('No account found with this email.')
-      else if (e.code === 'auth/user-disabled') setError('This account has been disabled.')
-      else setError('Something went wrong. Please try again.')
-    }
+    }  catch (e) {
+  console.error('Auth error code:', e.code)
+  if (e.code === 'auth/email-already-in-use') setError('Email already in use. Please log in.')
+  else if (e.code === 'auth/invalid-email') setError('Invalid email address.')
+  else if (e.code === 'auth/wrong-password') setError('Incorrect password. Please try again.')
+  else if (e.code === 'auth/user-not-found') setError('No account found with this email.')
+  else if (e.code === 'auth/invalid-credential') setError('Incorrect email or password. Please try again.')
+  else if (e.code === 'auth/too-many-requests') setError('Too many attempts. Please try again later.')
+  else if (e.code === 'auth/network-request-failed') setError('Network error. Check your connection.')
+  else setError('Something went wrong. Please try again.')
+}
     setLoading(false)
   }
 
