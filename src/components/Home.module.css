@@ -29,6 +29,7 @@
   line-height: 0.95;
   color: var(--white);
   margin-top: 4px;
+  white-space: nowrap;
 }
 
 .dailyCopy {
@@ -385,6 +386,10 @@
 }
 
 @media (max-width: 520px) {
+  .dailyTitle {
+    font-size: 30px;
+  }
+
   .countdownRow {
     flex-direction: column;
   }

@@ -43,6 +43,7 @@
 .email {
   font-size: 13px;
   color: var(--muted);
+  margin-bottom: 12px;
 }
 
 .loading,
@@ -63,12 +64,59 @@
 }
 
 .statsCard,
-.matchesCard {
+.matchesCard,
+.heroCard {
   margin-bottom: 1.5rem;
   padding: 1rem;
   border-radius: 16px;
   border: 1px solid var(--card-border);
   background: rgba(255,255,255,0.04);
+}
+
+.heroCard {
+  background:
+    radial-gradient(circle at top right, rgba(0,255,135,0.18), transparent 42%),
+    rgba(255,255,255,0.05);
+}
+
+.heroTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.heroLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.heroValue {
+  font-family: var(--font-display);
+  font-size: 40px;
+  line-height: 0.95;
+  color: var(--white);
+}
+
+.heroMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.heroCopy {
+  margin-top: 12px;
+  color: var(--white);
+  font-size: 14px;
+  line-height: 1;
 }
 
 .sectionTitle {
@@ -82,19 +130,27 @@
 
 .statGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(120px, 1fr);
   gap: 12px;
+  align-items: stretch;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
 }
 
 .statBox {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 14px 10px;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 108px;
+  padding: 16px 14px;
   border-radius: 12px;
   background: rgba(255,255,255,0.03);
   border: 1px solid var(--card-border);
+  text-align: center;
 }
 
 .statLabel {
@@ -103,12 +159,57 @@
   color: var(--muted);
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .statValue {
   font-size: 24px;
+  line-height: 1;
   font-weight: 700;
   color: var(--green);
+  text-align: center;
+}
+
+.badgeGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.badgeCard {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  background: rgba(255,255,255,0.03);
+}
+
+.badgeIcon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(0,255,135,0.14);
+  color: var(--green);
+  font-size: 18px;
+  flex: 0 0 auto;
+}
+
+.badgeTitle {
+  color: var(--white);
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.badgeCopy,
+.noMilestones {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .matchesList {
@@ -159,6 +260,57 @@
   line-height: 1.6;
 }
 
+/* ── Player ID Badge ── */
+.playerIdRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: rgba(0, 255, 135, 0.07);
+  border: 1px solid rgba(0, 255, 135, 0.25);
+}
+
+.playerIdLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.playerIdValue {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: #00FF87;
+  font-variant-numeric: tabular-nums;
+}
+
+.copyBtn {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: rgba(0, 255, 135, 0.12);
+  border: 1px solid rgba(0, 255, 135, 0.35);
+  color: #00FF87;
+  border-radius: 8px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.copyBtn:hover {
+  background: rgba(0, 255, 135, 0.22);
+}
+
+.copyBtn:active {
+  transform: scale(0.96);
+}
+
 @media (min-width: 768px) {
   .wrap {
     max-width: 600px;
@@ -169,7 +321,28 @@
     font-size: 56px;
   }
 
+  .heroValue {
+    font-size: 48px;
+  }
+
   .statGrid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-auto-columns: minmax(0, 1fr);
+    overflow-x: visible;
+  }
+}
+
+@media (max-width: 520px) {
+  .heroTop {
+    flex-direction: column;
+  }
+
+  .heroMeta {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .playerIdRow {
+    flex-wrap: wrap;
+    gap: 8px;
   }
 }

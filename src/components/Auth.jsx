@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { signUpWithEmail, signInWithEmail, signInWithGoogle, resetPassword } from '../lib/auth'
+import { assignPlayerIdToUser } from '../lib/profile'
 import styles from './Auth.module.css'
 
 export default function Auth({ onSuccess, onPlaySolo }) {
@@ -19,7 +20,12 @@ export default function Auth({ onSuccess, onPlaySolo }) {
       if (tab === 'signup') {
         if (!username.trim()) { setError('Please enter a username'); setLoading(false); return }
         if (password.length < 8) { setError('Password must be at least 8 characters'); setLoading(false); return }
+
         const user = await signUpWithEmail({ username, email, password })
+
+        // Assign a unique FTB-XXXX player ID on signup
+        await assignPlayerIdToUser(user.uid, username)
+
         onSuccess(user, 'verify')
       } else if (tab === 'reset') {
         if (!email.trim()) { setError('Please enter your email address'); setLoading(false); return }
@@ -27,19 +33,25 @@ export default function Auth({ onSuccess, onPlaySolo }) {
         setMessage('Password reset email sent. Check your inbox.')
       } else {
         const user = await signInWithEmail({ email, password })
+        console.log('✅ Logged in:', user.uid, user.displayName)
+
+        // Fetch and cache player ID on login
+        await assignPlayerIdToUser(user.uid, user.displayName || user.email.split('@')[0])
+         console.log('✅ assignPlayerIdToUser done')
+
         onSuccess(user, user.emailVerified ? 'verified' : 'unverified')
       }
-    }  catch (e) {
-  console.error('Auth error code:', e.code)
-  if (e.code === 'auth/email-already-in-use') setError('Email already in use. Please log in.')
-  else if (e.code === 'auth/invalid-email') setError('Invalid email address.')
-  else if (e.code === 'auth/wrong-password') setError('Incorrect password. Please try again.')
-  else if (e.code === 'auth/user-not-found') setError('No account found with this email.')
-  else if (e.code === 'auth/invalid-credential') setError('Incorrect email or password. Please try again.')
-  else if (e.code === 'auth/too-many-requests') setError('Too many attempts. Please try again later.')
-  else if (e.code === 'auth/network-request-failed') setError('Network error. Check your connection.')
-  else setError('Something went wrong. Please try again.')
-}
+    } catch (e) {
+      console.error('Auth error code:', e.code)
+      if (e.code === 'auth/email-already-in-use') setError('Email already in use. Please log in.')
+      else if (e.code === 'auth/invalid-email') setError('Invalid email address.')
+      else if (e.code === 'auth/wrong-password') setError('Incorrect password. Please try again.')
+      else if (e.code === 'auth/user-not-found') setError('No account found with this email.')
+      else if (e.code === 'auth/invalid-credential') setError('Incorrect email or password. Please try again.')
+      else if (e.code === 'auth/too-many-requests') setError('Too many attempts. Please try again later.')
+      else if (e.code === 'auth/network-request-failed') setError('Network error. Check your connection.')
+      else setError('Something went wrong. Please try again.')
+    }
     setLoading(false)
   }
 
@@ -49,6 +61,10 @@ export default function Auth({ onSuccess, onPlaySolo }) {
     setLoading(true)
     try {
       const user = await signInWithGoogle()
+
+      // For Google sign-in: assign if new user, fetch if existing
+      await assignPlayerIdToUser(user.uid, user.displayName || 'Player')
+
       onSuccess(user, user.emailVerified ? 'verified' : 'unverified')
     } catch (e) {
       setError('Google sign-in failed. Please try again.')

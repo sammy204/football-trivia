@@ -1,5 +1,7 @@
 // Push notification subscription management
 // Uses Firebase Cloud Messaging for cross-platform push notifications
+import { ref, set } from 'firebase/database'
+import { db } from './firebase'
 
 async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) {
@@ -37,7 +39,22 @@ async function requestPushNotificationPermission() {
   return false
 }
 
-async function subscribeUserToPush() {
+function getSubscriptionId(endpoint) {
+  return window.btoa(endpoint).replace(/[+/=]/g, '').slice(0, 100)
+}
+
+async function saveSubscriptionToRealtimeDb({ userId, subscription }) {
+  if (!userId || !subscription?.endpoint) return
+
+  const subscriptionId = getSubscriptionId(subscription.endpoint)
+  await set(ref(db, `users/${userId}/pushSubscriptions/${subscriptionId}`), {
+    endpoint: subscription.endpoint,
+    keys: subscription.keys || {},
+    createdAt: new Date().toISOString(),
+  })
+}
+
+async function subscribeUserToPush(user) {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     console.log('Push notifications not available')
     return null
@@ -52,6 +69,13 @@ async function subscribeUserToPush() {
       ),
     })
 
+    if (user?.uid) {
+      await saveSubscriptionToRealtimeDb({
+        userId: user.uid,
+        subscription,
+      })
+    }
+
     // Send subscription to your backend
     const backendUrl = import.meta.env.VITE_PUSH_BACKEND_URL
   ? `${import.meta.env.VITE_PUSH_BACKEND_URL.replace(/\/$/, '')}/api/subscriptions`
@@ -60,7 +84,12 @@ async function subscribeUserToPush() {
     await fetch(backendUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(subscription),
+      body: JSON.stringify({
+        userId: user?.uid || null,
+        email: user?.email || null,
+        displayName: user?.displayName || null,
+        subscription,
+      }),
     })
 
     return subscription

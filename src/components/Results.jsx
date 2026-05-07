@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import styles from './Results.module.css'
+import { perfectScoreConfetti } from '../lib/confetti'
 
 function formatTime(totalTimeMs) {
   if (!totalTimeMs && totalTimeMs !== 0) return '--'
@@ -38,6 +39,13 @@ export default function Results({
       onSaveDailyScore(user.displayName)
     }
   }, [isDaily, user])
+
+  // Trigger confetti on any perfect score (5/5, 10/10, 15/15, etc)
+  useEffect(() => {
+    if (scores[0] === totalQuestions && totalQuestions > 0) {
+      perfectScoreConfetti()
+    }
+  }, [scores, totalQuestions])
 
   function getMessage() {
     if (isDaily && pct === 100) return 'Daily domination!'

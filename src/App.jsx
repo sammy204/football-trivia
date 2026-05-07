@@ -5,6 +5,8 @@ import Quiz from './components/Quiz'
 import Results from './components/Results'
 import Loading from './components/Loading'
 import OnlineMulti from './components/OnlineMulti'
+import TeamMulti from './components/TeamMulti'
+import InviteScreen from './components/InviteScreen'
 import DailyLeaderboard from './components/DailyLeaderboard'
 import Profile from './components/Profile'
 import Auth from './components/Auth'
@@ -14,13 +16,18 @@ import {
   getDailyChallengeInfo,
   hasPlayedDailyChallenge,
   markDailyChallengePlayed,
+  getDateKey,
   saveDailyLeaderboardEntry,
 } from './lib/dailyChallenge'
 import { loadProfile, saveProfile } from './lib/profile'
 import { logOut } from './lib/auth'
+import { recordDailyChallengeActivity, recordGameplayActivity, resetBrokenDailyStreak } from './lib/streaks'
+import { listenToInvites } from './lib/teamMultiplayer'
 import { track } from '@vercel/analytics'
 import { auth } from './lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
+
+const TEAM_ROUNDS = 10
 
 export default function App() {
   const [screen, setScreen] = useState('landing')
@@ -37,18 +44,68 @@ export default function App() {
   const [authChecked, setAuthChecked] = useState(false)
   const [showAuth, setShowAuth] = useState(false)
   const [showVerify, setShowVerify] = useState(false)
+  const [streakNotice, setStreakNotice] = useState(null)
+
+  // Team invite state
+  const [pendingInvites, setPendingInvites] = useState([])
+  const [showInvites, setShowInvites] = useState(false)
+  const [teamConfig, setTeamConfig] = useState(null) // { sport, rounds, joinCode, joinTeamId }
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser)
       setAuthChecked(true)
-      // If user is already signed in, go to home instead of landing
       if (firebaseUser) {
         setScreen('home')
       }
     })
     return unsubscribe
   }, [])
+
+  // Listen for incoming team invites
+  useEffect(() => {
+    if (!user?.uid) return
+    const profile = loadProfile()
+    const playerId = profile?.playerId
+    if (!playerId) return
+
+    const unsub = listenToInvites(playerId, (invites) => {
+      setPendingInvites(invites)
+      if (invites.length > 0 && screen === 'home') setShowInvites(true)
+    })
+    return unsub
+  }, [user?.uid, screen])
+
+  useEffect(() => {
+    if (!user?.uid) return
+    let active = true
+
+    async function syncStreak() {
+      try {
+        const result = await resetBrokenDailyStreak({
+          userId: user.uid,
+          todayDateKey: getDateKey(),
+        })
+        if (!active || !result?.lost || !result?.previousCount) return
+        const message = `Your daily streak reset after a missed day. You were on ${result.previousCount} day${result.previousCount === 1 ? '' : 's'}.`
+        setStreakNotice(message)
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification('Daily streak lost', { body: message })
+        }
+      } catch (error) {
+        console.error('Failed to sync daily streak:', error)
+      }
+    }
+
+    syncStreak()
+    return () => { active = false }
+  }, [user?.uid])
+
+  useEffect(() => {
+    if (!streakNotice) return
+    const timeout = window.setTimeout(() => setStreakNotice(null), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [streakNotice])
 
   const sport = gameConfig?.sport || selectedSport
   const isBasketball = sport === 'basketball'
@@ -133,6 +190,14 @@ export default function App() {
     setScreen('online')
   }
 
+  function handleStartTeam({ sport }) {
+    if (!user) { setShowAuth(true); return }
+    if (!user.emailVerified) { setShowVerify(true); return }
+    setSelectedSport(sport)
+    setTeamConfig({ sport, rounds: TEAM_ROUNDS })
+    setScreen('teamOnline')
+  }
+
   function handleStartDaily({ sport }) {
     if (!user) { setShowAuth(true); return }
     if (!user.emailVerified) { setShowVerify(true); return }
@@ -166,10 +231,21 @@ export default function App() {
 
   function handleFinish({ scores, history, totalTimeMs }) {
     if (gameConfig?.mode === 'daily' && gameConfig?.challengeKey && gameConfig?.sport) {
-      markDailyChallengePlayed({
-        dateKey: gameConfig.challengeKey,
-        sport: gameConfig.sport,
-      })
+      markDailyChallengePlayed({ dateKey: gameConfig.challengeKey, sport: gameConfig.sport })
+      if (user?.uid) {
+        recordDailyChallengeActivity({
+          userId: user.uid,
+          dateKey: gameConfig.challengeKey,
+          sport: gameConfig.sport,
+          score: scores[0] || 0,
+        }).catch((error) => console.error('Failed to record daily challenge activity:', error))
+      }
+    } else if (user?.uid) {
+      recordGameplayActivity({
+        userId: user.uid,
+        dateKey: getDateKey(),
+        source: gameConfig?.mode || 'game',
+      }).catch((error) => console.error('Failed to record gameplay activity:', error))
     }
 
     setFinalScores(scores)
@@ -179,23 +255,17 @@ export default function App() {
   }
 
   function handlePlayAgain() {
-    if (gameConfig?.mode === 'daily') {
-      setScreen('home')
-      return
-    }
+    if (gameConfig?.mode === 'daily') { setScreen('home'); return }
     launchGame(gameConfig)
   }
 
   async function handleSaveDailyScore(displayName) {
     if (!gameConfig || gameConfig.mode !== 'daily') return
-
     setSaveState({ status: 'saving', rank: null })
     setError(null)
-
     try {
       const nextProfile = saveProfile({ displayName })
       setProfile(nextProfile)
-
       const saved = await saveDailyLeaderboardEntry({
         dateKey: gameConfig.challengeKey,
         sport: gameConfig.sport,
@@ -205,17 +275,9 @@ export default function App() {
         totalQuestions: questions.length,
         totalTimeMs: resultMeta?.totalTimeMs || 0,
       })
-
-      setGameConfig((current) => ({
-        ...current,
-        players: [nextProfile.displayName],
-      }))
+      setGameConfig((current) => ({ ...current, players: [nextProfile.displayName] }))
       setSaveState({ status: 'saved', rank: saved.rank })
-      track('daily_score_saved', {
-        sport: gameConfig.sport,
-        score: finalScores[0],
-        rank: saved.rank,
-      })
+      track('daily_score_saved', { sport: gameConfig.sport, score: finalScores[0], rank: saved.rank })
     } catch (e) {
       setSaveState({ status: 'error', rank: null })
       setError('Could not save your daily score. Please try again.')
@@ -225,6 +287,13 @@ export default function App() {
   function handleViewDailyLeaderboard(nextSport = selectedSport) {
     setSelectedSport(nextSport)
     setScreen('dailyLeaderboard')
+  }
+
+  // When a player accepts an invite, jump to the team room
+  function handleInviteAccepted({ roomCode, teamId, sport }) {
+    setShowInvites(false)
+    setTeamConfig({ sport: sport || selectedSport, rounds: TEAM_ROUNDS, joinCode: roomCode, joinTeamId: teamId })
+    setScreen('teamOnline')
   }
 
   if (!authChecked) return null
@@ -240,14 +309,29 @@ export default function App() {
         ...themeVars,
       }}
     >
-      {error && (
+      {(error || streakNotice) && (
         <div style={{
           position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)',
-          background: '#FF5C5C', color: '#fff', padding: '10px 20px',
+          background: error ? '#FF5C5C' : '#FFB347', color: '#fff', padding: '10px 20px',
           borderRadius: 8, fontSize: 14, fontWeight: 500, zIndex: 999
         }}>
-          {error}
+          {error || streakNotice}
         </div>
+      )}
+
+      {/* Invite notification badge */}
+      {pendingInvites.length > 0 && screen === 'home' && !showInvites && (
+        <button
+          onClick={() => setShowInvites(true)}
+          style={{
+            position: 'fixed', top: 16, right: 16,
+            background: 'var(--green)', color: 'var(--pitch)',
+            border: 'none', borderRadius: 999, padding: '8px 16px',
+            fontWeight: 800, fontSize: 13, cursor: 'pointer', zIndex: 998,
+          }}
+        >
+          📨 {pendingInvites.length} Invite{pendingInvites.length > 1 ? 's' : ''}
+        </button>
       )}
 
       {screen === 'landing' && (
@@ -260,6 +344,7 @@ export default function App() {
           onSportChange={setSelectedSport}
           onStartSolo={handleStartSolo}
           onStartOnline={handleStartOnline}
+          onStartTeam={handleStartTeam}
           onStartDaily={handleStartDaily}
           onViewDailyLeaderboard={handleViewDailyLeaderboard}
           profile={profile}
@@ -270,21 +355,30 @@ export default function App() {
       )}
 
       {screen === 'profile' && user && (
-        <Profile
-          user={user}
+        <Profile user={user} onBack={() => setScreen('home')} />
+      )}
+
+      {screen === 'online' && (
+        <OnlineMulti
+          key={user?.uid || 'guest'}
+          sport={gameConfig?.sport || 'football'}
+          rounds={gameConfig?.rounds || 5}
           onBack={() => setScreen('home')}
+          user={user}
         />
       )}
 
-     {screen === 'online' && (
-  <OnlineMulti
-    key={user?.uid || 'guest'}
-    sport={gameConfig?.sport || 'football'}
-    rounds={gameConfig?.rounds || 5}
-    onBack={() => setScreen('home')}
-    user={user}
-  />
-)}
+      {screen === 'teamOnline' && (
+        <TeamMulti
+          key={user?.uid || 'guest'}
+          sport={teamConfig?.sport || selectedSport}
+          rounds={teamConfig?.rounds || TEAM_ROUNDS}
+          initialJoinCode={teamConfig?.joinCode || null}
+          initialJoinTeamId={teamConfig?.joinTeamId || null}
+          onBack={() => setScreen('home')}
+          user={user}
+        />
+      )}
 
       {screen === 'dailyLeaderboard' && (
         <DailyLeaderboard
@@ -304,21 +398,21 @@ export default function App() {
         />
       )}
 
-     {screen === 'results' && (
-  <Results
-    scores={finalScores}
-    history={reviewData}
-    config={{ ...gameConfig, totalQuestions: questions.length }}
-    resultMeta={resultMeta}
-    profile={profile}
-    saveState={saveState}
-    onSaveDailyScore={handleSaveDailyScore}
-    onViewDailyLeaderboard={() => handleViewDailyLeaderboard(gameConfig?.sport)}
-    onHome={() => setScreen('home')}
-    onPlayAgain={handlePlayAgain}
-    user={user}
-  />
-)}
+      {screen === 'results' && (
+        <Results
+          scores={finalScores}
+          history={reviewData}
+          config={{ ...gameConfig, totalQuestions: questions.length }}
+          resultMeta={resultMeta}
+          profile={profile}
+          saveState={saveState}
+          onSaveDailyScore={handleSaveDailyScore}
+          onViewDailyLeaderboard={() => handleViewDailyLeaderboard(gameConfig?.sport)}
+          onHome={() => setScreen('home')}
+          onPlayAgain={handlePlayAgain}
+          user={user}
+        />
+      )}
 
       {showAuth && (
         <Auth
@@ -336,6 +430,16 @@ export default function App() {
             setUser({ ...user, emailVerified: true })
           }}
           onPlaySolo={() => setShowVerify(false)}
+        />
+      )}
+
+      {/* Team invite overlay */}
+      {showInvites && (
+        <InviteScreen
+          invites={pendingInvites}
+          user={user}
+          onAccepted={handleInviteAccepted}
+          onClose={() => setShowInvites(false)}
         />
       )}
     </div>

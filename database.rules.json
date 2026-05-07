@@ -1,41 +1,73 @@
 {
   "rules": {
-    "rooms": {
-      // Allow anyone to read/write rooms for multiplayer games
-      ".read": true,
-      ".write": true,
-      // Validate room data structure
-      ".validate": "newData.hasChildren(['code', 'sport', 'rounds', 'status'])",
-      "$roomId": {
-        // Room code must match the key
-        ".validate": "newData.child('code').val() === $roomId",
-        "players": {
-          ".validate": "newData.hasChildren() && newData.childrenCount() <= 2"
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "profile": {
+          ".validate": "newData.hasChildren(['updatedAt']) || !newData.exists()"
         },
-        "answers": {
-          "$questionIndex": {
-            ".validate": "newData.hasChildren() && newData.childrenCount() <= 2"
+        "stats": {
+          ".validate": "!newData.exists() || newData.hasChildren()"
+        },
+        "matches": {
+          "$matchId": {
+            ".validate": "!newData.exists() || newData.hasChildren(['result', 'sport', 'rounds', 'date'])"
+          }
+        },
+        "dailyStreak": {
+          ".validate": "!newData.exists() || newData.hasChildren(['current', 'best', 'lastPlayedDateKey', 'updatedAt'])"
+        },
+        "playActivity": {
+          "$dateKey": {
+            "$source": {
+              ".validate": "!newData.exists() || newData.hasChildren(['dateKey', 'source', 'playedAt'])"
+            }
+          }
+        },
+        "notifications": {
+          "streakReminder": {
+            ".validate": "!newData.exists() || newData.hasChildren(['lastSentDateKey'])"
+          },
+          "streakLost": {
+            ".validate": "!newData.exists() || newData.hasChildren(['lastSentDateKey'])"
+          }
+        },
+        "pushSubscriptions": {
+          "$subscriptionId": {
+            ".validate": "!newData.exists() || newData.hasChildren(['endpoint', 'keys', 'createdAt'])"
           }
         }
       }
     },
-    "dailyLeaderboards": {
-      // Allow anyone to read leaderboards
+    "rooms": {
       ".read": true,
-      ".write": false, // Don't allow direct writes to the root
+      ".write": true,
+      "$roomId": {
+        ".validate": "newData.hasChildren(['code', 'sport', 'rounds', 'status'])"
+      }
+    },
+    "teamRooms": {
+      ".read": true,
+      ".write": true,
+      "$roomId": {
+        ".validate": "newData.hasChildren(['code', 'sport', 'rounds', 'status'])"
+      }
+    },
+    "invites": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "dailyLeaderboards": {
+      ".read": true,
+      ".write": false,
       "$dateKey": {
         "$sport": {
           "entries": {
-            // Allow writes to individual entries
             ".write": true,
             ".validate": "newData.hasChildren(['playerId', 'displayName', 'score', 'totalQuestions', 'totalTimeMs', 'accuracyPct', 'updatedAt'])",
             "$playerId": {
-              // Player ID in path must match data
-              ".validate": "newData.child('playerId').val() === $playerId",
-              // Validate score data
-              ".validate": "newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= newData.child('totalQuestions').val()",
-              // Validate time
-              ".validate": "newData.child('totalTimeMs').isNumber() && newData.child('totalTimeMs').val() >= 0"
+              ".validate": "newData.child('playerId').val() === $playerId && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= newData.child('totalQuestions').val() && newData.child('totalTimeMs').isNumber() && newData.child('totalTimeMs').val() >= 0"
             }
           }
         }

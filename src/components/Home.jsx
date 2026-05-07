@@ -19,6 +19,7 @@ export default function Home({
   onSportChange,
   onStartSolo,
   onStartOnline,
+  onStartTeam,
   onStartDaily,
   onViewDailyLeaderboard,
   profile,
@@ -95,11 +96,9 @@ export default function Home({
 
   useEffect(() => {
     setCountdown(formatCountdown(countdownTarget - Date.now()))
-
     const interval = window.setInterval(() => {
       setCountdown(formatCountdown(countdownTarget - Date.now()))
     }, 1000)
-
     return () => window.clearInterval(interval)
   }, [countdownTarget])
 
@@ -115,9 +114,7 @@ export default function Home({
       notificationPermission !== 'granted' ||
       dailyAvailable ||
       !dailyChallenge?.nextRelease
-    ) {
-      return
-    }
+    ) return
 
     const reminderTime = dailyChallenge.nextRelease.getTime() - 5 * 60 * 1000
     const now = Date.now()
@@ -140,11 +137,9 @@ export default function Home({
     if (typeof window === 'undefined' || !('Notification' in window)) return
     const permission = await Notification.requestPermission()
     setNotificationPermission(permission)
-
-    // If permission granted, subscribe to push notifications
     if (permission === 'granted') {
       try {
-        await subscribeUserToPush()
+        await subscribeUserToPush(user)
       } catch (error) {
         console.error('Failed to subscribe to push notifications:', error)
       }
@@ -156,13 +151,9 @@ export default function Home({
   const tabActiveStyle = { background: accent, color: accentText, borderColor: accent }
   const sportActiveStyle = (nextSport) =>
     nextSport === sport
-      ? {
-          borderColor: accent,
-          color: accent,
-          background: accentBg,
-          fontWeight: 700,
-        }
+      ? { borderColor: accent, color: accent, background: accentBg, fontWeight: 700 }
       : {}
+  const showRoundPicker = tab !== 'teams'
 
   return (
     <div className={styles.wrap}>
@@ -183,10 +174,10 @@ export default function Home({
           )}
         </div>
         <h1 className={styles.title}>
-          {isBasketball ? <>Basketball<br />Trivia</> : <>Football<br />Trivia</>}
+          {isBasketball ? 'Basketball Trivia' : 'Football Trivia'}
         </h1>
         <p className={styles.sub}>
-          Pick your lane, then jump into solo, local multiplayer, online rooms, or today&apos;s shared challenge.
+          Pick your lane, then jump into solo play, online rooms, team battles, or today&apos;s shared challenge.
         </p>
       </header>
 
@@ -258,35 +249,39 @@ export default function Home({
         </div>
       </div>
 
+      {/* ── Mode Tabs ── */}
       <div className={styles.tabs}>
-        {['solo', 'online'].map((nextTab) => (
+        {['solo', 'online', 'teams'].map((nextTab) => (
           <button
             key={nextTab}
             className={`${styles.tab} ${tab === nextTab ? styles.tabActive : ''}`}
             style={tab === nextTab ? tabActiveStyle : {}}
             onClick={() => setTab(nextTab)}
           >
-            {nextTab === 'solo' ? 'Solo' : 'Online'}
+            {nextTab === 'solo' ? 'Solo' : nextTab === 'online' ? 'Online' : 'Teams'}
           </button>
         ))}
       </div>
 
-      <div className={styles.section}>
-        <p className={styles.label}>Rounds</p>
-        <div className={styles.roundGrid}>
-          {ROUNDS.map((round) => (
-            <button
-              key={round}
-              className={styles.chip}
-              style={rounds === round ? chipActiveStyle : {}}
-              onClick={() => setRounds(round)}
-            >
-              {round} rounds
-            </button>
-          ))}
+      {showRoundPicker && (
+        <div className={styles.section}>
+          <p className={styles.label}>Rounds</p>
+          <div className={styles.roundGrid}>
+            {ROUNDS.map((round) => (
+              <button
+                key={round}
+                className={styles.chip}
+                style={rounds === round ? chipActiveStyle : {}}
+                onClick={() => setRounds(round)}
+              >
+                {round} rounds
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
+      {/* ── Solo ── */}
       {tab === 'solo' && (
         <div className={styles.section}>
           <p className={styles.label}>Your name</p>
@@ -302,6 +297,7 @@ export default function Home({
         </div>
       )}
 
+      {/* ── Online 1v1 ── */}
       {tab === 'online' && (
         <div className={styles.section}>
           <p className={styles.onlineDesc}>
@@ -309,6 +305,22 @@ export default function Home({
           </p>
           <button className={styles.startBtn} style={startBtnStyle} onClick={() => onStartOnline({ sport, rounds })}>
             Enter online lobby {'>'}
+          </button>
+        </div>
+      )}
+
+      {/* ── Teams ── */}
+      {tab === 'teams' && (
+        <div className={styles.section}>
+          <p className={styles.onlineDesc}>
+            Compete in teams of 2–5 players. Up to 4 teams per match. Invite players by their Player ID or share a room code. Highest team score wins.
+          </p>
+          <button
+            className={styles.startBtn}
+            style={startBtnStyle}
+            onClick={() => onStartTeam({ sport })}
+          >
+            Enter team lobby {'>'}
           </button>
         </div>
       )}

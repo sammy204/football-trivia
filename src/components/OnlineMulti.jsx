@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { generateQuestions } from '../lib/question'
 import { createRoom, joinRoom, startGame, listenToRoom, submitAnswer, nextQuestion } from '../lib/multiplayer'
 import { saveMatchResult } from '../lib/userStats'
+import { recordGameplayActivity } from '../lib/streaks'
+import { explosionConfetti } from '../lib/confetti'
 import styles from './OnlineMulti.module.css'
 
 export default function OnlineMulti({ sport, rounds, onBack, user }) {
@@ -28,8 +30,14 @@ export default function OnlineMulti({ sport, rounds, onBack, user }) {
   const hostName = room?.players?.host?.name || 'Host'
   const guestName = room?.players?.guest?.name || 'Guest'
 
+  // ✅ Declare result BEFORE any useEffect hooks
+  const q = room?.questions?.[room?.currentQuestion]
+  const myScore = role === 'host' ? hostScore : guestScore
+  const opponentScore = role === 'host' ? guestScore : hostScore
+  const result = myScore > opponentScore ? 'win' : myScore < opponentScore ? 'loss' : 'draw'
+
   async function handleCreate() {
-      if (!name.trim()) return setError('No username found.')
+    if (!name.trim()) return setError('No username found.')
     setError('')
     try {
       const questions = await generateQuestions({ rounds, sport })
@@ -81,9 +89,9 @@ export default function OnlineMulti({ sport, rounds, onBack, user }) {
   }
 
   // Save match result when results screen shows
- useEffect(() => {
+  useEffect(() => {
     if (screen !== 'results') return
-    
+
     async function save() {
       if (matchSaved || !user) return
       try {
@@ -100,6 +108,10 @@ export default function OnlineMulti({ sport, rounds, onBack, user }) {
           opponentScore: oppScore,
           sport,
           rounds,
+        })
+        await recordGameplayActivity({
+          userId: user.uid,
+          source: 'online',
         })
         setMatchSaved(true)
         console.log('Match saved!')
@@ -136,10 +148,12 @@ export default function OnlineMulti({ sport, rounds, onBack, user }) {
     console.log('User in OnlineMulti:', user)
   }, [user])
 
-  const q = room?.questions?.[room?.currentQuestion]
-  const myScore = role === 'host' ? hostScore : guestScore
-  const opponentScore = role === 'host' ? guestScore : hostScore
-  const result = myScore > opponentScore ? 'win' : myScore < opponentScore ? 'loss' : 'draw'
+  // Trigger confetti when player wins
+  useEffect(() => {
+    if (screen === 'results' && result === 'win') {
+      explosionConfetti()
+    }
+  }, [screen, result])
 
   return (
     <div className={styles.wrap}>

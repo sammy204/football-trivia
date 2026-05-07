@@ -272,6 +272,19 @@ export async function generateQuestions({ rounds, sport }) {
   return shuffle(bank).slice(0, rounds || 5).map(q => ({ ...q }))
 }
 
+export function generateQuestionSets({ sport, setCount, roundsPerSet }) {
+  const bank = shuffle(getQuestionBank(sport))
+  const safeSetCount = Math.max(0, setCount || 0)
+  const safeRoundsPerSet = Math.max(0, roundsPerSet || 0)
+
+  return Array.from({ length: safeSetCount }, (_, setIndex) => (
+    Array.from({ length: safeRoundsPerSet }, (_, questionIndex) => {
+      const bankIndex = (setIndex * safeRoundsPerSet + questionIndex) % bank.length
+      return { ...bank[bankIndex] }
+    })
+  ))
+}
+
 export function generateTieBreakerQuestion({ sport, excludeQuestions = [] }) {
   const bank = getQuestionBank(sport)
   const usedQuestions = new Set(excludeQuestions.map(q => q.question))

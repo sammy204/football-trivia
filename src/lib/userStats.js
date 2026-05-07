@@ -1,4 +1,4 @@
-import { ref, push, update, get } from 'firebase/database'
+import { ref, push, update, get, runTransaction } from 'firebase/database'
 import { db } from './firebase'
 
 export async function saveMatchResult({ userId, username, opponent, opponentName, myScore, opponentScore, sport, rounds }) {
@@ -18,15 +18,17 @@ export async function saveMatchResult({ userId, username, opponent, opponentName
   const matchRef = ref(db, `users/${userId}/matches`)
   await push(matchRef, matchData)
 
+  // Use transaction to update stats atomically (prevent race conditions)
   const statsRef = ref(db, `users/${userId}/stats`)
-  const snapshot = await get(statsRef)
-  const current = snapshot.val() || { totalGames: 0, wins: 0, losses: 0, draws: 0 }
-
-  await update(statsRef, {
-    totalGames: current.totalGames + 1,
-    wins: current.wins + (result === 'win' ? 1 : 0),
-    losses: current.losses + (result === 'loss' ? 1 : 0),
-    draws: current.draws + (result === 'draw' ? 1 : 0),
+  await runTransaction(statsRef, (current) => {
+    const stats = current || { totalGames: 0, wins: 0, losses: 0, draws: 0, totalPoints: 0 }
+    return {
+      totalGames: stats.totalGames + 1,
+      wins: stats.wins + (result === 'win' ? 1 : 0),
+      losses: stats.losses + (result === 'loss' ? 1 : 0),
+      draws: stats.draws + (result === 'draw' ? 1 : 0),
+      totalPoints: (stats.totalPoints || 0) + (myScore || 0),
+    }
   })
 
   await update(ref(db, `users/${userId}/profile`), {
@@ -39,6 +41,6 @@ export async function saveMatchResult({ userId, username, opponent, opponentName
 
 export async function getUserStats(userId) {
   const snapshot = await get(ref(db, `users/${userId}`))
-  return snapshot.val() || { stats: { totalGames: 0, wins: 0, losses: 0, draws: 0 }, matches: {} }
+  return snapshot.val() || { stats: { totalGames: 0, wins: 0, losses: 0, draws: 0, totalPoints: 0 }, matches: {} }
 }
 export const test = 'working'
