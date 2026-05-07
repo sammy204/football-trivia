@@ -335,6 +335,14 @@
 .input:focus { border-color: var(--green); }
 .input::placeholder { color: var(--muted); }
 
+.inlineError {
+  margin: 8px 0 0;
+  color: #FF5C5C;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+
 .addBtn {
   font-size: 13px;
   color: var(--green);

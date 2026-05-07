@@ -1,31 +1,12 @@
 import { get, off, onValue, ref, runTransaction } from 'firebase/database'
 import { db } from './firebase'
-import { getQuestionBank } from './question'
+import dailyChallenges from '../data/questions/daily'
 
 const DEFAULT_ROUNDS = 10
 export const DAILY_RELEASE_HOUR_NIGERIA = 12
 export const DAILY_DURATION_MINUTES = 30
 const NIGERIA_UTC_OFFSET_HOURS = 1
 const DAILY_PLAYED_KEY = 'trivela-daily-played'
-
-function hashSeed(input) {
-  let hash = 2166136261
-  for (let i = 0; i < input.length; i++) {
-    hash ^= input.charCodeAt(i)
-    hash = Math.imul(hash, 16777619)
-  }
-  return hash >>> 0
-}
-
-function seededOrder(items, seed) {
-  return [...items]
-    .map((item, index) => ({
-      item,
-      key: hashSeed(`${seed}:${item.question}:${index}`),
-    }))
-    .sort((a, b) => a.key - b.key)
-    .map(({ item }) => ({ ...item }))
-}
 
 export function getDateKey(date = new Date()) {
   const nigeriaDate = new Date(date.getTime() + NIGERIA_UTC_OFFSET_HOURS * 60 * 60 * 1000)
@@ -86,14 +67,27 @@ export function isDailyChallengeAvailable(now = new Date()) {
   return isDailyChallengeOpen(now)
 }
 
+export function getDailyChallengeSet({ sport, date = new Date() }) {
+  const dateKey = getDateKey(date)
+  const sportChallenges = dailyChallenges[sport] || {}
+  const questions = sportChallenges[dateKey] || null
+
+  return {
+    dateKey,
+    sport,
+    questions: questions ? questions.map((question) => ({ ...question })) : null,
+  }
+}
+
 export function getDailyChallengeInfo({ sport, now = new Date(), rounds = DEFAULT_ROUNDS }) {
   const releaseTime = getReleaseTimeUTC(now)
   const cutoffTime = getCutoffTimeUTC(now)
-  const available = isDailyChallengeOpen(now)
+  const challenge = getDailyChallenge({ sport, date: releaseTime, rounds })
+  const available = isDailyChallengeOpen(now) && challenge.questions.length > 0
   const nextRelease = available ? cutoffTime : getNextDailyRelease(now)
 
   return {
-    ...getDailyChallenge({ sport, date: releaseTime, rounds }),
+    ...challenge,
     available,
     releaseTime,
     cutoffTime,
@@ -102,13 +96,12 @@ export function getDailyChallengeInfo({ sport, now = new Date(), rounds = DEFAUL
 }
 
 export function getDailyChallenge({ sport, date = new Date(), rounds = DEFAULT_ROUNDS }) {
-  const dateKey = getDateKey(date)
-  const bank = getQuestionBank(sport)
-  const questions = seededOrder(bank, `${sport}:${dateKey}`).slice(0, rounds)
+  const { dateKey, questions: challengeQuestions } = getDailyChallengeSet({ sport, date })
+  const questions = (challengeQuestions || []).slice(0, rounds)
 
   return {
     dateKey,
-    rounds,
+    rounds: questions.length || rounds,
     sport,
     questions,
     title: `${sport === 'basketball' ? 'Basketball' : 'Football'} Daily Challenge`,

@@ -30,6 +30,7 @@ export default function Home({
   const [tab, setTab] = useState('solo')
   const [rounds, setRounds] = useState(5)
   const [soloName, setSoloName] = useState('')
+  const [soloError, setSoloError] = useState('')
   const [countdown, setCountdown] = useState('00:00:00')
 
   const isBasketball = sport === 'basketball'
@@ -59,6 +60,7 @@ export default function Home({
   )
 
   const currentPlayerName = user?.displayName || profile?.displayName || 'Player'
+  const isSignedInPlayer = Boolean(user)
 
   const dailyAvailable = dailyChallenge.available
   const beforeRelease = now < dailyChallenge.releaseTime.getTime()
@@ -130,7 +132,12 @@ export default function Home({
   }, [dailyAvailable, dailyChallenge?.nextRelease, notificationPermission, sportLabel])
 
   function handleSolo() {
-    onStartSolo({ name: soloName.trim() || 'Player', rounds, sport })
+    if (!isSignedInPlayer && !soloName.trim()) {
+      setSoloError('Input name to proceed.')
+      return
+    }
+    setSoloError('')
+    onStartSolo({ name: isSignedInPlayer ? currentPlayerName : soloName.trim(), rounds, sport })
   }
 
   async function requestNotificationPermission() {
@@ -284,13 +291,21 @@ export default function Home({
       {/* ── Solo ── */}
       {tab === 'solo' && (
         <div className={styles.section}>
-          <p className={styles.label}>Your name</p>
-          <input
-            className={styles.input}
-            placeholder="Enter your name"
-            value={soloName}
-            onChange={(event) => setSoloName(event.target.value)}
-          />
+          {!isSignedInPlayer && (
+            <>
+              <p className={styles.label}>Your name</p>
+              <input
+                className={styles.input}
+                placeholder="Enter your name"
+                value={soloName}
+                onChange={(event) => {
+                  setSoloName(event.target.value)
+                  if (soloError) setSoloError('')
+                }}
+              />
+              {soloError && <p className={styles.inlineError}>{soloError}</p>}
+            </>
+          )}
           <button className={styles.startBtn} style={startBtnStyle} onClick={handleSolo}>
             {isBasketball ? 'Tip off ->' : 'Kick off ->'}
           </button>
