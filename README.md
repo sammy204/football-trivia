@@ -163,9 +163,11 @@ backend/
 
 ## Recent Changes
 
-- Added team multiplayer with captain-created rooms and Player ID invites
-- Switched team scoring to 10 questions per player with summed team totals
-- Added captain-visible teammate score breakdowns
-- Added team invite notifications and join flow
-- Added daily streak tracking and related notification plumbing
-- Refreshed home-page layout and mobile title handling
+- Unified email verification and password reset into a single branded `AuthCallback` page with manual confirm buttons
+- Added 20-second per-question countdown timer in team multiplayer with visual progress bar and auto-submit on timeout
+- Team games now tracked in profile stats (`teamGames` and `teamWins` counters)
+- Username editing directly in Profile page (syncs to Firebase Auth and database)
+- Client-side streak notifications: "streak in danger" at 10 PM and "streak lost" after midnight
+- Fixed playerId localStorage caching for returning users (Google/email sign-in)
+- Fixed stale closure bug in team room join ensuring team match results save correctly
+- Daily challenge questions now available for both football and basketball with proper date-key routing

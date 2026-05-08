@@ -45,7 +45,8 @@ The frontend is a React single-page application.
 - `src/components/DailyLeaderboard.jsx` - leaderboard view for the current daily challenge
 - `src/components/Profile.jsx` - user stats, streak view, badges, and match history
 - `src/components/Auth.jsx` - Firebase email/password and Google auth flow
-- `src/components/VerifyEmail.jsx` - email verification prompt
+- `src/components/VerifyEmail.jsx` - email verification prompt (modal)
+- `src/components/AuthCallback.jsx` - unified route for email verification and password reset completion
 - `src/components/Loading.jsx` - loading screen
 
 ---
