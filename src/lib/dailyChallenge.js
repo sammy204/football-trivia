@@ -16,6 +16,19 @@ export function getDateKey(date = new Date()) {
   return `${year}-${month}-${day}`
 }
 
+export function getWeekKey(date = new Date()) {
+  const nigeriaDate = new Date(date.getTime() + NIGERIA_UTC_OFFSET_HOURS * 60 * 60 * 1000)
+  const thursday = new Date(Date.UTC(
+    nigeriaDate.getUTCFullYear(),
+    nigeriaDate.getUTCMonth(),
+    nigeriaDate.getUTCDate() + (4 - nigeriaDate.getUTCDay())
+  ))
+  const year = thursday.getUTCFullYear()
+  const firstDayOfYear = new Date(Date.UTC(year, 0, 1))
+  const weekNumber = Math.ceil((((thursday - firstDayOfYear) / 86400000) + 1) / 7)
+  return `${year}-W${String(weekNumber).padStart(2, '0')}`
+}
+
 function getReleaseTimeUTC(date = new Date()) {
   const nigeriaDate = new Date(date.getTime() + NIGERIA_UTC_OFFSET_HOURS * 60 * 60 * 1000)
   return new Date(Date.UTC(
@@ -114,7 +127,6 @@ function canUseStorage() {
 
 function getPlayedMap() {
   if (!canUseStorage()) return {}
-
   try {
     const raw = window.localStorage.getItem(DAILY_PLAYED_KEY)
     return raw ? JSON.parse(raw) : {}
@@ -146,11 +158,29 @@ function getLeaderboardPath({ dateKey, sport }) {
   return `dailyLeaderboards/${dateKey}/${sport}/entries`
 }
 
+function getWeeklyLeaderboardPath({ weekKey, sport }) {
+  return `weeklyLeaderboards/${weekKey}/${sport}/entries`
+}
+
 function sortEntries(entriesMap) {
   return Object.values(entriesMap || {})
     .sort((a, b) => {
       if ((b.score || 0) !== (a.score || 0)) return (b.score || 0) - (a.score || 0)
       if ((a.totalTimeMs || 0) !== (b.totalTimeMs || 0)) return (a.totalTimeMs || 0) - (b.totalTimeMs || 0)
+      return (a.displayName || '').localeCompare(b.displayName || '')
+    })
+    .map((entry, index) => ({
+      ...entry,
+      rank: index + 1,
+    }))
+}
+
+function sortWeeklyEntries(entriesMap) {
+  return Object.values(entriesMap || {})
+    .sort((a, b) => {
+      // Sort by total score descending, then by days played descending as tiebreaker
+      if ((b.score || 0) !== (a.score || 0)) return (b.score || 0) - (a.score || 0)
+      if ((b.daysPlayed || 0) !== (a.daysPlayed || 0)) return (b.daysPlayed || 0) - (a.daysPlayed || 0)
       return (a.displayName || '').localeCompare(b.displayName || '')
     })
     .map((entry, index) => ({
@@ -195,6 +225,16 @@ export async function saveDailyLeaderboardEntry({
 
   const snapshot = await get(ref(db, getLeaderboardPath({ dateKey, sport })))
   const leaderboard = sortEntries(snapshot.val() || {})
+
+  await saveWeeklyLeaderboardEntry({
+    sport,
+    playerId,
+    displayName,
+    score,
+    totalQuestions,
+    totalTimeMs,
+  })
+
   return {
     leaderboard,
     rank: leaderboard.findIndex((entry) => entry.playerId === playerId) + 1,
@@ -206,7 +246,59 @@ export function listenToDailyLeaderboard({ dateKey, sport }, callback, onError) 
   const handler = (snapshot) => {
     callback(sortEntries(snapshot.val() || {}))
   }
+  onValue(leaderboardRef, handler, onError)
+  return () => off(leaderboardRef, 'value', handler)
+}
 
+export async function saveWeeklyLeaderboardEntry({
+  sport,
+  playerId,
+  displayName,
+  score,
+  totalQuestions,
+  totalTimeMs,
+}) {
+  const weekKey = getWeekKey()
+  const entryRef = ref(db, `${getWeeklyLeaderboardPath({ weekKey, sport })}/${playerId}`)
+
+  await runTransaction(entryRef, (current) => {
+    if (!current) {
+      return {
+        playerId,
+        displayName,
+        score,
+        totalQuestions,
+        totalTimeMs,
+        daysPlayed: 1,
+        accuracyPct: Math.round((score / totalQuestions) * 100),
+        updatedAt: Date.now(),
+      }
+    }
+
+    // FIX: use explicit variables to avoid operator precedence bug
+    const newScore = (current.score || 0) + score
+    const newTotalQuestions = (current.totalQuestions || 0) + totalQuestions
+    const newTotalTimeMs = (current.totalTimeMs || 0) + totalTimeMs
+    const newDaysPlayed = (current.daysPlayed || 0) + 1
+
+    return {
+      ...current,
+      displayName,
+      score: newScore,
+      totalQuestions: newTotalQuestions,
+      totalTimeMs: newTotalTimeMs,
+      daysPlayed: newDaysPlayed,
+      accuracyPct: Math.round((newScore / newTotalQuestions) * 100),
+      updatedAt: Date.now(),
+    }
+  })
+}
+
+export function listenToWeeklyLeaderboard({ weekKey, sport }, callback, onError) {
+  const leaderboardRef = ref(db, getWeeklyLeaderboardPath({ weekKey, sport }))
+  const handler = (snapshot) => {
+    callback(sortWeeklyEntries(snapshot.val() || {}))
+  }
   onValue(leaderboardRef, handler, onError)
   return () => off(leaderboardRef, 'value', handler)
 }

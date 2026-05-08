@@ -336,7 +336,34 @@
   margin-bottom: 1rem;
 }
 
-.qNum { font-size: 13px; font-weight: 700; color: var(--muted); letter-spacing: 0.05em; }
+ .qNum { font-size: 13px; font-weight: 700; color: var(--muted); letter-spacing: 0.05em; }
+
+ .timerBar {
+   position: relative;
+   height: 6px;
+   background: rgba(255,255,255,0.1);
+   border-radius: 3px;
+   margin-bottom: 16px;
+   overflow: hidden;
+ }
+
+ .timerFill {
+   position: absolute;
+   top: 0;
+   left: 0;
+   height: 100%;
+   border-radius: 3px;
+   transition: width 0.3s linear, background 0.3s;
+ }
+
+ .timerText {
+   display: block;
+   text-align: center;
+   font-size: 12px;
+   font-weight: 700;
+   color: var(--muted);
+   margin-top: 6px;
+ }
 
 .timerBadge {
   font-size: 14px;

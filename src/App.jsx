@@ -11,6 +11,8 @@ import DailyLeaderboard from './components/DailyLeaderboard'
 import Profile from './components/Profile'
 import Auth from './components/Auth'
 import VerifyEmail from './components/VerifyEmail'
+import VerifyEmailComplete from './components/VerifyEmailComplete'
+import ResetPasswordComplete from './components/ResetPasswordComplete'
 import { generateQuestions } from './lib/question'
 import {
   getDailyChallengeInfo,
@@ -21,7 +23,7 @@ import {
 } from './lib/dailyChallenge'
 import { loadProfile, saveProfile } from './lib/profile'
 import { logOut } from './lib/auth'
-import { recordDailyChallengeActivity, recordGameplayActivity, resetBrokenDailyStreak } from './lib/streaks'
+import { recordDailyChallengeActivity, recordGameplayActivity, resetBrokenDailyStreak, isStreakInDanger, getStreakStatus, isPast10PM } from './lib/streaks'
 import { listenToInvites } from './lib/teamMultiplayer'
 import { track } from '@vercel/analytics'
 import { auth } from './lib/firebase'
@@ -44,12 +46,25 @@ export default function App() {
   const [authChecked, setAuthChecked] = useState(false)
   const [showAuth, setShowAuth] = useState(false)
   const [showVerify, setShowVerify] = useState(false)
-  const [streakNotice, setStreakNotice] = useState(null)
-
-  // Team invite state
+  const [showVerifyComplete, setShowVerifyComplete] = useState(false)
+  const [showResetPassword, setShowResetPassword] = useState(false)
   const [pendingInvites, setPendingInvites] = useState([])
   const [showInvites, setShowInvites] = useState(false)
-  const [teamConfig, setTeamConfig] = useState(null) // { sport, rounds, joinCode, joinTeamId }
+  const [teamConfig, setTeamConfig] = useState(null)
+  const [streakNotice, setStreakNotice] = useState(null)
+
+  // Check URL on mount for verification callback (before or after auth)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const verifyMode = params.get('mode')
+    const oobCode = params.get('oobCode')
+
+    if (verifyMode === 'verifyEmail' && oobCode) {
+      setShowVerifyComplete(true)
+    } else if (verifyMode === 'resetPassword' && oobCode) {
+      setShowResetPassword(true)
+    }
+  }, [])
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -80,25 +95,58 @@ export default function App() {
     if (!user?.uid) return
     let active = true
 
-    async function syncStreak() {
+    async function checkStreakNotifications() {
       try {
+        const todayDateKey = getDateKey()
+        
+        // Check if streak was broken (missed more than 1 day)
         const result = await resetBrokenDailyStreak({
           userId: user.uid,
-          todayDateKey: getDateKey(),
+          todayDateKey,
         })
-        if (!active || !result?.lost || !result?.previousCount) return
-        const message = `Your daily streak reset after a missed day. You were on ${result.previousCount} day${result.previousCount === 1 ? '' : 's'}.`
-        setStreakNotice(message)
-        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-          new Notification('Daily streak lost', { body: message })
+        
+        if (result?.lost && result?.previousCount) {
+          if (!active) return
+          const message = `💔 Your ${result.previousCount}-day streak is gone... Better luck next time!`
+          setStreakNotice(message)
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            new Notification('Streak Lost', { body: message })
+          }
+          return
+        }
+        
+        // Streak not broken, check if in danger (past 10 PM and hasn't played today)
+        if (isPast10PM()) {
+          const streakStatus = await getStreakStatus(user.uid)
+          if (isStreakInDanger(streakStatus, todayDateKey)) {
+            if (!active) return
+            const days = streakStatus.current
+            const message = `⚡ Your ${days}-day streak is in danger! Play any game to keep it alive before midnight.`
+            setStreakNotice(message)
+            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+              new Notification('Streak in Danger!', { body: message })
+            }
+          }
         }
       } catch (error) {
-        console.error('Failed to sync daily streak:', error)
+        console.error('Failed to check streak notifications:', error)
       }
     }
 
-    syncStreak()
-    return () => { active = false }
+    checkStreakNotifications()
+
+    // Re-check when app becomes visible (e.g., user switches back to tab)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        checkStreakNotifications()
+      }
+    }
+    window.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      active = false
+      window.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [user?.uid])
 
   useEffect(() => {
@@ -143,6 +191,24 @@ export default function App() {
     } else if (status === 'unverified') {
       setShowVerify(true)
     }
+  }
+
+  function handleVerifyComplete() {
+    setShowVerifyComplete(false)
+    setScreen('home')
+    window.history.replaceState({}, document.title, window.location.pathname)
+  }
+
+  function handleResetSuccess() {
+    setShowResetPassword(false)
+    setScreen('landing')
+    window.history.replaceState({}, document.title, window.location.pathname)
+  }
+
+  function handlePlaySoloFromVerify() {
+    setShowVerifyComplete(false)
+    setScreen('home')
+    window.history.replaceState({}, document.title, window.location.pathname)
   }
 
   function handlePlaySolo() {
@@ -259,7 +325,8 @@ export default function App() {
     launchGame(gameConfig)
   }
 
-  async function handleSaveDailyScore(displayName) {
+  // Accepts totalTimeMs and totalQuestions as direct params to avoid stale closure bug
+  async function handleSaveDailyScore(displayName, totalTimeMs, totalQuestions) {
     if (!gameConfig || gameConfig.mode !== 'daily') return
     setSaveState({ status: 'saving', rank: null })
     setError(null)
@@ -272,8 +339,8 @@ export default function App() {
         playerId: nextProfile.id,
         displayName: nextProfile.displayName,
         score: finalScores[0],
-        totalQuestions: questions.length,
-        totalTimeMs: resultMeta?.totalTimeMs || 0,
+        totalQuestions: totalQuestions ?? questions.length,
+        totalTimeMs: totalTimeMs ?? 0,
       })
       setGameConfig((current) => ({ ...current, players: [nextProfile.displayName] }))
       setSaveState({ status: 'saved', rank: saved.rank })
@@ -289,7 +356,6 @@ export default function App() {
     setScreen('dailyLeaderboard')
   }
 
-  // When a player accepts an invite, jump to the team room
   function handleInviteAccepted({ roomCode, teamId, sport }) {
     setShowInvites(false)
     setTeamConfig({ sport: sport || selectedSport, rounds: TEAM_ROUNDS, joinCode: roomCode, joinTeamId: teamId })
@@ -319,7 +385,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Invite notification badge */}
       {pendingInvites.length > 0 && screen === 'home' && !showInvites && (
         <button
           onClick={() => setShowInvites(true)}
@@ -355,7 +420,11 @@ export default function App() {
       )}
 
       {screen === 'profile' && user && (
-        <Profile user={user} onBack={() => setScreen('home')} />
+        <Profile
+          user={user}
+          onBack={() => setScreen('home')}
+          onUsernameUpdated={(newName) => setUser({ ...user, displayName: newName })}
+        />
       )}
 
       {screen === 'online' && (
@@ -433,7 +502,20 @@ export default function App() {
         />
       )}
 
-      {/* Team invite overlay */}
+      {showVerifyComplete && (
+        <VerifyEmailComplete
+          user={user}
+          onVerified={handleVerifyComplete}
+          onPlaySolo={handlePlaySoloFromVerify}
+        />
+      )}
+
+      {showResetPassword && (
+        <ResetPasswordComplete
+          onResetSuccess={handleResetSuccess}
+        />
+      )}
+
       {showInvites && (
         <InviteScreen
           invites={pendingInvites}

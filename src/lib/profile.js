@@ -47,35 +47,35 @@ export function saveProfile({ displayName, playerId }) {
 
 // Called on signup — generates a player ID and saves it to Firebase + localStorage
 export async function assignPlayerIdToUser(uid, displayName) {
-   console.log('🔍 Checking player ID for:', uid)
+  console.log('🔍 Checking player ID for:', uid)
   // Check if user already has a player ID (e.g. re-signup edge case)
   const existingRef = ref(db, `users/${uid}/playerId`)
   const existingSnap = await get(existingRef)
-  console.log('📦 Existing player ID:', existingSnap.val())
+  const existingId = existingSnap.val()
+  console.log('📦 Existing player ID:', existingId)
 
-  if (existingSnap.val()) {
-    // Already has one, just return it
-    return existingSnap.val()
+  let playerId
+  if (existingId) {
+    playerId = existingId
+    // No need to write to Firebase — already exists
+  } else {
+    // Generate a new one
+    playerId = generatePlayerId()
+    // Save to Firebase under users/{uid}
+    try {
+      await update(ref(db, `users/${uid}`), {
+        playerId,
+        displayName: displayName.trim(),
+        createdAt: Date.now(),
+      })
+      console.log('✅ Saved to Firebase successfully')
+    } catch (err) {
+      console.error('🔥 Firebase write failed:', err.code, err.message)
+    }
   }
 
-  // Generate a new one
-  const playerId = generatePlayerId()
-
-  // Save to Firebase under users/{uid}
-// Save to Firebase under users/{uid}
-  try {
-    await update(ref(db, `users/${uid}`), {
-      playerId,
-      displayName: displayName.trim(),
-      createdAt: Date.now(),
-    })
-    console.log('✅ Saved to Firebase successfully')
-  } catch (err) {
-    console.error('🔥 Firebase write failed:', err.code, err.message)
-  }
-
-  // Also save to localStorage
-  const current = loadProfile()
+  // ALWAYS sync localStorage with latest playerId + displayName
+  const current = loadProfile() || {}
   const updated = {
     id: current?.id || `player-${Math.random().toString(36).slice(2, 10)}`,
     displayName: displayName.trim(),

@@ -13,6 +13,7 @@ import {
   TEAM_MIN_PLAYERS,
   TEAM_PLAYER_ROUNDS,
 } from '../lib/teamMultiplayer'
+import { saveTeamMatchResult } from '../lib/userStats'
 import styles from './TeamMulti.module.css'
 
 const MEDALS = ['🥇', '🥈', '🥉', '🏅']
@@ -43,22 +44,54 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [timeLeft, setTimeLeft] = useState(20)
+  const [timedOut, setTimedOut] = useState(false)
+  const timerRef = useRef(null)
 
   const accent = sport === 'basketball' ? '#FF6B35' : '#00FF87'
   const accentText = sport === 'basketball' ? '#fff' : '#0a1f0f'
   const profile = loadProfile()
   const playerId = profile?.playerId
   const roomUnsubRef = useRef(null)
+  const resultsSavedRef = useRef(false)
 
   function attachToRoom(code, teamId, captain) {
     roomUnsubRef.current?.()
     setRoomCode(code)
     setMyTeamId(teamId)
     setIsCaptain(captain)
+    resultsSavedRef.current = false
+
+    // Capture values for use in listener closure
+    const capturedTeamId = teamId
+    const capturedPlayerId = playerId
+
     roomUnsubRef.current = listenToTeamRoom(code, data => {
       setRoom(data)
       if (!data) return
+
       if (data.status === 'finished') {
+        // Save current user's team match result (once)
+        if (!resultsSavedRef.current && capturedPlayerId && capturedTeamId && data?.teams?.[capturedTeamId]) {
+          resultsSavedRef.current = true
+          const myTeam = data.teams[capturedTeamId]
+          const myMember = myTeam.members?.[capturedPlayerId]
+          if (myMember?.uid) {
+            const rankings = getTeamRankings(data.teams)
+            const teamRank = rankings.findIndex(t => t.teamId === capturedTeamId) + 1
+            saveTeamMatchResult({
+              userId: myMember.uid,
+              username: myMember.displayName,
+              sport: data.sport,
+              teamName: myTeam.name,
+              teamScore: myTeam.score,
+              teamRank,
+              teamsCount: Object.keys(data.teams || {}).length,
+              memberScore: myMember.score || 0,
+              questionsCount: myMember.questions?.length || TEAM_PLAYER_ROUNDS,
+            }).catch(err => console.error('Failed to save team result:', err))
+          }
+        }
         setScreen('results')
       } else if (data.status === 'playing') {
         setScreen('quiz')
@@ -94,10 +127,47 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
   const myTeamScore = myTeam?.score || 0
   const myTeamPosition = rankings.findIndex(team => team.teamId === myTeamId) + 1
 
-  useEffect(() => {
-    setSelected(null)
-    setSubmitting(false)
-  }, [currentQuestionIndex, room?.status])
+   useEffect(() => {
+     setSelected(null)
+     setSubmitting(false)
+     setTimeLeft(20)
+   }, [currentQuestionIndex, room?.status])
+
+   // Timer effect — runs only during quiz screen with an active question
+   useEffect(() => {
+     if (screen !== 'quiz' || !currentQuestion || submitting || myMember?.completed) {
+       setTimeLeft(20)
+       setTimedOut(false)
+       if (timerRef.current) {
+         clearInterval(timerRef.current)
+         timerRef.current = null
+       }
+       return
+     }
+
+     setTimeLeft(20)
+     setTimedOut(false)
+     if (timerRef.current) clearInterval(timerRef.current)
+
+     timerRef.current = setInterval(() => {
+       setTimeLeft((prev) => {
+         if (prev <= 1) {
+           clearInterval(timerRef.current)
+           setTimedOut(true)
+           // Time's up — auto-submit with no answer (skip)
+           if (!submitting && !myMember?.completed) {
+             handleTimeout()
+           }
+           return 0
+         }
+         return prev - 1
+       })
+     }, 1000)
+
+     return () => {
+       if (timerRef.current) clearInterval(timerRef.current)
+     }
+   }, [screen, currentQuestionIndex, submitting, myMember?.completed])
 
   async function handleCreate() {
     if (!playerId || !user?.uid) return setError('You need a Player ID. Please sign in.')
@@ -173,6 +243,19 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
       await submitTeamAnswer({ roomCode, teamId: myTeamId, playerId, answer: choice })
     } catch (e) {
       setError(e.message)
+      setSubmitting(false)
+    }
+  }
+
+  // Called when timer expires — submit with no answer (skipped)
+  async function handleTimeout() {
+    if (submitting || myMember?.completed) return
+    setSubmitting(true)
+    setSelected(null)
+    try {
+      await submitTeamAnswer({ roomCode, teamId: myTeamId, playerId, answer: null })
+    } catch (e) {
+      console.error('Timeout submit failed:', e)
       setSubmitting(false)
     }
   }
@@ -507,13 +590,25 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
             </div>
           )}
 
-          {!myMember?.completed && currentQuestion && (
-            <>
-              <div className={styles.questionCard}>
-                <p className={styles.question}>{currentQuestion.question}</p>
-              </div>
+           {!myMember?.completed && currentQuestion && (
+             <>
+               {/* Timer bar */}
+               <div className={styles.timerBar}>
+                 <div
+                   className={styles.timerFill}
+                   style={{
+                     width: `${(timeLeft / 20) * 100}%`,
+                     background: timeLeft <= 5 ? '#FF5C5C' : accent,
+                   }}
+                 />
+                 <span className={styles.timerText}>{timeLeft}s</span>
+               </div>
 
-              <div className={styles.options}>
+               <div className={styles.questionCard}>
+                 <p className={styles.question}>{currentQuestion.question}</p>
+               </div>
+
+               <div className={styles.options}>
                 {currentQuestion.options.map((option, index) => (
                   <button
                     key={option}

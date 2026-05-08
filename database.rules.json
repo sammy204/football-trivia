@@ -72,6 +72,21 @@
           }
         }
       }
+    },
+    "weeklyLeaderboards": {
+      ".read": true,
+      ".write": false,
+      "$weekKey": {
+        "$sport": {
+          "entries": {
+            ".write": true,
+            ".validate": "newData.hasChildren(['playerId', 'displayName', 'score', 'totalQuestions', 'totalTimeMs', 'daysPlayed', 'accuracyPct', 'updatedAt'])",
+            "$playerId": {
+              ".validate": "newData.child('playerId').val() === $playerId && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('totalQuestions').isNumber() && newData.child('totalQuestions').val() >= 0 && newData.child('totalTimeMs').isNumber() && newData.child('totalTimeMs').val() >= 0 && newData.child('daysPlayed').isNumber() && newData.child('daysPlayed').val() >= 1"
+            }
+          }
+        }
+      }
     }
   }
 }

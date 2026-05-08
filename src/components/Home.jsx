@@ -15,18 +15,18 @@ function formatCountdown(ms) {
 }
 
 export default function Home({
-  sport,
-  onSportChange,
-  onStartSolo,
-  onStartOnline,
-  onStartTeam,
-  onStartDaily,
-  onViewDailyLeaderboard,
-  profile,
-  user,
-  onViewProfile,
-  onLogout,
-}) {
+    sport,
+    onSportChange,
+    onStartSolo,
+    onStartOnline,
+    onStartTeam,
+    onStartDaily,
+    onViewDailyLeaderboard,
+    profile,
+    user,
+    onViewProfile,
+    onLogout,
+  }) {
   const [tab, setTab] = useState('solo')
   const [rounds, setRounds] = useState(5)
   const [soloName, setSoloName] = useState('')
@@ -189,15 +189,15 @@ export default function Home({
       </header>
 
       <section className={styles.dailyCard}>
-        <div className={styles.dailyTop}>
-          <div>
-            <p className={styles.badge}>Daily challenge</p>
-            <h2 className={styles.dailyTitle}>{sportLabel} matchday</h2>
+<div className={styles.dailyTop}>
+            <div>
+              <p className={styles.badge}>Daily challenge</p>
+              <h2 className={styles.dailyTitle}>{sportLabel} matchday</h2>
+            </div>
+            <button className={styles.dailyGhost} onClick={() => onViewDailyLeaderboard(sport)}>
+              Leaderboard
+            </button>
           </div>
-          <button className={styles.dailyGhost} onClick={() => onViewDailyLeaderboard(sport)}>
-            Leaderboard
-          </button>
-        </div>
 
         <p className={styles.dailyCopy}>
           Same {sportLabel.toLowerCase()} questions for everyone today. Score first, speed second.

@@ -71,6 +71,28 @@ export function getUnlockedMilestones({
   return milestones.filter((milestone) => milestone.unlocked)
 }
 
+export async function getStreakStatus(userId) {
+  if (!userId) return { current: 0, best: 0, lastPlayedDateKey: null }
+  const streakRef = ref(db, `users/${userId}/dailyStreak`)
+  const snapshot = await get(streakRef)
+  const streak = snapshot.val() || {}
+  return {
+    current: streak.current || 0,
+    best: streak.best || 0,
+    lastPlayedDateKey: streak.lastPlayedDateKey || null,
+  }
+}
+
+export function isPast10PM(date = new Date()) {
+  const nigeriaDate = new Date(date.getTime() + NIGERIA_UTC_OFFSET_HOURS * 60 * 60 * 1000)
+  return nigeriaDate.getUTCHours() >= 22
+}
+
+export function isStreakInDanger(streakStatus, todayDateKey) {
+  const { current, lastPlayedDateKey } = streakStatus
+  return current > 0 && lastPlayedDateKey !== todayDateKey
+}
+
 function getTodayDateKey(date = new Date()) {
   const nigeriaDate = new Date(date.getTime() + NIGERIA_UTC_OFFSET_HOURS * 60 * 60 * 1000)
   const year = nigeriaDate.getUTCFullYear()

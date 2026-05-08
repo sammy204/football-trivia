@@ -1,0 +1,80 @@
+.wrap {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.card {
+  background: var(--pitch-mid);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 28px 24px;
+  width: 100%;
+  max-width: 360px;
+  text-align: center;
+}
+
+.icon { font-size: 48px; margin-bottom: 12px; }
+.title { color: #fff; font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+.subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+
+.btnPrimary {
+  width: 100%;
+  padding: 11px;
+  background: var(--accent);
+  color: var(--pitch);
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btnPrimary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.input {
+  width: 100%;
+  padding: 11px;
+  background: var(--pitch);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.label {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 6px;
+  text-align: left;
+}
+
+.errorText {
+  color: #FF5C5C;
+  font-size: 13px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.resend {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 12px;
+}
+.resend .link {
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+}

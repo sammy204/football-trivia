@@ -33,14 +33,14 @@ export default function Results({
     return `${(resultMeta.totalTimeMs / totalQuestions / 1000).toFixed(1)}s`
   }, [resultMeta, totalQuestions])
 
-  // Auto-save if user is logged in
+  // Auto-save if user is logged in — pass values directly to avoid stale closure
   useEffect(() => {
     if (isDaily && user?.displayName && saveState.status === 'idle') {
-      onSaveDailyScore(user.displayName)
+      onSaveDailyScore(user.displayName, resultMeta?.totalTimeMs, totalQuestions)
     }
-  }, [isDaily, user])
+  }, [isDaily, user?.displayName])
 
-  // Trigger confetti on any perfect score (5/5, 10/10, 15/15, etc)
+  // Trigger confetti on any perfect score
   useEffect(() => {
     if (scores[0] === totalQuestions && totalQuestions > 0) {
       perfectScoreConfetti()
@@ -57,7 +57,7 @@ export default function Results({
   }
 
   function handleSave() {
-    onSaveDailyScore(displayName)
+    onSaveDailyScore(displayName, resultMeta?.totalTimeMs, totalQuestions)
   }
 
   return (

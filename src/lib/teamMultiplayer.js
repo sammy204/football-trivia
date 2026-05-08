@@ -1,6 +1,7 @@
 import { db } from './firebase'
 import { ref, set, get, update, onValue, off, push } from 'firebase/database'
 import { generateQuestionSets } from './question'
+import { saveTeamMatchResult } from './userStats'
 
 export const TEAM_PLAYER_ROUNDS = 10
 export const TEAM_MAX_PLAYERS = 5
@@ -290,4 +291,44 @@ export function listenToInvites(playerId, callback) {
     callback(invites)
   })
   return () => off(invRef)
+}
+
+// Called once when a team game finishes — records a match entry for each participant
+export async function recordTeamMatchResults(room) {
+  if (!room?.teams) return
+
+  const { teams, sport, settings } = room
+  const teamSize = settings?.teamSize || TEAM_MAX_PLAYERS
+
+  // Calculate rankings
+  const rankings = Object.entries(teams)
+    .map(([teamId, team]) => ({
+      teamId,
+      score: calculateTeamScore(team),
+    }))
+    .sort((a, b) => b.score - a.score)
+
+  // Save result for each member
+  for (const [teamId, team] of Object.entries(teams)) {
+    const teamRank = rankings.findIndex(r => r.teamId === teamId) + 1
+    const members = Object.entries(team.members || {})
+    for (const [playerId, member] of members) {
+      if (!member?.uid) continue
+      try {
+        await saveTeamMatchResult({
+          userId: member.uid,
+          username: member.displayName,
+          sport,
+          teamName: team.name,
+          teamScore: team.score,
+          teamRank,
+          teamsCount: Object.keys(teams).length,
+          memberScore: member.score || 0,
+          questionsCount: member.questions?.length || TEAM_PLAYER_ROUNDS,
+        })
+      } catch (err) {
+        console.error('Failed to save team match result for', member.uid, err)
+      }
+    }
+  }
 }

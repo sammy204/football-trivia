@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { ref, get } from 'firebase/database'
+import { ref, get, update } from 'firebase/database'
 import { db } from '../lib/firebase'
-import { loadProfile } from '../lib/profile'
+import { updateProfile } from 'firebase/auth'
+import { loadProfile, saveProfile } from '../lib/profile'
 import styles from './Profile.module.css'
 
 const MILESTONES = [
@@ -22,7 +23,7 @@ function formatStreakDate(dateKey) {
   }
 }
 
-export default function Profile({ user, onBack }) {
+export default function Profile({ user, onBack, onUsernameUpdated }) {
   const [stats, setStats] = useState(null)
   const [matches, setMatches] = useState([])
   const [streak, setStreak] = useState(null)
@@ -30,6 +31,9 @@ export default function Profile({ user, onBack }) {
   const [error, setError] = useState(null)
   const [playerId, setPlayerId] = useState(null)
   const [copied, setCopied] = useState(false)
+  const [editingUsername, setEditingUsername] = useState(false)
+  const [newUsername, setNewUsername] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!user?.uid) {
@@ -107,6 +111,25 @@ export default function Profile({ user, onBack }) {
     })
   }
 
+  async function handleSaveUsername() {
+    if (!newUsername.trim() || !user) return
+    setSaving(true)
+    try {
+      await updateProfile(user, { displayName: newUsername.trim() })
+      await update(ref(db, `users/${user.uid}/profile`), {
+        displayName: newUsername.trim(),
+        updatedAt: new Date().toISOString(),
+      })
+      saveProfile({ displayName: newUsername.trim() })
+      setEditingUsername(false)
+      if (onUsernameUpdated) onUsernameUpdated(newUsername.trim())
+    } catch (err) {
+      console.error('Failed to update username:', err)
+      alert('Failed to update username. Please try again.')
+    }
+    setSaving(false)
+  }
+
   if (!user) return null
 
   const unlockedMilestones = stats ? MILESTONES.filter(m => m.check(stats)) : []
@@ -119,7 +142,40 @@ export default function Profile({ user, onBack }) {
 
       <div className={styles.header}>
         <h1 className={styles.title}>Profile</h1>
-        <p className={styles.username}>{user.displayName || 'Player'}</p>
+
+        {/* Username edit section */}
+        {editingUsername ? (
+          <div className={styles.editUsernameRow}>
+            <input
+              className={styles.usernameInput}
+              value={newUsername}
+              onChange={(e) => setNewUsername(e.target.value)}
+              placeholder="Enter new username"
+              autoFocus
+            />
+            <button
+              className={styles.saveUsernameBtn}
+              onClick={handleSaveUsername}
+              disabled={saving || !newUsername.trim()}
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+            <button
+              className={styles.cancelBtn}
+              onClick={() => { setEditingUsername(false); setNewUsername('') }}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <div className={styles.usernameRow}>
+            <p className={styles.username}>{user.displayName || 'Player'}</p>
+            <button className={styles.editBtn} onClick={() => { setNewUsername(user.displayName || ''); setEditingUsername(true) }}>
+              Edit
+            </button>
+          </div>
+        )}
+
         <p className={styles.email}>{user.email}</p>
 
         {/* Player ID badge */}
@@ -183,12 +239,26 @@ export default function Profile({ user, onBack }) {
                   {stats?.losses || 0}
                 </span>
               </div>
-              <div className={styles.statBox}>
-                <span className={styles.statLabel}>Win Streak</span>
-                <span className={styles.statValue} style={{ color: '#FFD700' }}>
-                  {stats?.winStreak || 0}
-                </span>
-              </div>
+               <div className={styles.statBox}>
+                 <span className={styles.statLabel}>Win Streak</span>
+                 <span className={styles.statValue} style={{ color: '#FFD700' }}>
+                   {stats?.winStreak || 0}
+                 </span>
+               </div>
+               {(stats?.teamGames || 0) > 0 && (
+                 <>
+                   <div className={styles.statBox}>
+                     <span className={styles.statLabel}>Team Games</span>
+                     <span className={styles.statValue}>{stats.teamGames}</span>
+                   </div>
+                   <div className={styles.statBox}>
+                     <span className={styles.statLabel}>Team Wins</span>
+                     <span className={styles.statValue} style={{ color: '#00FF87' }}>
+                       {stats.teamWins || 0}
+                     </span>
+                   </div>
+                 </>
+               )}
             </div>
           </section>
 
