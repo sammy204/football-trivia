@@ -11,8 +11,7 @@ import DailyLeaderboard from './components/DailyLeaderboard'
 import Profile from './components/Profile'
 import Auth from './components/Auth'
 import VerifyEmail from './components/VerifyEmail'
-import VerifyEmailComplete from './components/VerifyEmailComplete'
-import ResetPasswordComplete from './components/ResetPasswordComplete'
+import AuthCallback from './components/AuthCallback'
 import { generateQuestions } from './lib/question'
 import {
   getDailyChallengeInfo,
@@ -46,23 +45,20 @@ export default function App() {
   const [authChecked, setAuthChecked] = useState(false)
   const [showAuth, setShowAuth] = useState(false)
   const [showVerify, setShowVerify] = useState(false)
-  const [showVerifyComplete, setShowVerifyComplete] = useState(false)
-  const [showResetPassword, setShowResetPassword] = useState(false)
+  const [showAuthCallback, setShowAuthCallback] = useState(false)
   const [pendingInvites, setPendingInvites] = useState([])
   const [showInvites, setShowInvites] = useState(false)
   const [teamConfig, setTeamConfig] = useState(null)
   const [streakNotice, setStreakNotice] = useState(null)
 
-  // Check URL on mount for verification callback (before or after auth)
+  // Check URL on mount for auth callback (verifyEmail or resetPassword)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    const verifyMode = params.get('mode')
+    const actionMode = params.get('mode')
     const oobCode = params.get('oobCode')
 
-    if (verifyMode === 'verifyEmail' && oobCode) {
-      setShowVerifyComplete(true)
-    } else if (verifyMode === 'resetPassword' && oobCode) {
-      setShowResetPassword(true)
+    if ((actionMode === 'verifyEmail' || actionMode === 'resetPassword') && oobCode) {
+      setShowAuthCallback(true)
     }
   }, [])
 
@@ -193,20 +189,14 @@ export default function App() {
     }
   }
 
-  function handleVerifyComplete() {
-    setShowVerifyComplete(false)
+  function handleAuthCallbackSuccess() {
+    setShowAuthCallback(false)
     setScreen('home')
     window.history.replaceState({}, document.title, window.location.pathname)
   }
 
-  function handleResetSuccess() {
-    setShowResetPassword(false)
-    setScreen('landing')
-    window.history.replaceState({}, document.title, window.location.pathname)
-  }
-
-  function handlePlaySoloFromVerify() {
-    setShowVerifyComplete(false)
+  function handlePlaySoloFromAuthCallback() {
+    setShowAuthCallback(false)
     setScreen('home')
     window.history.replaceState({}, document.title, window.location.pathname)
   }
@@ -491,32 +481,26 @@ export default function App() {
         />
       )}
 
-      {showVerify && user && (
-        <VerifyEmail
-          user={user}
-          onVerified={() => {
-            setShowVerify(false)
-            setUser({ ...user, emailVerified: true })
-          }}
-          onPlaySolo={() => setShowVerify(false)}
-        />
-      )}
+       {showVerify && user && (
+         <VerifyEmail
+           user={user}
+           onVerified={() => {
+             setShowVerify(false)
+             setUser({ ...user, emailVerified: true })
+           }}
+           onPlaySolo={() => setShowVerify(false)}
+         />
+       )}
 
-      {showVerifyComplete && (
-        <VerifyEmailComplete
-          user={user}
-          onVerified={handleVerifyComplete}
-          onPlaySolo={handlePlaySoloFromVerify}
-        />
-      )}
+       {showAuthCallback && (
+         <AuthCallback
+           user={user}
+           onSuccess={handleAuthCallbackSuccess}
+           onPlaySolo={handlePlaySoloFromAuthCallback}
+         />
+       )}
 
-      {showResetPassword && (
-        <ResetPasswordComplete
-          onResetSuccess={handleResetSuccess}
-        />
-      )}
-
-      {showInvites && (
+       {showInvites && (
         <InviteScreen
           invites={pendingInvites}
           user={user}
