@@ -213,6 +213,7 @@ export default function App() {
       console.warn('Logout failed', e)
     }
     setUser(null)
+    setScreen('landing')
   }
 
   async function launchGame(config) {
