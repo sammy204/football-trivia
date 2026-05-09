@@ -76,8 +76,8 @@ export default function Auth({ onSuccess, onPlaySolo }) {
     <div className={styles.overlay}>
       <div className={styles.card}>
         <div className={styles.logo}>
-          <span className={styles.logoIcon}>⚽</span>
-          <p className={styles.logoText}>Football Trivia</p>
+        <img src="/logo-mark.svg" alt="Trivela logo" className={styles.logoIcon} />
+        <p className={styles.logoText}>Trivela</p>
           <p className={styles.logoSub}>Compete. Challenge. Win.</p>
         </div>
 
