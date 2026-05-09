@@ -23,7 +23,12 @@
   margin-bottom: 20px;
 }
 
-.logoIcon { font-size: 36px; display: block; }
+.logoIcon {
+  width: 48px;
+  height: 48px;
+  display: block;
+  margin: 0 auto;
+}
 .logoText { color: #fff; font-size: 20px; font-weight: 700; margin-top: 6px; }
 .logoSub { color: var(--muted); font-size: 12px; margin-top: 3px; }
 

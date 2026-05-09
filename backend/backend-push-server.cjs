@@ -220,8 +220,8 @@ cron.schedule('0 11 * * *', async () => {
   console.log('Sending daily challenge notifications...')
 
   const payload = JSON.stringify({
-    title: 'Daily Challenge Ready!',
-    body: 'The daily football/basketball challenge has started. Play now!',
+    title: 'Daily Challenge is Live!',
+    body: 'Play now!',
   })
 
   let sent = 0
@@ -253,7 +253,7 @@ cron.schedule('30 11 * * *', async () => {
 
   const payload = JSON.stringify({
     title: 'Daily Challenge Closed ⛔',
-    body: 'The daily football/basketball challenge has ended. Come back tomorrow for a new one!',
+    body: 'Come back tomorrow for a new one!',
   })
 
   let sent = 0

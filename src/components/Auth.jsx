@@ -78,8 +78,8 @@ export default function Auth({ onSuccess, onPlaySolo }) {
         <div className={styles.logo}>
         <img src="/logo-mark.svg" alt="Trivela logo" className={styles.logoIcon} />
         <p className={styles.logoText}>Trivela</p>
-          <p className={styles.logoSub}>Compete. Challenge. Win.</p>
-        </div>
+        <p className={styles.logoSub}>Compete. Challenge. Win.</p>
+</div>
 
         <div className={styles.tabs}>
           <button className={`${styles.tab} ${tab === 'login' ? styles.activeTab : ''}`} onClick={() => { setTab('login'); setError(null); setMessage(null) }}>Log In</button>
