@@ -1,4 +1,4 @@
-import { get, off, onValue, ref, runTransaction } from 'firebase/database'
+import { get, off, onValue, ref, set } from 'firebase/database'
 import { db } from './firebase'
 import dailyChallenges from '../data/questions/daily'
 
@@ -178,7 +178,6 @@ function sortEntries(entriesMap) {
 function sortWeeklyEntries(entriesMap) {
   return Object.values(entriesMap || {})
     .sort((a, b) => {
-      // Sort by total score descending, then by days played descending as tiebreaker
       if ((b.score || 0) !== (a.score || 0)) return (b.score || 0) - (a.score || 0)
       if ((b.daysPlayed || 0) !== (a.daysPlayed || 0)) return (b.daysPlayed || 0) - (a.daysPlayed || 0)
       return (a.displayName || '').localeCompare(b.displayName || '')
@@ -200,31 +199,36 @@ export async function saveDailyLeaderboardEntry({
 }) {
   const entryRef = ref(db, `${getLeaderboardPath({ dateKey, sport })}/${playerId}`)
 
-  await runTransaction(entryRef, (current) => {
-    const nextEntry = {
-      playerId,
-      displayName,
-      score,
-      totalQuestions,
-      totalTimeMs,
-      accuracyPct: Math.round((score / totalQuestions) * 100),
-      updatedAt: Date.now(),
-    }
+  const snapshot = await get(entryRef)
+  const current = snapshot.val()
 
-    if (!current) return nextEntry
+  const nextEntry = {
+    playerId,
+    displayName,
+    score,
+    totalQuestions,
+    totalTimeMs,
+    accuracyPct: Math.round((score / totalQuestions) * 100),
+    updatedAt: Date.now(),
+  }
 
+  let finalEntry = nextEntry
+
+  if (current) {
     const currentScore = current.score || 0
     const currentTime = current.totalTimeMs || Number.MAX_SAFE_INTEGER
     const isBetterScore = score > currentScore
     const isBetterTime = score === currentScore && totalTimeMs < currentTime
 
-    return isBetterScore || isBetterTime
+    finalEntry = isBetterScore || isBetterTime
       ? { ...current, ...nextEntry }
       : { ...current, displayName, updatedAt: Date.now() }
-  })
+  }
 
-  const snapshot = await get(ref(db, getLeaderboardPath({ dateKey, sport })))
-  const leaderboard = sortEntries(snapshot.val() || {})
+  await set(entryRef, finalEntry)
+
+  const leaderboardSnapshot = await get(ref(db, getLeaderboardPath({ dateKey, sport })))
+  const leaderboard = sortEntries(leaderboardSnapshot.val() || {})
 
   await saveWeeklyLeaderboardEntry({
     sport,
@@ -261,27 +265,27 @@ export async function saveWeeklyLeaderboardEntry({
   const weekKey = getWeekKey()
   const entryRef = ref(db, `${getWeeklyLeaderboardPath({ weekKey, sport })}/${playerId}`)
 
-  await runTransaction(entryRef, (current) => {
-    if (!current) {
-      return {
-        playerId,
-        displayName,
-        score,
-        totalQuestions,
-        totalTimeMs,
-        daysPlayed: 1,
-        accuracyPct: Math.round((score / totalQuestions) * 100),
-        updatedAt: Date.now(),
-      }
-    }
+  const snapshot = await get(entryRef)
+  const current = snapshot.val()
 
-    // FIX: use explicit variables to avoid operator precedence bug
+  if (!current) {
+    await set(entryRef, {
+      playerId,
+      displayName,
+      score,
+      totalQuestions,
+      totalTimeMs,
+      daysPlayed: 1,
+      accuracyPct: Math.round((score / totalQuestions) * 100),
+      updatedAt: Date.now(),
+    })
+  } else {
     const newScore = (current.score || 0) + score
     const newTotalQuestions = (current.totalQuestions || 0) + totalQuestions
     const newTotalTimeMs = (current.totalTimeMs || 0) + totalTimeMs
     const newDaysPlayed = (current.daysPlayed || 0) + 1
 
-    return {
+    await set(entryRef, {
       ...current,
       displayName,
       score: newScore,
@@ -290,8 +294,8 @@ export async function saveWeeklyLeaderboardEntry({
       daysPlayed: newDaysPlayed,
       accuracyPct: Math.round((newScore / newTotalQuestions) * 100),
       updatedAt: Date.now(),
-    }
-  })
+    })
+  }
 }
 
 export function listenToWeeklyLeaderboard({ weekKey, sport }, callback, onError) {
