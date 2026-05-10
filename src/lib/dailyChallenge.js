@@ -154,6 +154,25 @@ export function markDailyChallengePlayed({ dateKey, sport, playedAt = Date.now()
   setPlayedMap(playedMap)
 }
 
+export async function hasPlayedDailyChallengeOnline({ userId, dateKey, sport }) {
+  if (!userId) return false
+  try {
+    const snap = await get(ref(db, `users/${userId}/dailyPlayed/${dateKey}/${sport}`))
+    return snap.exists()
+  } catch {
+    return false
+  }
+}
+
+export async function markDailyChallengePlayedOnline({ userId, dateKey, sport, playedAt = Date.now() }) {
+  if (!userId) return
+  try {
+    await set(ref(db, `users/${userId}/dailyPlayed/${dateKey}/${sport}`), playedAt)
+  } catch (e) {
+    console.error('Failed to mark daily played in Firebase:', e)
+  }
+}
+
 function getLeaderboardPath({ dateKey, sport }) {
   return `dailyLeaderboards/${dateKey}/${sport}/entries`
 }

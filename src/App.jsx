@@ -17,6 +17,8 @@ import {
   getDailyChallengeInfo,
   hasPlayedDailyChallenge,
   markDailyChallengePlayed,
+  hasPlayedDailyChallengeOnline,
+  markDailyChallengePlayedOnline,
   getDateKey,
   saveDailyLeaderboardEntry,
 } from './lib/dailyChallenge'
@@ -51,12 +53,10 @@ export default function App() {
   const [teamConfig, setTeamConfig] = useState(null)
   const [streakNotice, setStreakNotice] = useState(null)
 
-  // Check URL on mount for auth callback (verifyEmail or resetPassword)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const actionMode = params.get('mode')
     const oobCode = params.get('oobCode')
-
     if ((actionMode === 'verifyEmail' || actionMode === 'resetPassword') && oobCode) {
       setShowAuthCallback(true)
     }
@@ -73,7 +73,6 @@ export default function App() {
     return unsubscribe
   }, [])
 
-  // Listen for incoming team invites
   useEffect(() => {
     if (!user?.uid) return
     const profile = loadProfile()
@@ -94,13 +93,8 @@ export default function App() {
     async function checkStreakNotifications() {
       try {
         const todayDateKey = getDateKey()
-        
-        // Check if streak was broken (missed more than 1 day)
-        const result = await resetBrokenDailyStreak({
-          userId: user.uid,
-          todayDateKey,
-        })
-        
+        const result = await resetBrokenDailyStreak({ userId: user.uid, todayDateKey })
+
         if (result?.lost && result?.previousCount) {
           if (!active) return
           const message = `💔 Your ${result.previousCount}-day streak is gone... Better luck next time!`
@@ -110,8 +104,7 @@ export default function App() {
           }
           return
         }
-        
-        // Streak not broken, check if in danger (past 10 PM and hasn't played today)
+
         if (isPast10PM()) {
           const streakStatus = await getStreakStatus(user.uid)
           if (isStreakInDanger(streakStatus, todayDateKey)) {
@@ -131,11 +124,8 @@ export default function App() {
 
     checkStreakNotifications()
 
-    // Re-check when app becomes visible (e.g., user switches back to tab)
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        checkStreakNotifications()
-      }
+      if (document.visibilityState === 'visible') checkStreakNotifications()
     }
     window.addEventListener('visibilitychange', handleVisibility)
 
@@ -255,7 +245,7 @@ export default function App() {
     setScreen('teamOnline')
   }
 
-  function handleStartDaily({ sport }) {
+  async function handleStartDaily({ sport }) {
     if (!user) { setShowAuth(true); return }
     if (!user.emailVerified) { setShowVerify(true); return }
 
@@ -265,7 +255,21 @@ export default function App() {
       return
     }
 
+    // Check localStorage first (fast)
     if (hasPlayedDailyChallenge({ dateKey: challenge.dateKey, sport })) {
+      setError('You have already played today\'s daily challenge. A new one drops tomorrow at 12 PM.')
+      return
+    }
+
+    // Check Firebase (cross-device)
+    const playedOnline = await hasPlayedDailyChallengeOnline({
+      userId: user.uid,
+      dateKey: challenge.dateKey,
+      sport,
+    })
+
+    if (playedOnline) {
+      markDailyChallengePlayed({ dateKey: challenge.dateKey, sport })
       setError('You have already played today\'s daily challenge. A new one drops tomorrow at 12 PM.')
       return
     }
@@ -290,6 +294,12 @@ export default function App() {
     if (gameConfig?.mode === 'daily' && gameConfig?.challengeKey && gameConfig?.sport) {
       markDailyChallengePlayed({ dateKey: gameConfig.challengeKey, sport: gameConfig.sport })
       if (user?.uid) {
+        markDailyChallengePlayedOnline({
+          userId: user.uid,
+          dateKey: gameConfig.challengeKey,
+          sport: gameConfig.sport,
+        }).catch((error) => console.error('Failed to mark daily played online:', error))
+
         recordDailyChallengeActivity({
           userId: user.uid,
           dateKey: gameConfig.challengeKey,
@@ -316,7 +326,6 @@ export default function App() {
     launchGame(gameConfig)
   }
 
-  // Accepts totalTimeMs and totalQuestions as direct params to avoid stale closure bug
   async function handleSaveDailyScore(displayName, totalTimeMs, totalQuestions) {
     if (!gameConfig || gameConfig.mode !== 'daily') return
     setSaveState({ status: 'saving', rank: null })
@@ -353,7 +362,17 @@ export default function App() {
     setScreen('teamOnline')
   }
 
-  if (!authChecked) return null
+  if (!authChecked) return (
+    <div style={{
+      minHeight: '100vh',
+      background: '#0a1f0f',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      <h1 style={{ color: '#00FF87', fontFamily: 'sans-serif' }}>⚽ Trivela</h1>
+    </div>
+  )
 
   return (
     <div
@@ -390,9 +409,7 @@ export default function App() {
         </button>
       )}
 
-      {screen === 'landing' && (
-        <Landing onPlay={() => setShowAuth(true)} />
-      )}
+      {screen === 'landing' && <Landing onPlay={() => setShowAuth(true)} />}
 
       {screen === 'home' && (
         <Home
@@ -482,26 +499,26 @@ export default function App() {
         />
       )}
 
-       {showVerify && user && (
-         <VerifyEmail
-           user={user}
-           onVerified={() => {
-             setShowVerify(false)
-             setUser({ ...user, emailVerified: true })
-           }}
-           onPlaySolo={() => setShowVerify(false)}
-         />
-       )}
+      {showVerify && user && (
+        <VerifyEmail
+          user={user}
+          onVerified={() => {
+            setShowVerify(false)
+            setUser({ ...user, emailVerified: true })
+          }}
+          onPlaySolo={() => setShowVerify(false)}
+        />
+      )}
 
-       {showAuthCallback && (
-         <AuthCallback
-           user={user}
-           onSuccess={handleAuthCallbackSuccess}
-           onPlaySolo={handlePlaySoloFromAuthCallback}
-         />
-       )}
+      {showAuthCallback && (
+        <AuthCallback
+          user={user}
+          onSuccess={handleAuthCallbackSuccess}
+          onPlaySolo={handlePlaySoloFromAuthCallback}
+        />
+      )}
 
-       {showInvites && (
+      {showInvites && (
         <InviteScreen
           invites={pendingInvites}
           user={user}
