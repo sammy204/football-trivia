@@ -54,14 +54,20 @@ export default function App() {
   const [streakNotice, setStreakNotice] = useState(null)
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const actionMode = params.get('mode')
-    const oobCode = params.get('oobCode')
-    if ((actionMode === 'verifyEmail' || actionMode === 'resetPassword') && oobCode) {
-      setShowAuthCallback(true)
-    }
-  }, [])
+  const params = new URLSearchParams(window.location.search)
+  const actionMode = params.get('mode')
+  const oobCode = params.get('oobCode')
+  const pathname = window.location.pathname
 
+  if (pathname === '/verify-email') {
+    setShowAuthCallback(true)
+    return
+  }
+
+  if ((actionMode === 'verifyEmail' || actionMode === 'resetPassword') && oobCode) {
+    setShowAuthCallback(true)
+  }
+}, [])
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser)
