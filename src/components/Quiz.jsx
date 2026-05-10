@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import styles from './Quiz.module.css'
 
 const TIMER_SECS = 20
@@ -14,6 +14,11 @@ export default function Quiz({ questions, config, onFinish }) {
   const [totalTimeMs, setTotalTimeMs] = useState(0)
   const timerRef = useRef(null)
   const startedAtRef = useRef(Date.now())
+  const answeredRef = useRef(false)
+  const historyRef = useRef([])
+  const totalTimeMsRef = useRef(0)
+  const playerScoresRef = useRef((players || ['Player']).map(() => 0))
+  const qIndexRef = useRef(0)
 
   const q = questions[qIndex]
   const currentPlayer = (players || ['Player'])[0]
@@ -21,6 +26,7 @@ export default function Quiz({ questions, config, onFinish }) {
   useEffect(() => {
     setSelected(null)
     setAnswered(false)
+    answeredRef.current = false
     setTimeLeft(TIMER_SECS)
     startedAtRef.current = Date.now()
   }, [qIndex])
@@ -42,59 +48,72 @@ export default function Quiz({ questions, config, onFinish }) {
 
   function buildEntry(choice, isCorrect) {
     const elapsedMs = Date.now() - startedAtRef.current
+    const currentQ = questions[qIndexRef.current]
     return {
       player: currentPlayer,
-      question: q.question,
+      question: currentQ.question,
       selected: choice,
-      correctAnswer: q.answer,
+      correctAnswer: currentQ.answer,
       isCorrect,
-      explanation: q.explanation,
+      explanation: currentQ.explanation,
       elapsedMs,
     }
   }
 
+  function next(latestHistory, latestScores, latestTotalTimeMs) {
+    const currentIndex = qIndexRef.current
+    if (currentIndex + 1 >= questions.length) {
+      onFinish({ scores: latestScores, history: latestHistory, totalTimeMs: latestTotalTimeMs })
+    } else {
+      const nextIndex = currentIndex + 1
+      qIndexRef.current = nextIndex
+      setQIndex(nextIndex)
+    }
+  }
+
   function handleNoAnswer() {
-    if (answered) return
+    if (answeredRef.current) return
+    answeredRef.current = true
     setAnswered(true)
     setSelected(null)
     const entry = buildEntry(null, false)
-    const newHistory = [...history, entry]
+    const newHistory = [...historyRef.current, entry]
+    historyRef.current = newHistory
     setHistory(newHistory)
-    const nextTotalTimeMs = totalTimeMs + entry.elapsedMs
+    const nextTotalTimeMs = totalTimeMsRef.current + entry.elapsedMs
+    totalTimeMsRef.current = nextTotalTimeMs
     setTotalTimeMs(nextTotalTimeMs)
-    setTimeout(() => next(newHistory, playerScores, nextTotalTimeMs), 250)
+    setTimeout(() => next(newHistory, playerScoresRef.current, nextTotalTimeMs), 250)
   }
 
   function answerQuestion(choice) {
-    if (answered) return
+    if (answeredRef.current) return
+    answeredRef.current = true
     clearInterval(timerRef.current)
     setAnswered(true)
     setSelected(choice)
 
-    const correct = choice === q.answer
+    const currentQ = questions[qIndexRef.current]
+    const correct = choice === currentQ.answer
     const entry = buildEntry(choice, correct)
-    const newHistory = [...history, entry]
+    const newHistory = [...historyRef.current, entry]
+    historyRef.current = newHistory
     setHistory(newHistory)
-    const nextTotalTimeMs = totalTimeMs + entry.elapsedMs
+    const nextTotalTimeMs = totalTimeMsRef.current + entry.elapsedMs
+    totalTimeMsRef.current = nextTotalTimeMs
     setTotalTimeMs(nextTotalTimeMs)
 
-    let newScores = playerScores
+    let newScores = [...playerScoresRef.current]
     if (correct) {
-      newScores = [...playerScores]
       newScores[0]++
+      playerScoresRef.current = newScores
       setPlayerScores(newScores)
     }
 
     setTimeout(() => next(newHistory, newScores, nextTotalTimeMs), 250)
   }
 
-  function next(latestHistory, latestScores, latestTotalTimeMs) {
-    if (qIndex + 1 >= questions.length) {
-      onFinish({ scores: latestScores, history: latestHistory, totalTimeMs: latestTotalTimeMs })
-    } else {
-      setQIndex(qIndex + 1)
-    }
-  }
+  if (!q) return null
 
   const timerPct = (timeLeft / TIMER_SECS) * 100
   const timerColor = timeLeft <= 5 ? '#FF5C5C' : timeLeft <= 10 ? '#FFB347' : 'var(--green)'

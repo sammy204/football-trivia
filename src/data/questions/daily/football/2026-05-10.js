@@ -34,7 +34,7 @@ const questions = [
     options: ['Kevin De Bruyne', 'Ryan Giggs', 'Frank Lampard', 'Cesc Fàbregas'],
     answer: 'Ryan Giggs',
     explanation: 'Ryan Giggs holds the Premier League assist record.',
-  },,
+  },
   {
     question: 'Which player assisted the most goals in the 2023-24 Premier League season?',
     options: ['Mohamed Salah', 'Cole Palmer', 'Bukayo Saka', 'Kevin De Bruyne'],
