@@ -59,6 +59,13 @@ export default function App() {
   const oobCode = params.get('oobCode')
   const pathname = window.location.pathname
 
+   console.log('URL DEBUG:', {
+    href: window.location.href,
+    pathname,
+    search: window.location.search,
+    actionMode,
+    oobCode,
+  })
   if (pathname === '/verify-email') {
     setShowAuthCallback(true)
     return
