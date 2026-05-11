@@ -208,10 +208,7 @@ export default function Home({
           <span>{dailyChallenge?.dateKey}</span>
           <span>{currentPlayerName ? `Playing as ${currentPlayerName}` : 'Play first, save score after'}</span>
         </div>
-<div style={{ background: 'red', color: 'white', fontSize: 11, padding: 8, borderRadius: 4, marginBottom: 8 }}>
-  now: {new Date(now).toISOString()} | release: {dailyChallenge.releaseTime?.toISOString()} | cutoff: {dailyChallenge.cutoffTime?.toISOString()} | available: {String(dailyChallenge.available)}
-</div>
-        <div className={styles.countdownRow}>
+ <div className={styles.countdownRow}>
           <div className={styles.countdownText}>
             <span className={styles.countdownLabel}>Daily status</span>
             <span className={styles.countdownMessage}>{dailyStatusMessage}</span>
