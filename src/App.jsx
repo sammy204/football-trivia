@@ -68,7 +68,7 @@ export default function App() {
     setShowAuthCallback(true)
   }
 }, [])
- useEffect(() => {
+useEffect(() => {
   const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
     setUser(firebaseUser)
     setAuthChecked(true)
@@ -76,7 +76,11 @@ export default function App() {
     const params = new URLSearchParams(window.location.search)
     const actionMode = params.get('mode')
     const oobCode = params.get('oobCode')
-    const isCallbackFlow = (actionMode === 'verifyEmail' || actionMode === 'resetPassword') && oobCode
+    const pathname = window.location.pathname
+
+    const isCallbackFlow = 
+      (pathname === '/verify-email' && oobCode) ||
+      ((actionMode === 'verifyEmail' || actionMode === 'resetPassword') && oobCode)
 
     if (firebaseUser && !isCallbackFlow) {
       setScreen('home')
