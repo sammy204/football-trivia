@@ -54,22 +54,15 @@ export default function App() {
   const [streakNotice, setStreakNotice] = useState(null)
 
   // FIX 1 — detect callback flow immediately on mount
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const actionMode = params.get('mode')
-    const oobCode = params.get('oobCode')
-    const pathname = window.location.pathname
+useEffect(() => {
+  const params = new URLSearchParams(window.location.search)
+  const actionMode = params.get('mode')
+  const oobCode = params.get('oobCode')
 
-    if (pathname === '/verify-email' && oobCode) {
-      setShowAuthCallback(true)
-      return
-    }
-
-    if ((actionMode === 'verifyEmail' || actionMode === 'resetPassword') && oobCode) {
-      setShowAuthCallback(true)
-    }
-  }, [])
-
+  if ((actionMode === 'verifyEmail' || actionMode === 'resetPassword') && oobCode) {
+    setShowAuthCallback(true)
+  }
+}, [])
   // FIX 2 — don't redirect to home if we're in a callback flow
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -406,15 +399,6 @@ export default function App() {
         ...themeVars,
       }}
     >
-
-      <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0,
-      background: 'red', color: 'white', fontSize: 11,
-      padding: 8, zIndex: 9999, wordBreak: 'break-all'
-    }}>
-      href: {window.location.href} | callback: {showAuthCallback ? 'YES' : 'NO'} | authChecked: {authChecked ? 'YES' : 'NO'} | screen: {screen}
-    </div>
-
       {(error || streakNotice) && (
         <div style={{
           position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)',
