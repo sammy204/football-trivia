@@ -95,3 +95,27 @@
     font-size: 20px;
   }
 }
+.particle {
+  position: fixed;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0;
+  animation: floatUp linear infinite;
+}
+
+@keyframes floatUp {
+  0% {
+    opacity: 0;
+    transform: translateY(0px) rotate(0deg);
+  }
+  10% {
+    opacity: 0.25;
+  }
+  90% {
+    opacity: 0.15;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-120px) rotate(25deg);
+  }
+}
