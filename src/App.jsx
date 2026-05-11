@@ -406,6 +406,15 @@ export default function App() {
         ...themeVars,
       }}
     >
+
+      <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0,
+      background: 'red', color: 'white', fontSize: 11,
+      padding: 8, zIndex: 9999, wordBreak: 'break-all'
+    }}>
+      href: {window.location.href} | callback: {showAuthCallback ? 'YES' : 'NO'} | authChecked: {authChecked ? 'YES' : 'NO'} | screen: {screen}
+    </div>
+
       {(error || streakNotice) && (
         <div style={{
           position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)',
@@ -414,7 +423,7 @@ export default function App() {
         }}>
           {error || streakNotice}
         </div>
-      )}
+      )} 
 
       {pendingInvites.length > 0 && screen === 'home' && !showInvites && (
         <button
