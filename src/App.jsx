@@ -53,48 +53,45 @@ export default function App() {
   const [teamConfig, setTeamConfig] = useState(null)
   const [streakNotice, setStreakNotice] = useState(null)
 
+  // FIX 1 — detect callback flow immediately on mount
   useEffect(() => {
-  const params = new URLSearchParams(window.location.search)
-  const actionMode = params.get('mode')
-  const oobCode = params.get('oobCode')
-  const pathname = window.location.pathname
-
-   console.log('URL DEBUG:', {
-    href: window.location.href,
-    pathname,
-    search: window.location.search,
-    actionMode,
-    oobCode,
-  })
-  if (pathname === '/verify-email') {
-    setShowAuthCallback(true)
-    return
-  }
-
-  if ((actionMode === 'verifyEmail' || actionMode === 'resetPassword') && oobCode) {
-    setShowAuthCallback(true)
-  }
-}, [])
-useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-    setUser(firebaseUser)
-    setAuthChecked(true)
-
     const params = new URLSearchParams(window.location.search)
     const actionMode = params.get('mode')
     const oobCode = params.get('oobCode')
     const pathname = window.location.pathname
 
-    const isCallbackFlow = 
-      (pathname === '/verify-email' && oobCode) ||
-      ((actionMode === 'verifyEmail' || actionMode === 'resetPassword') && oobCode)
-
-    if (firebaseUser && !isCallbackFlow) {
-      setScreen('home')
+    if (pathname === '/verify-email' && oobCode) {
+      setShowAuthCallback(true)
+      return
     }
-  })
-  return unsubscribe
-}, [])
+
+    if ((actionMode === 'verifyEmail' || actionMode === 'resetPassword') && oobCode) {
+      setShowAuthCallback(true)
+    }
+  }, [])
+
+  // FIX 2 — don't redirect to home if we're in a callback flow
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser)
+      setAuthChecked(true)
+
+      const params = new URLSearchParams(window.location.search)
+      const actionMode = params.get('mode')
+      const oobCode = params.get('oobCode')
+      const pathname = window.location.pathname
+
+      const isCallbackFlow =
+        (pathname === '/verify-email' && oobCode) ||
+        ((actionMode === 'verifyEmail' || actionMode === 'resetPassword') && oobCode)
+
+      if (firebaseUser && !isCallbackFlow) {
+        setScreen('home')
+      }
+    })
+    return unsubscribe
+  }, [])
+
   useEffect(() => {
     if (!user?.uid) return
     const profile = loadProfile()
@@ -277,13 +274,11 @@ useEffect(() => {
       return
     }
 
-    // Check localStorage first (fast)
     if (hasPlayedDailyChallenge({ dateKey: challenge.dateKey, sport })) {
       setError('You have already played today\'s daily challenge. A new one drops tomorrow at 12 PM.')
       return
     }
 
-    // Check Firebase (cross-device)
     const playedOnline = await hasPlayedDailyChallengeOnline({
       userId: user.uid,
       dateKey: challenge.dateKey,
@@ -384,7 +379,11 @@ useEffect(() => {
     setScreen('teamOnline')
   }
 
-  if (!authChecked) return (
+  // FIX 3 — don't block rendering with early return if we have a verification link
+  const params = new URLSearchParams(window.location.search)
+  const hasOobCode = params.get('oobCode')
+
+  if (!authChecked && !hasOobCode) return (
     <div style={{
       minHeight: '100vh',
       background: '#0a1f0f',
@@ -431,7 +430,8 @@ useEffect(() => {
         </button>
       )}
 
-      {screen === 'landing' && <Landing onPlay={() => setShowAuth(true)} />}
+      {/* FIX 3 — don't render Landing over AuthCallback */}
+      {screen === 'landing' && !showAuthCallback && <Landing onPlay={() => setShowAuth(true)} />}
 
       {screen === 'home' && (
         <Home
