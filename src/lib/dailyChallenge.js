@@ -4,7 +4,7 @@ import dailyChallenges from '../data/questions/daily'
 
 const DEFAULT_ROUNDS = 10
 export const DAILY_RELEASE_HOUR_NIGERIA = 12
-export const DAILY_DURATION_MINUTES = 30
+export const DAILY_DURATION_MINUTES = 32
 const NIGERIA_UTC_OFFSET_HOURS = 1
 const DAILY_PLAYED_KEY = 'trivela-daily-played'
 
@@ -95,7 +95,7 @@ export function getDailyChallengeSet({ sport, date = new Date() }) {
 export function getDailyChallengeInfo({ sport, now = new Date(), rounds = DEFAULT_ROUNDS }) {
   const releaseTime = getReleaseTimeUTC(now)
   const cutoffTime = getCutoffTimeUTC(now)
-  const challenge = getDailyChallenge({ sport, date: releaseTime, rounds })
+  const challenge = getDailyChallenge({ sport, date: now, rounds })
   const available = isDailyChallengeOpen(now) && challenge.questions.length > 0
   const nextRelease = available ? cutoffTime : getNextDailyRelease(now)
 
