@@ -100,22 +100,27 @@
   pointer-events: none;
   user-select: none;
   opacity: 0;
-  animation: floatUp linear infinite;
+  animation: floatUp ease-in-out infinite;
+  filter: drop-shadow(0 0 8px rgba(0, 255, 135, 0.4));
 }
 
 @keyframes floatUp {
   0% {
     opacity: 0;
-    transform: translateY(0px) rotate(0deg);
+    transform: translateY(0px) rotate(0deg) scale(0.8);
   }
-  10% {
-    opacity: 0.25;
+  15% {
+    opacity: 0.9;
   }
-  90% {
-    opacity: 0.15;
+  50% {
+    opacity: 0.7;
+    transform: translateY(-60px) rotate(180deg) scale(1.1);
+  }
+  85% {
+    opacity: 0.5;
   }
   100% {
     opacity: 0;
-    transform: translateY(-120px) rotate(25deg);
+    transform: translateY(-140px) rotate(360deg) scale(0.9);
   }
 }

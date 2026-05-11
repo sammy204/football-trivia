@@ -377,16 +377,40 @@ useEffect(() => {
   const hasOobCode = params.get('oobCode')
 
   if (!authChecked && !hasOobCode) return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#0a1f0f',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-    }}>
-      <h1 style={{ color: '#00FF87', fontFamily: 'sans-serif' }}>⚽ Trivela</h1>
-    </div>
-  )
+  <div style={{
+    minHeight: '100vh',
+    background: '#0a1f0f',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '1rem',
+  }}>
+    <img
+      src="/logo-mark.svg"
+      alt="Trivela"
+      style={{
+        width: 80,
+        height: 80,
+        animation: 'pulse 1.5s ease-in-out infinite',
+      }}
+    />
+    <p style={{
+      color: '#00FF87',
+      fontFamily: 'sans-serif',
+      fontWeight: 800,
+      fontSize: 22,
+      letterSpacing: 1,
+      margin: 0,
+    }}>Trivela</p>
+    <style>{`
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.08); opacity: 0.85; }
+      }
+    `}</style>
+  </div>
+)
 
   return (
     <div
