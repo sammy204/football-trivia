@@ -469,6 +469,50 @@ cron.schedule('5 0 * * *', async () => {
   }
 }, { timezone: 'Africa/Lagos' })
 
+// POST /api/notify/invite - Send invite push notification
+app.post('/api/notify/invite', async (req, res) => {
+  const { toUserId, fromName, roomCode, sport, type } = req.body
+
+  if (!toUserId || !fromName) {
+    return res.status(400).json({ error: 'Missing toUserId or fromName' })
+  }
+
+  const sportLabel = sport === 'basketball' ? 'Basketball' : 'Football'
+  const isOnline1v1 = type === 'online1v1'
+  const isLightning1v1 = type === 'lightning1v1'
+  const isTeamInvite = type === 'team'
+
+  const title = isOnline1v1
+    ? `${fromName} challenged you!`
+    : isLightning1v1
+      ? `${fromName} challenged you to Lightning!`
+      : isTeamInvite
+        ? `${fromName} invited you to a team game!`
+        : `${fromName} sent you a game invite!`
+
+  const body = isOnline1v1
+    ? `You've been invited to a ${sportLabel} 1v1 match. Open the app to accept.`
+    : isLightning1v1
+      ? `You've been invited to a ${sportLabel} Lightning 1v1. Open the app to accept.`
+      : isTeamInvite
+        ? `You've been invited to a ${sportLabel} team match. Open the app to accept.`
+        : `You've been invited to a ${sportLabel} match. Open the app to accept.`
+
+  try {
+    const result = await sendNotificationToUser({
+      userId: toUserId,
+      title,
+      body,
+      type: 'invite',
+      dateKey: getNigeriaDateKey(),
+    })
+    res.json({ success: true, ...result })
+  } catch (error) {
+    console.error('Error sending invite notification:', error)
+    res.status(500).json({ error: 'Failed to send invite notification' })
+  }
+})
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() })

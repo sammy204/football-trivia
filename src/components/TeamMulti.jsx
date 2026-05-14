@@ -13,6 +13,8 @@ import {
   TEAM_MIN_PLAYERS,
   TEAM_PLAYER_ROUNDS,
 } from '../lib/teamMultiplayer'
+import { getPlayerByPlayerId } from '../lib/multiplayer'
+import { sendInvitePushNotification } from '../lib/inviteNotifications'
 import { saveTeamMatchResult } from '../lib/userStats'
 import styles from './TeamMulti.module.css'
 
@@ -219,15 +221,26 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
     if (!invitePlayerId.trim()) return
     setError('')
     try {
+      const targetPlayerId = invitePlayerId.trim().toUpperCase()
       await sendInvite({
-        targetPlayerId: invitePlayerId.trim().toUpperCase(),
+        targetPlayerId,
         roomCode,
         teamId: myTeamId,
         teamName: room?.teams?.[myTeamId]?.name || myTeamId,
         hostDisplayName: user?.displayName || 'Captain',
         sport,
       })
-      setInviteSent(invitePlayerId.trim().toUpperCase())
+      const opponent = await getPlayerByPlayerId(targetPlayerId)
+      if (opponent?.uid) {
+        await sendInvitePushNotification({
+          toUserId: opponent.uid,
+          fromName: user?.displayName || 'Captain',
+          roomCode,
+          sport,
+          type: 'team',
+        })
+      }
+      setInviteSent(targetPlayerId)
       setInvitePlayerId('')
       setTimeout(() => setInviteSent(null), 3000)
     } catch (e) {
@@ -273,7 +286,7 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
     <div className={styles.wrap}>
       {screen === 'intro' && (
         <>
-          <button className={styles.back} onClick={onBack}>← Back</button>
+          <button className={styles.backBtn} onClick={onBack}>Back</button>
           <h2 className={styles.title}>{sport === 'basketball' ? 'Basketball' : 'Football'} Team Rules</h2>
           <div className={styles.summaryCard}>
             <p className={styles.summaryTitle}>Read this first</p>
@@ -297,7 +310,7 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
 
       {screen === 'setup' && step === 'mode' && (
         <>
-          <button className={styles.back} onClick={onBack}>← Back</button>
+          <button className={styles.backBtn} onClick={onBack}>Back</button>
           <h2 className={styles.title}>Team Multiplayer</h2>
           <p className={styles.sub}>
             Every player gets their own {TEAM_PLAYER_ROUNDS} questions. Team score is the sum of all correct answers.
@@ -320,7 +333,7 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
 
       {screen === 'setup' && step === 'create' && (
         <>
-          <button className={styles.back} onClick={() => setStep('mode')}>← Back</button>
+          <button className={styles.backBtn} onClick={() => setStep('mode')}>Back</button>
           <h2 className={styles.title}>Create Room</h2>
           <p className={styles.sub}>
             Invite your teammates after creation. The match starts when every team has the same number of players, from {TEAM_MIN_PLAYERS} to {TEAM_MAX_PLAYERS}.
@@ -366,7 +379,7 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
 
       {screen === 'setup' && step === 'join' && (
         <>
-          <button className={styles.back} onClick={() => setStep('mode')}>← Back</button>
+          <button className={styles.backBtn} onClick={() => setStep('mode')}>Back</button>
           <h2 className={styles.title}>Join Room</h2>
           <p className={styles.sub}>
             Join as a captain, name your team, then invite the rest of your lineup.
@@ -422,7 +435,7 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
 
       {screen === 'waiting' && room && (
         <>
-          <button className={styles.back} onClick={onBack}>← Back</button>
+          <button className={styles.backBtn} onClick={onBack}>Back</button>
           <h2 className={styles.title}>Lobby</h2>
 
           <div className={styles.codeBox}>
@@ -668,7 +681,7 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
             </p>
           )}
 
-          <button className={styles.btn} style={{ background: accent, color: accentText }} onClick={onBack}>
+          <button className={styles.backBtn} onClick={onBack}>
             Back to Home
           </button>
         </>

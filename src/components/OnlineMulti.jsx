@@ -1,16 +1,32 @@
+import { ref, get } from 'firebase/database'
+import { db } from '../lib/firebase'
 import { useEffect, useRef, useState } from 'react'
 import { generateQuestions } from '../lib/question'
-import { createRoom, joinRoom, startGame, listenToRoom, submitAnswer, nextQuestion } from '../lib/multiplayer'
+import {
+  createRoom, joinRoom, startGame, listenToRoom,
+  submitAnswer, nextQuestion, sendOnlineInvite,
+  listenToOnlineInvite, clearOnlineInvite, getPlayerByPlayerId,
+} from '../lib/multiplayer'
 import { saveMatchResult } from '../lib/userStats'
 import { recordGameplayActivity } from '../lib/streaks'
 import { explosionConfetti } from '../lib/confetti'
+import { recordMatchWinner } from '../lib/tournament'
+import { sendInvitePushNotification } from '../lib/inviteNotifications'
 import styles from './OnlineMulti.module.css'
 
-export default function OnlineMulti({ sport, rounds, onBack, user }) {
+export default function OnlineMulti({
+  sport,
+  rounds,
+  onBack,
+  user,
+  pendingInvite,
+  onInviteHandled,
+  tournamentMatchMeta,
+  onTournamentMatchComplete,
+}) {
   const [screen, setScreen] = useState('intro')
-  console.log('OnlineMulti user prop:', user)
   const [name, setName] = useState(user?.displayName || '')
-  const [code, setCode] = useState('')
+  const [opponentPlayerId, setOpponentPlayerId] = useState('')
   const [roomCode, setRoomCode] = useState('')
   const [role, setRole] = useState(null)
   const [room, setRoom] = useState(null)
@@ -18,6 +34,8 @@ export default function OnlineMulti({ sport, rounds, onBack, user }) {
   const [answered, setAnswered] = useState(false)
   const [error, setError] = useState('')
   const [matchSaved, setMatchSaved] = useState(false)
+  const [inviteStatus, setInviteStatus] = useState(null)
+  const [incomingInvite, setIncomingInvite] = useState(null)
   const advancedQuestionRef = useRef(-1)
   const advanceTimerRef = useRef(null)
 
@@ -29,23 +47,140 @@ export default function OnlineMulti({ sport, rounds, onBack, user }) {
   const guestScore = room?.players?.guest?.score || 0
   const hostName = room?.players?.host?.name || 'Host'
   const guestName = room?.players?.guest?.name || 'Guest'
-
-  // ✅ Declare result BEFORE any useEffect hooks
   const q = room?.questions?.[room?.currentQuestion]
   const myScore = role === 'host' ? hostScore : guestScore
   const opponentScore = role === 'host' ? guestScore : hostScore
   const result = myScore > opponentScore ? 'win' : myScore < opponentScore ? 'loss' : 'draw'
 
+  // Tournament match — auto join/create room using the pre-set room code
+  useEffect(() => {
+    if (!tournamentMatchMeta) return
+    const { roomCode: tCode } = tournamentMatchMeta
+    if (!tCode) return
+
+    const playerName = user?.displayName || name || 'Player'
+    setRoomCode(tCode)
+    setScreen('waiting')
+
+    get(ref(db, `rooms/${tCode}`)).then(async (snap) => {
+      if (!snap.exists()) {
+        const questions = await generateQuestions({ rounds, sport })
+        await createRoom({ playerName, questions, rounds, sport, code: tCode })
+        setRole('host')
+      } else {
+        await joinRoom({ code: tCode, playerName })
+        setRole('guest')
+      }
+
+      listenToRoom(tCode, (data) => {
+        setRoom(data)
+        if (data?.status === 'playing') setScreen('quiz')
+        if (data?.status === 'finished') setScreen('results')
+      })
+    }).catch(() => setError('Failed to connect to tournament room.'))
+  }, [])
+
+  // Auto-start game when guest joins (tournament matches only)
+  useEffect(() => {
+    if (!tournamentMatchMeta) return
+    if (role !== 'host') return
+    if (room?.players?.guest && room?.status === 'waiting') {
+      startGame(roomCode)
+    }
+  }, [room?.players?.guest, room?.status])
+
+  // Listen for incoming invite for this user
+  useEffect(() => {
+    if (!user?.uid) return
+    const profile = JSON.parse(localStorage.getItem('trivela-profile') || '{}')
+    const myPlayerId = profile?.playerId
+    if (!myPlayerId) return
+
+    const unsub = listenToOnlineInvite(myPlayerId, (invite) => {
+      if (invite && screen === 'lobby') {
+        setIncomingInvite(invite)
+      }
+    })
+    return unsub
+  }, [user?.uid, screen])
+
+  useEffect(() => {
+    if (!pendingInvite) return
+    const acceptInvite = async () => {
+      await handleAcceptInvite(pendingInvite)
+    }
+    acceptInvite()
+    if (onInviteHandled) onInviteHandled()
+  }, [pendingInvite])
+
   async function handleCreate() {
     if (!name.trim()) return setError('No username found.')
+    if (!opponentPlayerId.trim()) return setError('Enter your opponent\'s Player ID.')
     setError('')
+    setInviteStatus('sending')
+
     try {
       const questions = await generateQuestions({ rounds, sport })
       const c = await createRoom({ playerName: name.trim(), questions, rounds, sport })
       setRoomCode(c)
       setRole('host')
+
+      const opponent = await getPlayerByPlayerId(opponentPlayerId.trim())
+      if (!opponent) {
+        setError('Player ID not found. Check and try again.')
+        setInviteStatus(null)
+        return
+      }
+
+      await sendOnlineInvite({
+        fromName: name.trim(),
+        fromUserId: user?.uid,
+        toPlayerId: opponentPlayerId.trim(),
+        roomCode: c,
+        sport,
+        rounds,
+      })
+
+      try {
+        await sendInvitePushNotification({
+          toUserId: opponent.uid,
+          fromName: name.trim(),
+          roomCode: c,
+          sport,
+          type: 'online1v1',
+        })
+      } catch (e) {
+        console.warn('Push notification failed, invite still sent:', e)
+      }
+
+      setInviteStatus('waiting')
       setScreen('waiting')
+
       listenToRoom(c, data => {
+        setRoom(data)
+        if (data?.status === 'playing') setScreen('quiz')
+        if (data?.status === 'finished') setScreen('results')
+      })
+    } catch (e) {
+      setError(e.message)
+      setInviteStatus(null)
+    }
+  }
+
+  async function handleAcceptInvite(invite = incomingInvite) {
+    if (!invite) return
+    try {
+      const r = await joinRoom({ code: invite.roomCode, playerName: name.trim() })
+      setRoomCode(invite.roomCode)
+      setRole('guest')
+      setRoom(r)
+
+      const profile = JSON.parse(localStorage.getItem('trivela-profile') || '{}')
+      await clearOnlineInvite(profile?.playerId)
+      setIncomingInvite(null)
+      setScreen('waiting')
+
+      listenToRoom(invite.roomCode, data => {
         setRoom(data)
         if (data?.status === 'playing') setScreen('quiz')
         if (data?.status === 'finished') setScreen('results')
@@ -55,24 +190,10 @@ export default function OnlineMulti({ sport, rounds, onBack, user }) {
     }
   }
 
-  async function handleJoin() {
-    if (!name.trim()) return setError('Enter your name.')
-    if (!code.trim()) return setError('Enter a room code.')
-    setError('')
-    try {
-      const r = await joinRoom({ code: code.toUpperCase(), playerName: name.trim() })
-      setRoomCode(code.toUpperCase())
-      setRole('guest')
-      setRoom(r)
-      setScreen('waiting')
-      listenToRoom(code.toUpperCase(), data => {
-        setRoom(data)
-        if (data?.status === 'playing') setScreen('quiz')
-        if (data?.status === 'finished') setScreen('results')
-      })
-    } catch (e) {
-      setError(e.message)
-    }
+  async function handleDeclineInvite() {
+    const profile = JSON.parse(localStorage.getItem('trivela-profile') || '{}')
+    await clearOnlineInvite(profile?.playerId)
+    setIncomingInvite(null)
   }
 
   async function handleStart() {
@@ -88,7 +209,6 @@ export default function OnlineMulti({ sport, rounds, onBack, user }) {
     await submitAnswer({ code: roomCode, role, qIndex: room.currentQuestion, answer: choice, correct })
   }
 
-  // Save match result when results screen shows
   useEffect(() => {
     if (screen !== 'results') return
 
@@ -109,16 +229,23 @@ export default function OnlineMulti({ sport, rounds, onBack, user }) {
           sport,
           rounds,
         })
-        await recordGameplayActivity({
-          userId: user.uid,
-          source: 'online',
-        })
+        await recordGameplayActivity({ userId: user.uid, source: 'online' })
         setMatchSaved(true)
-        console.log('Match saved!')
+
+        if (tournamentMatchMeta && role === 'host') {
+  const { tournamentCode, roundIndex, matchIndex } = tournamentMatchMeta
+  const snap = await get(ref(db, `tournaments/${tournamentCode}/bracket/${roundIndex}/${matchIndex}`))
+  const matchData = snap.val()
+  const winnerUid = hostScore >= guestScore ? matchData.p1 : matchData.p2
+  if (winnerUid) {
+    await recordMatchWinner(tournamentCode, roundIndex, matchIndex, winnerUid)
+  }
+}
       } catch (e) {
         console.error('Failed to save match:', e)
       }
     }
+
     save()
   }, [screen])
 
@@ -130,12 +257,10 @@ export default function OnlineMulti({ sport, rounds, onBack, user }) {
   useEffect(() => {
     if (role !== 'host' || !room?.questionState?.resolved) return
     if (advancedQuestionRef.current === room.currentQuestion) return
-
     advancedQuestionRef.current = room.currentQuestion
     advanceTimerRef.current = setTimeout(() => {
       nextQuestion({ code: roomCode, qIndex: room.currentQuestion, total: room.questions.length })
     }, 1500)
-
     return () => {
       if (advanceTimerRef.current) {
         clearTimeout(advanceTimerRef.current)
@@ -145,34 +270,25 @@ export default function OnlineMulti({ sport, rounds, onBack, user }) {
   }, [role, room?.questionState?.resolved, room?.currentQuestion, room?.questions?.length, roomCode])
 
   useEffect(() => {
-    console.log('User in OnlineMulti:', user)
-  }, [user])
-
-  // Trigger confetti when player wins
-  useEffect(() => {
-    if (screen === 'results' && result === 'win') {
-      explosionConfetti()
-    }
+    if (screen === 'results' && result === 'win') explosionConfetti()
   }, [screen, result])
 
   return (
     <div className={styles.wrap}>
       {screen === 'intro' && (
         <>
-          <button className={styles.back} onClick={onBack}>← Back</button>
-          <h2 className={styles.title}>{sportLabel} Online Rules</h2>
+          <button className={styles.backBtn} onClick={onBack}>Back</button>
+          <h2 className={styles.title}>{sportLabel} Multiplayer Rules</h2>
           <div className={styles.rulesCard}>
-            <p className={styles.rulesLead}>
-              Read this first so both players know exactly how the match works.
-            </p>
+            <p className={styles.rulesLead}>Read this first so both players know exactly how the match works.</p>
             <ul className={styles.rulesList}>
               <li>First correct answer wins the point.</li>
               <li>If both players answer wrong, no point is awarded.</li>
               <li>Scores stay hidden until the match ends.</li>
               <li>This match is set to {rounds} questions before any tiebreaker.</li>
               <li>If the match is tied, it goes to sudden-death tiebreaker questions.</li>
-              <li>One player creates a room and shares the code.</li>
-              <li>The game starts after both players join.</li>
+              <li>Invite your opponent using their Player ID.</li>
+              <li>The game starts after your opponent accepts.</li>
             </ul>
           </div>
           <button
@@ -187,30 +303,95 @@ export default function OnlineMulti({ sport, rounds, onBack, user }) {
 
       {screen === 'lobby' && (
         <>
-          <button className={styles.back} onClick={() => setScreen('intro')}>← Back</button>
-          <h2 className={styles.title}>Online Multiplayer</h2>
+          <button className={styles.backBtn} onClick={onBack}>Back</button>
+          <h2 className={styles.title}>
+            {tournamentMatchMeta ? '🏆 Tournament Match' : 'Multiplayer'}
+          </h2>
+          {tournamentMatchMeta && (
+            <div style={{
+              background: 'rgba(245,200,66,0.08)',
+              border: '1px solid rgba(245,200,66,0.25)',
+              borderRadius: 10,
+              padding: '12px 16px',
+              marginBottom: 16,
+              fontSize: 13,
+              color: '#f5c842',
+              fontWeight: 600,
+            }}>
+              🏆 This is a tournament match. Enter your opponent's Player ID to send them an invite.
+            </div>
+          )}
           {error && <p className={styles.error}>{error}</p>}
-          <button className={styles.btn} style={{ background: accent, color: accentText }} onClick={handleCreate}>
-            Create Room
-          </button>
-          <div className={styles.divider}>or join a room</div>
-          <input className={styles.input} placeholder="Enter room code" value={code} onChange={e => setCode(e.target.value)} />
-          <button className={styles.btnOutline} style={{ border: `1px solid ${accent}`, color: accent }} onClick={handleJoin}>
-            Join Room
+
+          {incomingInvite && (
+            <div style={{
+              background: 'var(--card-bg)', border: '1px solid var(--card-border)',
+              borderRadius: 12, padding: '16px', marginBottom: 16,
+            }}>
+              <p style={{ color: '#fff', fontWeight: 700, marginBottom: 4 }}>
+                📨 {incomingInvite.fromName} invited you to a {incomingInvite.sport} match!
+              </p>
+              <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 12 }}>
+                {incomingInvite.rounds} questions · {incomingInvite.sport}
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  className={styles.btn}
+                  style={{ background: accent, color: accentText, flex: 1, padding: '10px' }}
+                  onClick={handleAcceptInvite}
+                >
+                  Accept
+                </button>
+                <button
+                  className={styles.btnOutline}
+                  style={{ border: `1px solid #FF5C5C`, color: '#FF5C5C', flex: 1, padding: '10px' }}
+                  onClick={handleDeclineInvite}
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+          )}
+
+          <p className={styles.label} style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 4 }}>
+            Player ID
+          </p>
+          <input
+            className={styles.input}
+            placeholder="e.g. FTB-2S7779"
+            value={opponentPlayerId}
+            onChange={e => setOpponentPlayerId(e.target.value)}
+          />
+          <button
+            className={styles.btn}
+            style={{ background: accent, color: accentText }}
+            onClick={handleCreate}
+            disabled={inviteStatus === 'sending'}
+          >
+            {inviteStatus === 'sending' ? 'Sending invite…' : 'Send Invite & Create Room'}
           </button>
         </>
       )}
 
       {screen === 'waiting' && (
         <>
-          <button className={styles.back} onClick={onBack}>← Back</button>
-          <h2 className={styles.title}>Waiting...</h2>
-          <div className={styles.codeBox}>
-            <p className={styles.codeLabel}>Room Code</p>
-            <p className={styles.code} style={{ color: accent }}>{roomCode}</p>
-            <p className={styles.codeSub}>Share this code with your opponent</p>
-          </div>
-          {room?.players?.guest && role === 'host' && (
+          <button className={styles.backBtn} onClick={onBack}>Back</button>
+          <h2 className={styles.title}>
+            {role === 'host' ? 'Waiting for opponent…' : 'Waiting for host…'}
+          </h2>
+          {role === 'host' && !tournamentMatchMeta && (
+            <div className={styles.codeBox}>
+              <p className={styles.codeLabel}>Invite sent to</p>
+              <p className={styles.code} style={{ color: accent }}>{opponentPlayerId}</p>
+              <p className={styles.codeSub}>Waiting for them to accept…</p>
+            </div>
+          )}
+          {tournamentMatchMeta && (
+            <p style={{ color: accent, textAlign: 'center', fontSize: 14 }}>
+              Connecting to tournament room…
+            </p>
+          )}
+          {room?.players?.guest && role === 'host' && !tournamentMatchMeta && (
             <>
               <p className={styles.joined}>✅ {guestName} has joined!</p>
               <button className={styles.btn} style={{ background: accent, color: accentText }} onClick={handleStart}>
@@ -218,8 +399,8 @@ export default function OnlineMulti({ sport, rounds, onBack, user }) {
               </button>
             </>
           )}
-          {!room?.players?.guest && (
-            <p className={styles.waiting}>Waiting for someone to join...</p>
+          {role === 'guest' && (
+            <p className={styles.waiting}>Waiting for host to start the game…</p>
           )}
         </>
       )}
@@ -269,9 +450,15 @@ export default function OnlineMulti({ sport, rounds, onBack, user }) {
               ✓ Match saved to your profile
             </p>
           )}
-          <button className={styles.btn} style={{ background: accent, color: accentText }} onClick={onBack}>
-            Back to Home
-          </button>
+          {tournamentMatchMeta ? (
+            <button className={styles.backBtn} onClick={onTournamentMatchComplete}>
+              Back to Bracket
+            </button>
+          ) : (
+            <button className={styles.backBtn} onClick={onBack}>
+              Back to Home
+            </button>
+          )}
         </>
       )}
     </div>

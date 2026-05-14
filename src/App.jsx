@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
+import { listenToOnlineInvite, clearOnlineInvite, joinRoom } from './lib/multiplayer'
+import Admin from './components/Admin'
 import Landing from './components/Landing'
 import Home from './components/Home'
 import Quiz from './components/Quiz'
@@ -8,11 +10,18 @@ import OnlineMulti from './components/OnlineMulti'
 import TeamMulti from './components/TeamMulti'
 import InviteScreen from './components/InviteScreen'
 import DailyLeaderboard from './components/DailyLeaderboard'
+import LightningRound from './components/LightningRound'
+import LightningH2H from './components/LightningH2H'
+import LightningResults from './components/LightningResults'
+import LightningLeaderboard from './components/LightningLeaderboard'
+import LightningModes from './components/LightningModes'
 import Profile from './components/Profile'
 import Auth from './components/Auth'
 import VerifyEmail from './components/VerifyEmail'
 import AuthCallback from './components/AuthCallback'
+import Tournament from './components/Tournament'
 import { generateQuestions } from './lib/question'
+import { getPlayerByPlayerId } from './lib/multiplayer'
 import {
   getDailyChallengeInfo,
   hasPlayedDailyChallenge,
@@ -22,15 +31,46 @@ import {
   getDateKey,
   saveDailyLeaderboardEntry,
 } from './lib/dailyChallenge'
-import { loadProfile, saveProfile } from './lib/profile'
+import { loadProfile, saveProfile, fetchAndCachePlayerId } from './lib/profile'
+import { saveLightningScore } from './lib/lightningDaily'
 import { logOut } from './lib/auth'
 import { recordDailyChallengeActivity, recordGameplayActivity, resetBrokenDailyStreak, isStreakInDanger, getStreakStatus, isPast10PM } from './lib/streaks'
 import { listenToInvites } from './lib/teamMultiplayer'
 import { track } from '@vercel/analytics'
 import { auth } from './lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
+import {
+  sendLightningInvite,
+  listenToLightningInvite,
+  clearLightningInvite,
+  startLightningGame,
+  createLightningRoom,
+  joinLightningRoom,
+} from './lib/lightningMultiplayer'
+import { sendInvitePushNotification } from './lib/inviteNotifications'
 
 const TEAM_ROUNDS = 10
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { error: null }
+  }
+  componentDidCatch(error) {
+    this.setState({ error: error.message })
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ color: 'white', padding: 40, background: '#0f1117', minHeight: '100vh' }}>
+          <h2>Tournament Error:</h2>
+          <pre style={{ color: '#ff4f4f', whiteSpace: 'pre-wrap' }}>{this.state.error}</pre>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 export default function App() {
   const [screen, setScreen] = useState('landing')
@@ -41,6 +81,8 @@ export default function App() {
   const [reviewData, setReviewData] = useState([])
   const [error, setError] = useState(null)
   const [profile, setProfile] = useState(() => loadProfile())
+  const [profileState, setProfileState] = useState(() => loadProfile())
+  const [activePlayerId, setActivePlayerId] = useState(() => loadProfile()?.playerId || null)
   const [resultMeta, setResultMeta] = useState(null)
   const [saveState, setSaveState] = useState({ status: 'idle', rank: null })
   const [user, setUser] = useState(null)
@@ -52,18 +94,42 @@ export default function App() {
   const [showInvites, setShowInvites] = useState(false)
   const [teamConfig, setTeamConfig] = useState(null)
   const [streakNotice, setStreakNotice] = useState(null)
+  const [dailyPlayed, setDailyPlayed] = useState(false)
+  const [pendingOnlineInvite, setPendingOnlineInvite] = useState(null)
+  const [pendingLightningInvite, setPendingLightningInvite] = useState(null)
+  const [incomingInviteForAccept, setIncomingInviteForAccept] = useState(null)
+  const [tournamentMatchMeta, setTournamentMatchMeta] = useState(null)
+  const [activeTournamentCode, setActiveTournamentCode] = useState(null)
 
-  // FIX 1 — detect callback flow immediately on mount
-useEffect(() => {
-  const params = new URLSearchParams(window.location.search)
-  const actionMode = params.get('mode')
-  const oobCode = params.get('oobCode')
+  // Lightning Solo state
+  const [lightningSoloQuestions, setLightningSoloQuestions] = useState([])
+  const [lightningSoloConfig, setLightningSoloConfig] = useState(null)
+  const [lightningSoloScores, setLightningSoloScores] = useState([])
+  const [lightningSoloHistory, setLightningSoloHistory] = useState([])
+  const [lightningSoloMeta, setLightningSoloMeta] = useState(null)
 
-  if ((actionMode === 'verifyEmail' || actionMode === 'resetPassword') && oobCode) {
-    setShowAuthCallback(true)
-  }
-}, [])
-  // FIX 2 — don't redirect to home if we're in a callback flow
+  // Lightning H2H state
+  const [lightningH2HRoomCode, setLightningH2HRoomCode] = useState(null)
+  const [lightningH2HRole, setLightningH2HRole] = useState(null)
+  const [lightningH2HQuestionsHost, setLightningH2HQuestionsHost] = useState([])
+  const [lightningH2HQuestionsGuest, setLightningH2HQuestionsGuest] = useState([])
+  const [lightningH2HConfig, setLightningH2HConfig] = useState(null)
+  const [lightningH2HFinalScores, setLightningH2HFinalScores] = useState([])
+  const [lightningH2HHistory, setLightningH2HHistory] = useState([])
+  const [lightningH2HMeta, setLightningH2HMeta] = useState(null)
+  const [lightningH2HOpponentName, setLightningH2HOpponentName] = useState('Opponent')
+
+  const ADMIN_UID = 'K4qCnBhAVDMTkvK70SMVfbbsw463'
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const actionMode = params.get('mode')
+    const oobCode = params.get('oobCode')
+    if ((actionMode === 'verifyEmail' || actionMode === 'resetPassword') && oobCode) {
+      setShowAuthCallback(true)
+    }
+  }, [])
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser)
@@ -86,17 +152,60 @@ useEffect(() => {
   }, [])
 
   useEffect(() => {
-    if (!user?.uid) return
-    const profile = loadProfile()
-    const playerId = profile?.playerId
-    if (!playerId) return
+    if (user?.uid) {
+      setProfileState(loadProfile())
+    }
+  }, [user?.uid])
 
-    const unsub = listenToInvites(playerId, (invites) => {
-      setPendingInvites(invites)
-      if (invites.length > 0 && screen === 'home') setShowInvites(true)
+  useEffect(() => {
+    let mounted = true
+    async function ensurePlayerId() {
+      if (!user?.uid) {
+        if (mounted) setActivePlayerId(null)
+        return
+      }
+      const cached = loadProfile()?.playerId
+      if (cached && mounted) setActivePlayerId(cached)
+      const fromDb = await fetchAndCachePlayerId(user.uid)
+      if (fromDb && mounted) setActivePlayerId(fromDb)
+    }
+    ensurePlayerId()
+    return () => { mounted = false }
+  }, [user?.uid])
+
+  // Listen for online 1v1 invites
+  useEffect(() => {
+    if (!user?.uid || !activePlayerId) return
+    const unsub = listenToOnlineInvite(activePlayerId, (invite) => {
+      if (invite) setPendingOnlineInvite(invite)
+      else setPendingOnlineInvite(null)
     })
     return unsub
-  }, [user?.uid, screen])
+  }, [user?.uid, activePlayerId])
+
+  // Listen for lightning invites
+  useEffect(() => {
+    if (!user?.uid || !activePlayerId) return
+    const unsub = listenToLightningInvite(activePlayerId, (invite) => {
+      if (invite) setPendingLightningInvite(invite)
+      else setPendingLightningInvite(null)
+    })
+    return unsub
+  }, [user?.uid, activePlayerId])
+
+  // Listen for team invites globally
+  useEffect(() => {
+    if (!user?.uid || !activePlayerId) return
+    const unsub = listenToInvites(activePlayerId, (invites) => {
+      setPendingInvites(invites || [])
+    })
+    return unsub
+  }, [user?.uid, activePlayerId])
+
+  // Auto-open team invite popup anywhere in-app
+  useEffect(() => {
+    if (pendingInvites.length > 0) setShowInvites(true)
+  }, [pendingInvites])
 
   useEffect(() => {
     if (!user?.uid) return
@@ -148,6 +257,24 @@ useEffect(() => {
   }, [user?.uid])
 
   useEffect(() => {
+    if (!user?.uid) { setDailyPlayed(false); return }
+    async function checkPlayed() {
+      try {
+        const dateKey = getDateKey()
+        const played = await hasPlayedDailyChallengeOnline({
+          userId: user.uid,
+          dateKey,
+          sport: selectedSport,
+        })
+        setDailyPlayed(played)
+      } catch {
+        setDailyPlayed(false)
+      }
+    }
+    checkPlayed()
+  }, [user?.uid, selectedSport])
+
+  useEffect(() => {
     if (!streakNotice) return
     const timeout = window.setTimeout(() => setStreakNotice(null), 5000)
     return () => window.clearTimeout(timeout)
@@ -155,6 +282,7 @@ useEffect(() => {
 
   const sport = gameConfig?.sport || selectedSport
   const isBasketball = sport === 'basketball'
+  const accent = isBasketball ? '#FF6B35' : '#00FF87'
   const themeVars = isBasketball
     ? {
         '--accent': '#FF6B35',
@@ -257,18 +385,220 @@ useEffect(() => {
     setScreen('teamOnline')
   }
 
+  function handleStartLightning({ sport }) {
+    if (!user) { setShowAuth(true); return }
+    if (!user.emailVerified) { setShowVerify(true); return }
+    setSelectedSport(sport)
+    setScreen('lightningModes')
+  }
+
+  // FIX: added async
+  function handleStartTournament() {
+    if (!user) { setShowAuth(true); return }
+    if (!user.emailVerified) { setShowVerify(true); return }
+    setScreen('tournament')
+  }
+
+  function handleTournamentMatch({ roomCode, sport, rounds }) {
+    setTournamentMatchMeta({ roomCode })
+    setGameConfig({ sport, rounds })
+    setScreen('tournamentMatch')
+  }
+
+  // FIX: was missing async
+  async function handleStartLightningSolo({ sport }) {
+    if (!user) { setShowAuth(true); return }
+    if (!user.emailVerified) { setShowVerify(true); return }
+    setSelectedSport(sport)
+    setLightningSoloConfig({ sport, mode: 'solo' })
+    setLightningSoloHistory([])
+    setLightningSoloMeta(null)
+    setLightningSoloScores([])
+    setError(null)
+    track('game_started', { sport, mode: 'lightning_solo' })
+    try {
+      const qs = await generateQuestions({ rounds: 50, sport })
+      setLightningSoloQuestions(qs)
+      setScreen('lightningSolo')
+    } catch (e) {
+      setError('Failed to load questions. Please try again.')
+      setScreen('home')
+    }
+  }
+
+  async function handleStartLightningH2H({ sport, opponentPlayerId }) {
+    if (!user) { setShowAuth(true); return }
+    if (!user.emailVerified) { setShowVerify(true); return }
+    setSelectedSport(sport)
+    setLightningH2HConfig({ sport, mode: 'h2h' })
+
+    try {
+      const questionsHost = await generateQuestions({ rounds: 50, sport })
+      const questionsGuest = await generateQuestions({ rounds: 50, sport })
+      setLightningH2HQuestionsHost(questionsHost)
+      setLightningH2HQuestionsGuest(questionsGuest)
+
+      const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+      // FIX: removed require(), using top-level import
+      await createLightningRoom({
+        playerName: user.displayName || 'Player',
+        sport,
+        rounds: 50,
+        code: roomCode,
+      })
+
+      const opponent = await getPlayerByPlayerId(opponentPlayerId)
+      if (!opponent) {
+        setError('Player ID not found.')
+        return
+      }
+
+      await sendLightningInvite({
+        fromName: user.displayName || 'Player',
+        fromUserId: user.uid,
+        toPlayerId: opponentPlayerId,
+        roomCode,
+        sport,
+      })
+      try {
+        await sendInvitePushNotification({
+          toUserId: opponent.uid,
+          fromName: user.displayName || 'Player',
+          roomCode,
+          sport,
+          type: 'lightning1v1',
+        })
+      } catch (pushError) {
+        console.warn('Lightning push notification failed, invite still sent:', pushError)
+      }
+
+      setLightningH2HRoomCode(roomCode)
+      setLightningH2HRole('host')
+      setScreen('lightningH2H')
+    } catch (e) {
+      setError('Failed to create room: ' + e.message)
+      setScreen('home')
+    }
+  }
+
+  async function handleAcceptLightningInvite(invite) {
+    try {
+      const sport = invite.sport
+      const questionsGuest = await generateQuestions({ rounds: 50, sport })
+      setLightningH2HQuestionsGuest(questionsGuest)
+      setLightningH2HConfig({ sport, mode: 'h2h' })
+
+      await joinLightningRoom({
+        code: invite.roomCode,
+        playerName: user.displayName || 'Guest',
+      })
+
+      setLightningH2HRoomCode(invite.roomCode)
+      setLightningH2HRole('guest')
+      await clearLightningInvite(loadProfile()?.playerId)
+      setPendingLightningInvite(null)
+      setScreen('lightningH2H')
+    } catch (e) {
+      setError('Failed to join room: ' + e.message)
+    }
+  }
+
+  function handleDeclineLightningInvite() {
+    const prof = loadProfile()
+    clearLightningInvite(prof?.playerId).catch(() => {})
+    setPendingLightningInvite(null)
+  }
+
+  function handleFinishLightningSolo({ scores, history, totalTimeMs, totalQuestions }) {
+    setLightningSoloScores(scores)
+    setLightningSoloHistory(history)
+    setLightningSoloMeta({ totalTimeMs, totalQuestions })
+    if (user?.uid) {
+      const prof = profile || loadProfile()
+      const playerId = prof?.playerId || user.uid
+      const displayName = user.displayName || prof?.displayName || 'Anonymous'
+      const correctCount = history.filter(item => item.isCorrect).length
+      saveLightningScore({
+        sport: lightningSoloConfig.sport,
+        playerId,
+        displayName,
+        score: scores[0],
+        totalQuestions,
+        totalTimeMs,
+        correctAnswers: correctCount,
+      }).catch(e => console.error('Failed to save lightning score:', e))
+    }
+    setScreen('lightningSoloResults')
+  }
+
+  function handleFinishLightningH2H({ scores, history, totalTimeMs, totalQuestions, isWin, isDraw, opponentName }) {
+    setLightningH2HFinalScores(scores)
+    setLightningH2HHistory(history)
+    setLightningH2HMeta({ totalTimeMs, totalQuestions, isWin, isDraw })
+    setLightningH2HOpponentName(opponentName)
+
+    if (user?.uid) {
+      const prof = profile || loadProfile()
+      const playerId = prof?.playerId || user.uid
+      const displayName = user.displayName || prof?.displayName || 'Anonymous'
+      saveLightningScore({
+        sport: lightningH2HConfig.sport,
+        playerId,
+        displayName,
+        score: scores[0],
+        totalQuestions,
+        totalTimeMs,
+        correctAnswers: scores[0],
+      }).catch(e => console.error('Failed to save lightning score:', e))
+    }
+
+    setScreen('lightningH2HResults')
+  }
+
+  // FIX: was missing async
+  async function handlePlayLightningSoloAgain() {
+    setLightningSoloHistory([])
+    setLightningSoloMeta(null)
+    setLightningSoloScores([])
+    try {
+      const qs = await generateQuestions({ rounds: 50, sport: lightningSoloConfig?.sport || selectedSport })
+      setLightningSoloQuestions(qs)
+      setScreen('lightningSolo')
+    } catch (e) {
+      setError('Failed to load questions.')
+      setScreen('home')
+    }
+  }
+
+  function handlePlayLightningH2HAgain() {
+    setLightningH2HHistory([])
+    setLightningH2HMeta(null)
+    setLightningH2HFinalScores([])
+    setLightningH2HRoomCode(null)
+    setLightningH2HRole(null)
+    setScreen('lightningModes')
+  }
+
+  function handleViewLightningLeaderboard(nextSport = selectedSport) {
+    setSelectedSport(nextSport)
+    setScreen('lightningLeaderboard')
+  }
+
+  // FIX: was missing async
   async function handleStartDaily({ sport }) {
     if (!user) { setShowAuth(true); return }
     if (!user.emailVerified) { setShowVerify(true); return }
 
-    const challenge = getDailyChallengeInfo({ sport })
-    if (!challenge.available) {
-      setError('Today\'s daily challenge opens at 12 PM. Please come back then.')
+    let challenge
+    try {
+      challenge = await getDailyChallengeInfo({ sport })
+    } catch (e) {
+      setError('Failed to load daily challenge. Please try again.')
       return
     }
 
-    if (hasPlayedDailyChallenge({ dateKey: challenge.dateKey, sport })) {
-      setError('You have already played today\'s daily challenge. A new one drops tomorrow at 12 PM.')
+    if (!challenge.available) {
+      setError("Today's daily challenge opens at 12 PM. Please come back then.")
       return
     }
 
@@ -280,7 +610,7 @@ useEffect(() => {
 
     if (playedOnline) {
       markDailyChallengePlayed({ dateKey: challenge.dateKey, sport })
-      setError('You have already played today\'s daily challenge. A new one drops tomorrow at 12 PM.')
+      setError("You have already played today's daily challenge. A new one drops tomorrow at 12 PM.")
       return
     }
 
@@ -372,45 +702,44 @@ useEffect(() => {
     setScreen('teamOnline')
   }
 
-  // FIX 3 — don't block rendering with early return if we have a verification link
   const params = new URLSearchParams(window.location.search)
   const hasOobCode = params.get('oobCode')
 
   if (!authChecked && !hasOobCode) return (
-  <div style={{
-    minHeight: '100vh',
-    background: '#0a1f0f',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '1rem',
-  }}>
-    <img
-      src="/logo-mark.svg"
-      alt="Trivela"
-      style={{
-        width: 80,
-        height: 80,
-        animation: 'pulse 1.5s ease-in-out infinite',
-      }}
-    />
-    <p style={{
-      color: '#00FF87',
-      fontFamily: 'sans-serif',
-      fontWeight: 800,
-      fontSize: 22,
-      letterSpacing: 1,
-      margin: 0,
-    }}>Trivela</p>
-    <style>{`
-      @keyframes pulse {
-        0%, 100% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.08); opacity: 0.85; }
-      }
-    `}</style>
-  </div>
-)
+    <div style={{
+      minHeight: '100vh',
+      background: '#0a1f0f',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '1rem',
+    }}>
+      <img
+        src="/logo-mark.svg"
+        alt="Trivela"
+        style={{
+          width: 80,
+          height: 80,
+          animation: 'pulse 1.5s ease-in-out infinite',
+        }}
+      />
+      <p style={{
+        color: '#00FF87',
+        fontFamily: 'sans-serif',
+        fontWeight: 800,
+        fontSize: 22,
+        letterSpacing: 1,
+        margin: 0,
+      }}>Trivela</p>
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.08); opacity: 0.85; }
+        }
+      `}</style>
+    </div>
+  )
 
   return (
     <div
@@ -431,9 +760,9 @@ useEffect(() => {
         }}>
           {error || streakNotice}
         </div>
-      )} 
+      )}
 
-      {pendingInvites.length > 0 && screen === 'home' && !showInvites && (
+      {pendingInvites.length > 0 && !showInvites && (
         <button
           onClick={() => setShowInvites(true)}
           style={{
@@ -447,7 +776,98 @@ useEffect(() => {
         </button>
       )}
 
-      {/* FIX 3 — don't render Landing over AuthCallback */}
+      {pendingOnlineInvite && (
+        <div style={{
+          position: 'fixed', top: 60, left: '50%', transform: 'translateX(-50%)',
+          background: '#0f2d18', border: '1px solid rgba(0,255,135,0.2)',
+          borderRadius: 12, padding: '16px 20px', zIndex: 998,
+          width: 'calc(100% - 32px)', maxWidth: 380,
+        }}>
+          <p style={{ color: '#fff', fontWeight: 700, marginBottom: 4 }}>
+            📨 {pendingOnlineInvite.fromName} challenged you to a 1v1!
+          </p>
+          <p style={{ color: 'rgba(245,245,240,0.5)', fontSize: 13, marginBottom: 12 }}>
+            {pendingOnlineInvite.rounds} questions · {pendingOnlineInvite.sport}
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={async () => {
+                const prof = loadProfile()
+                const inviteData = pendingOnlineInvite
+                setSelectedSport(inviteData.sport)
+                setGameConfig({ sport: inviteData.sport, rounds: inviteData.rounds })
+                await clearOnlineInvite(prof?.playerId)
+                setScreen('online')
+                setPendingOnlineInvite(null)
+                setIncomingInviteForAccept(inviteData)
+              }}
+              style={{
+                flex: 1, background: '#00FF87', color: '#0a1f0f',
+                border: 'none', borderRadius: 8, padding: '10px',
+                fontWeight: 700, fontSize: 14, cursor: 'pointer',
+              }}
+            >
+              Accept
+            </button>
+            <button
+              onClick={async () => {
+                const prof = loadProfile()
+                await clearOnlineInvite(prof?.playerId)
+                setPendingOnlineInvite(null)
+              }}
+              style={{
+                flex: 1, background: 'transparent', color: '#FF5C5C',
+                border: '1px solid #FF5C5C', borderRadius: 8, padding: '10px',
+                fontWeight: 700, fontSize: 14, cursor: 'pointer',
+              }}
+            >
+              Decline
+            </button>
+          </div>
+        </div>
+      )}
+
+      {pendingLightningInvite && (
+        <div style={{
+          position: 'fixed', top: 120, left: '50%', transform: 'translateX(-50%)',
+          background: isBasketball ? 'rgba(255,107,53,0.95)' : '#0f2d18',
+          border: '1px solid rgba(255,255,255,0.2)',
+          borderRadius: 12, padding: '16px 20px', zIndex: 998,
+          width: 'calc(100% - 32px)', maxWidth: 380,
+        }}>
+          <p style={{ color: '#fff', fontWeight: 700, marginBottom: 4 }}>
+            ⚡ {pendingLightningInvite.fromName} challenged you to a Lightning Duel!
+          </p>
+          <p style={{ color: 'rgba(245,245,240,0.5)', fontSize: 13, marginBottom: 12 }}>
+            60 seconds · {pendingLightningInvite.sport}
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={async () => {
+                await handleAcceptLightningInvite(pendingLightningInvite)
+              }}
+              style={{
+                flex: 1, background: accent, color: '#fff',
+                border: 'none', borderRadius: 8, padding: '10px',
+                fontWeight: 700, fontSize: 14, cursor: 'pointer',
+              }}
+            >
+              Accept
+            </button>
+            <button
+              onClick={handleDeclineLightningInvite}
+              style={{
+                flex: 1, background: 'transparent', color: '#FF5C5C',
+                border: '1px solid #FF5C5C', borderRadius: 8, padding: '10px',
+                fontWeight: 700, fontSize: 14, cursor: 'pointer',
+              }}
+            >
+              Decline
+            </button>
+          </div>
+        </div>
+      )}
+
       {screen === 'landing' && !showAuthCallback && <Landing onPlay={() => setShowAuth(true)} />}
 
       {screen === 'home' && (
@@ -458,11 +878,21 @@ useEffect(() => {
           onStartOnline={handleStartOnline}
           onStartTeam={handleStartTeam}
           onStartDaily={handleStartDaily}
+          onStartTournament={handleStartTournament}
+          onStartLightning={handleStartLightning}
           onViewDailyLeaderboard={handleViewDailyLeaderboard}
           profile={profile}
           user={user}
           onViewProfile={() => setScreen('profile')}
-          onLogout={handleLogout}
+          onAdmin={() => setScreen('admin')}
+          dailyPlayed={dailyPlayed}
+        />
+      )}
+
+      {screen === 'admin' && (
+        <Admin
+          user={user}
+          onBack={() => setScreen('home')}
         />
       )}
 
@@ -471,6 +901,7 @@ useEffect(() => {
           user={user}
           onBack={() => setScreen('home')}
           onUsernameUpdated={(newName) => setUser({ ...user, displayName: newName })}
+          onLogout={handleLogout}
         />
       )}
 
@@ -481,6 +912,13 @@ useEffect(() => {
           rounds={gameConfig?.rounds || 5}
           onBack={() => setScreen('home')}
           user={user}
+          pendingInvite={incomingInviteForAccept}
+          onInviteHandled={() => {
+            setPendingOnlineInvite(null)
+            setIncomingInviteForAccept(null)
+          }}
+          tournamentMatchMeta={null}
+          onTournamentMatchComplete={null}
         />
       )}
 
@@ -504,6 +942,50 @@ useEffect(() => {
         />
       )}
 
+      {screen === 'lightningModes' && (
+        <LightningModes
+          sport={selectedSport}
+          onBack={() => setScreen('home')}
+          onStartSolo={handleStartLightningSolo}
+          onStartH2H={handleStartLightningH2H}
+          onViewLeaderboard={handleViewLightningLeaderboard}
+        />
+      )}
+
+      {screen === 'tournament' && (
+        <ErrorBoundary>
+          <Tournament
+            user={user}
+            onBack={() => {
+              setActiveTournamentCode(null)
+              setScreen('home')
+            }}
+            onPlayMatch={handleTournamentMatch}
+            initialCode={activeTournamentCode}
+          />
+        </ErrorBoundary>
+      )}
+
+      {screen === 'tournamentMatch' && tournamentMatchMeta && (
+        <OnlineMulti
+          key={tournamentMatchMeta.roomCode}
+          sport={gameConfig?.sport || 'football'}
+          rounds={gameConfig?.rounds || 10}
+          user={user}
+          pendingInvite={null}
+          onInviteHandled={() => {}}
+          tournamentMatchMeta={tournamentMatchMeta}
+          onBack={() => {
+            setTournamentMatchMeta(null)
+            setScreen('tournament')
+          }}
+          onTournamentMatchComplete={() => {
+            setTournamentMatchMeta(null)
+            setScreen('tournament')
+          }}
+        />
+      )}
+
       {screen === 'loading' && <Loading />}
 
       {screen === 'quiz' && questions.length > 0 && (
@@ -511,6 +993,25 @@ useEffect(() => {
           questions={questions}
           config={gameConfig}
           onFinish={handleFinish}
+        />
+      )}
+
+      {screen === 'lightningSolo' && lightningSoloQuestions.length > 0 && (
+        <LightningRound
+          questions={lightningSoloQuestions}
+          sport={lightningSoloConfig?.sport || selectedSport}
+          onFinish={handleFinishLightningSolo}
+        />
+      )}
+
+      {screen === 'lightningH2H' && (
+        <LightningH2H
+          questionsHost={lightningH2HQuestionsHost}
+          questionsGuest={lightningH2HQuestionsGuest}
+          roomCode={lightningH2HRoomCode}
+          role={lightningH2HRole}
+          sport={lightningH2HConfig?.sport || selectedSport}
+          onFinish={handleFinishLightningH2H}
         />
       )}
 
@@ -527,6 +1028,38 @@ useEffect(() => {
           onHome={() => setScreen('home')}
           onPlayAgain={handlePlayAgain}
           user={user}
+        />
+      )}
+
+      {screen === 'lightningSoloResults' && (
+        <LightningResults
+          scores={lightningSoloScores}
+          history={lightningSoloHistory}
+          config={{ ...lightningSoloConfig, totalQuestions: lightningSoloMeta?.totalQuestions || lightningSoloQuestions.length, totalTimeMs: lightningSoloMeta?.totalTimeMs }}
+          onHome={() => setScreen('home')}
+          onPlayAgain={handlePlayLightningSoloAgain}
+          onViewLeaderboard={() => handleViewLightningLeaderboard(lightningSoloConfig?.sport)}
+        />
+      )}
+
+      {screen === 'lightningH2HResults' && (
+        <LightningResults
+          scores={lightningH2HFinalScores}
+          history={lightningH2HHistory}
+          config={{ ...lightningH2HConfig, totalQuestions: lightningH2HMeta?.totalQuestions || 50, totalTimeMs: lightningH2HMeta?.totalTimeMs }}
+          onHome={() => setScreen('home')}
+          onPlayAgain={handlePlayLightningH2HAgain}
+          onViewLeaderboard={() => handleViewLightningLeaderboard(lightningH2HConfig?.sport)}
+          opponentName={lightningH2HOpponentName}
+          isWin={lightningH2HMeta?.isWin}
+          isDraw={lightningH2HMeta?.isDraw}
+        />
+      )}
+
+      {screen === 'lightningLeaderboard' && (
+        <LightningLeaderboard
+          sport={selectedSport}
+          onBack={() => setScreen('home')}
         />
       )}
 
