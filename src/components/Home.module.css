@@ -193,25 +193,66 @@
 
 .tabs {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 2rem;
+  background: var(--pitch-mid);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 5px;
+  overflow: hidden;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .tab {
-  padding: 8px 18px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 500;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 7px 3px;
+  border-radius: 10px;
+  font-size: clamp(8px, 2.1vw, 11px);
+  font-weight: 800;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   color: var(--muted);
-  border: 1px solid var(--card-border);
-  transition: all 0.2s;
+  border: 1px solid transparent;
+  transition: all 0.18s;
+  white-space: nowrap;
+  line-height: 1;
+  text-align: center;
 }
-.tab:hover { color: var(--white); border-color: rgba(255,255,255,0.2); }
+
+/* Extra small screens */
+@media (max-width: 380px) {
+  .tab {
+    padding: 6px 2px;
+    font-size: 7.5px;
+    letter-spacing: 0.01em;
+  }
+}
+
+@media (min-width: 768px) {
+  .tab {
+    flex: 1;
+    min-width: 48px;
+    white-space: nowrap;
+    line-height: normal;
+  }
+}
+
+.tab:hover {
+  color: var(--white);
+  background: rgba(255,255,255,0.05);
+}
+
 .tabActive {
   background: var(--green);
   color: var(--pitch);
   border-color: var(--green);
-  font-weight: 600;
+  font-weight: 900;
+  box-shadow: 0 2px 12px rgba(0,255,135,0.2);
 }
 
 .section { margin-bottom: 1.5rem; }
@@ -249,13 +290,31 @@
 }
 
 .profileBtn:hover,
-.logoutBtn:hover {
+.adminBtn:hover {
   background: rgba(255,255,255,0.08);
 }
 
 .profileBtn:active,
-.logoutBtn:active {
+.adminBtn:active {
   transform: scale(0.98);
+}
+
+.adminBtn {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--green);
+  background: rgba(0,255,135,0.1);
+  color: var(--green);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.adminBtn:hover {
+  background: rgba(0,255,135,0.18);
+  color: var(--white);
+  border-color: var(--green);
 }
 
 .label {

@@ -1,23 +1,30 @@
 {
   "rules": {
     "users": {
+      ".read": "auth != null && auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463'",
+
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         ".write": "auth != null && auth.uid === $uid",
+
         "profile": {
           ".validate": "newData.hasChildren(['updatedAt']) || !newData.exists()"
         },
+
         "stats": {
           ".validate": "!newData.exists() || newData.hasChildren()"
         },
+
         "matches": {
           "$matchId": {
             ".validate": "!newData.exists() || newData.hasChildren(['result', 'sport', 'rounds', 'date'])"
           }
         },
+
         "dailyStreak": {
           ".validate": "!newData.exists() || newData.hasChildren(['current', 'best', 'lastPlayedDateKey', 'updatedAt'])"
         },
+
         "playActivity": {
           "$dateKey": {
             "$source": {
@@ -25,6 +32,7 @@
             }
           }
         },
+
         "notifications": {
           "streakReminder": {
             ".validate": "!newData.exists() || newData.hasChildren(['lastSentDateKey'])"
@@ -33,6 +41,7 @@
             ".validate": "!newData.exists() || newData.hasChildren(['lastSentDateKey'])"
           }
         },
+
         "pushSubscriptions": {
           "$subscriptionId": {
             ".validate": "!newData.exists() || newData.hasChildren(['endpoint', 'keys', 'createdAt'])"
@@ -40,53 +49,148 @@
         }
       }
     },
+
+    "bannedUsers": {
+      ".read": "auth != null && auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463'",
+      ".write": "auth != null && auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463'"
+    },
+
     "rooms": {
       ".read": true,
       ".write": true,
+
       "$roomId": {
         ".validate": "newData.hasChildren(['code', 'sport', 'rounds', 'status'])"
       }
     },
+
     "teamRooms": {
       ".read": true,
       ".write": true,
+
       "$roomId": {
         ".validate": "newData.hasChildren(['code', 'sport', 'rounds', 'status'])"
       }
     },
+
+    "tournaments": {
+      ".read": true,
+      ".write": "auth != null",
+
+      "$tournamentId": {
+        ".validate": "newData.hasChildren(['code', 'sport', 'status'])"
+      }
+    },
+
+    "userStats": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null",
+
+        "tournamentHistory": {
+          "$code": {
+            ".validate": "newData.hasChildren(['tournamentCode', 'tournamentName', 'sport', 'result', 'playedAt'])"
+          }
+        },
+
+        "badges": {
+          "$badgeId": {
+            ".validate": "newData.hasChildren(['awardedAt'])"
+          }
+        }
+      }
+    },
+
     "invites": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
+
     "dailyLeaderboards": {
       ".read": true,
-      ".write": false,
+
       "$dateKey": {
         "$sport": {
           "entries": {
             ".write": true,
-            ".validate": "newData.hasChildren(['playerId', 'displayName', 'score', 'totalQuestions', 'totalTimeMs', 'accuracyPct', 'updatedAt'])",
+
             "$playerId": {
-              ".validate": "newData.child('playerId').val() === $playerId && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= newData.child('totalQuestions').val() && newData.child('totalTimeMs').isNumber() && newData.child('totalTimeMs').val() >= 0"
+              ".validate": "newData.hasChildren(['playerId', 'displayName', 'score', 'totalQuestions', 'totalTimeMs', 'accuracyPct', 'updatedAt']) && newData.child('playerId').val() === $playerId && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= newData.child('totalQuestions').val() && newData.child('totalTimeMs').isNumber() && newData.child('totalTimeMs').val() >= 0"
             }
           }
         }
       }
     },
+
     "weeklyLeaderboards": {
       ".read": true,
-      ".write": false,
+
       "$weekKey": {
         "$sport": {
           "entries": {
             ".write": true,
-            ".validate": "newData.hasChildren(['playerId', 'displayName', 'score', 'totalQuestions', 'totalTimeMs', 'daysPlayed', 'accuracyPct', 'updatedAt'])",
+
             "$playerId": {
-              ".validate": "newData.child('playerId').val() === $playerId && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('totalQuestions').isNumber() && newData.child('totalQuestions').val() >= 0 && newData.child('totalTimeMs').isNumber() && newData.child('totalTimeMs').val() >= 0 && newData.child('daysPlayed').isNumber() && newData.child('daysPlayed').val() >= 1"
+              ".validate": "newData.hasChildren(['playerId', 'displayName', 'score', 'totalQuestions', 'totalTimeMs', 'daysPlayed', 'accuracyPct', 'updatedAt']) && newData.child('playerId').val() === $playerId && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('totalQuestions').isNumber() && newData.child('totalQuestions').val() >= 0 && newData.child('totalTimeMs').isNumber() && newData.child('totalTimeMs').val() >= 0 && newData.child('daysPlayed').isNumber() && newData.child('daysPlayed').val() >= 1"
             }
           }
         }
       }
+    },
+
+    "adminQuestions": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463'"
+    },
+
+    "onlineInvites": {
+      "$playerId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "lightningDaily": {
+      ".read": true,
+      "$sport": {
+        "$dateKey": {
+          "$playerId": {
+            ".write": "auth != null",
+            ".validate": "newData.hasChildren(['displayName', 'score', 'totalQuestions', 'totalTimeMs', 'correctAnswers', 'accuracyPct', 'timestamp']) && newData.child('displayName').isString() && newData.child('displayName').val().length > 0 && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('totalQuestions').isNumber() && newData.child('totalQuestions').val() > 0 && newData.child('totalTimeMs').isNumber() && newData.child('totalTimeMs').val() >= 0 && newData.child('correctAnswers').isNumber() && newData.child('correctAnswers').val() >= 0 && newData.child('correctAnswers').val() <= newData.child('totalQuestions').val() && newData.child('accuracyPct').isNumber() && newData.child('accuracyPct').val() >= 0 && newData.child('accuracyPct').val() <= 100 && newData.child('timestamp').isNumber()"
+          }
+        }
+      }
+    },
+
+    "lightningRooms": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$roomCode": {
+        ".validate": "newData.hasChildren(['sport', 'rounds', 'status', 'createdAt'])"
+      }
+    },
+
+    "lightningInvites": {
+      "$playerId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".validate": "!newData.exists() || newData.hasChildren(['fromName', 'fromUserId', 'roomCode', 'sport', 'timestamp'])"
+      }
+    },
+
+    "playerIds": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "notifications": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "analytics": {
+      ".read": "auth != null",
+      ".write": "auth != null"
     }
   }
 }

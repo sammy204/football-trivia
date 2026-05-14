@@ -130,3 +130,20 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Responsive */
+@media (max-width: 400px) {
+  .inviteCard {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .inviteActions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .card {
+    padding: 1.25rem 1rem;
+  }
+}

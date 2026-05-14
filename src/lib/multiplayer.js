@@ -6,8 +6,8 @@ export function generateRoomCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase()
 }
 
-export async function createRoom({ playerName, questions, rounds, sport }) {
-  const code = generateRoomCode()
+export async function createRoom({ playerName, questions, rounds, sport, code: presetCode }) {
+  const code = presetCode || generateRoomCode()  // ← use preset if given
   const roomRef = ref(db, `rooms/${code}`)
   await set(roomRef, {
     code,
@@ -43,20 +43,20 @@ export async function joinRoom({ code, playerName }) {
 
 export async function startGame(code) {
   await update(ref(db, `rooms/${code}`), {
-    status: 'playing',
+status: 'playing',
     questionState: {
       answerCount: 0,
       resolved: false,
       winner: null,
     },
-  })
+})
 }
 
 export async function submitAnswer({ code, role, qIndex, answer, correct }) {
   await update(ref(db, `rooms/${code}/answers/${qIndex}`), {
     [role]: { answer, correct }
   })
-  await update(ref(db, `rooms/${code}/players/${role}`), { answered: true })
+    await update(ref(db, `rooms/${code}/players/${role}`), { answered: true })
 
   const stateRef = ref(db, `rooms/${code}/questionState`)
   const { snapshot } = await runTransaction(stateRef, (state) => {
@@ -82,7 +82,7 @@ export async function submitAnswer({ code, role, qIndex, answer, correct }) {
 
 export async function nextQuestion({ code, qIndex, total }) {
   if (qIndex + 1 >= total) {
-    const roomSnap = await get(ref(db, `rooms/${code}`))
+const roomSnap = await get(ref(db, `rooms/${code}`))
     const room = roomSnap.val()
     const hostScore = room?.players?.host?.score || 0
     const guestScore = room?.players?.guest?.score || 0
@@ -116,7 +116,7 @@ export async function nextQuestion({ code, qIndex, total }) {
   } else {
     await update(ref(db, `rooms/${code}`), {
       currentQuestion: qIndex + 1,
-      questionState: {
+questionState: {
         answerCount: 0,
         resolved: false,
         winner: null,
@@ -131,4 +131,32 @@ export function listenToRoom(code, callback) {
   const roomRef = ref(db, `rooms/${code}`)
   onValue(roomRef, snap => callback(snap.val()))
   return () => off(roomRef)
+} 
+export async function sendOnlineInvite({ fromName, fromUserId, toPlayerId, roomCode, sport, rounds }) {
+  const inviteRef = ref(db, `onlineInvites/${toPlayerId}`)
+  await set(inviteRef, {
+    fromName,
+    fromUserId,
+    roomCode,
+    sport,
+    rounds,
+    sentAt: Date.now(),
+  })
+}
+
+export function listenToOnlineInvite(playerId, callback) {
+  const inviteRef = ref(db, `onlineInvites/${playerId}`)
+  onValue(inviteRef, snap => callback(snap.val()))
+  return () => off(inviteRef)
+}
+
+export async function clearOnlineInvite(playerId) {
+  await set(ref(db, `onlineInvites/${playerId}`), null)
+}
+
+export async function getPlayerByPlayerId(playerId) {
+  const snap = await get(ref(db, `playerIds/${playerId}`))
+  if (!snap.exists()) return null
+  const uid = snap.val()
+  return { uid }
 }

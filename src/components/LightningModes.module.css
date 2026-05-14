@@ -1,0 +1,147 @@
+.wrap {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+.backBtn {
+  background: var(--green);
+  color: var(--pitch);
+  padding: 0.8rem 1.2rem;
+  border-radius: 12px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  margin-bottom: 1.5rem;
+  display: inline-block;
+}
+
+.backBtn:hover {
+  background: var(--green-dark);
+}
+
+.backBtn:active {
+  transform: scale(0.98);
+}
+
+.kicker {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 10vw, 56px);
+  line-height: 0.95;
+  margin-bottom: 8px;
+  color: var(--white);
+}
+
+.sub {
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 1rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.card,
+.cardStatic {
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  border-radius: 14px;
+  padding: 14px;
+  text-align: left;
+}
+
+.card {
+  color: inherit;
+}
+
+.cardTitle {
+  display: block;
+  margin-top: 6px;
+  color: var(--white);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.cardCopy {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.icon {
+  font-size: 20px;
+}
+
+.inviteRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: rgba(255,255,255,0.03);
+  color: var(--white);
+  font-size: 13px;
+}
+
+.inviteBtn {
+  padding: 0 14px;
+  border-radius: 8px;
+  background: var(--green);
+  color: var(--pitch);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.inviteBtn:disabled {
+  opacity: 0.55;
+}
+
+.error {
+  margin-top: 8px;
+  color: #FF5C5C;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ghostBtn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  color: var(--white);
+  background: rgba(255,255,255,0.03);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@media (min-width: 768px) {
+  .wrap {
+    max-width: 620px;
+    padding: 3rem 1.5rem 4rem;
+  }
+
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

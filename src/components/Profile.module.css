@@ -5,20 +5,24 @@
 }
 
 .backBtn {
-  padding: 8px 16px;
-  border-radius: 8px;
-  border: 1px solid var(--card-border);
-  background: transparent;
-  color: var(--white);
-  font-size: 13px;
-  font-weight: 600;
+  background: var(--green);
+  color: var(--pitch);
+  padding: 0.8rem 1.2rem;
+  border-radius: 12px;
+  font-weight: 700;
+  border: none;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, transform 0.1s;
   margin-bottom: 1.5rem;
+  display: inline-block;
 }
 
 .backBtn:hover {
-  background: rgba(255,255,255,0.08);
+  background: var(--green-dark);
+}
+
+.backBtn:active {
+  transform: scale(0.98);
 }
 
 .header {
@@ -333,6 +337,43 @@
   color: var(--muted);
   font-size: 14px;
   line-height: 1.6;
+}
+
+/* ── Logout Section ── */
+.logoutSection {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--card-border);
+  display: flex;
+  justify-content: center;
+}
+
+.logoutBtn {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--card-border);
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logoutBtn:hover {
+  color: #FF5C5C;
+  border-color: #FF5C5C;
+  background: rgba(255, 92, 92, 0.08);
+}
+
+.logoutBtn:active {
+  transform: scale(0.98);
+}
+
+@media (max-width: 520px) {
+  .logoutBtn {
+    width: 100%;
+  }
 }
 
 /* ── Player ID Badge ── */

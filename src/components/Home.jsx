@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { getDailyChallengeInfo, hasPlayedDailyChallenge } from '../lib/dailyChallenge'
+import { getDailyChallengeInfo } from '../lib/dailyChallenge'
 import { subscribeUserToPush } from '../lib/pushNotifications'
 import styles from './Home.module.css'
 
@@ -15,18 +15,21 @@ function formatCountdown(ms) {
 }
 
 export default function Home({
-    sport,
-    onSportChange,
-    onStartSolo,
-    onStartOnline,
-    onStartTeam,
-    onStartDaily,
-    onViewDailyLeaderboard,
-    profile,
-    user,
-    onViewProfile,
-    onLogout,
-  }) {
+  sport,
+  onSportChange,
+  onStartSolo,
+  onStartOnline,
+  onStartTeam,
+  onStartDaily,
+  onStartTournament,
+  onStartLightning,
+  onViewDailyLeaderboard,
+  profile,
+  user,
+  onViewProfile,
+  onAdmin,
+  dailyPlayed,
+}) {
   const [tab, setTab] = useState('solo')
   const [rounds, setRounds] = useState(5)
   const [soloName, setSoloName] = useState('')
@@ -43,27 +46,22 @@ export default function Home({
   const [notificationPermission, setNotificationPermission] = useState(
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
   )
+  const [dailyChallenge, setDailyChallenge] = useState(null)
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 1000)
     return () => window.clearInterval(interval)
   }, [])
 
-  const dailyChallenge = useMemo(
-    () => getDailyChallengeInfo({ sport, now: new Date(now) }),
-    [sport, now]
-  )
-
-  const dailyPlayed = useMemo(
-    () => hasPlayedDailyChallenge({ dateKey: dailyChallenge.dateKey, sport }),
-    [dailyChallenge.dateKey, sport]
-  )
+  useEffect(() => {
+    getDailyChallengeInfo({ sport, now: new Date(now) }).then(setDailyChallenge)
+  }, [sport, now])
 
   const currentPlayerName = user?.displayName || profile?.displayName || 'Player'
   const isSignedInPlayer = Boolean(user)
 
-  const dailyAvailable = dailyChallenge.available
-  const beforeRelease = now < dailyChallenge.releaseTime.getTime()
+  const dailyAvailable = dailyChallenge?.available
+  const beforeRelease = dailyChallenge ? now < dailyChallenge.releaseTime.getTime() : false
   const dailyButtonLabel = dailyPlayed
     ? 'Already played today'
     : dailyAvailable
@@ -88,13 +86,15 @@ export default function Home({
     ? 'Opens in'
     : 'Back in'
 
-  const countdownTarget = dailyPlayed
-    ? dailyChallenge.nextRelease.getTime()
-    : dailyAvailable
-    ? dailyChallenge.cutoffTime.getTime()
-    : beforeRelease
-    ? dailyChallenge.releaseTime.getTime()
-    : dailyChallenge.nextRelease.getTime()
+  const countdownTarget = dailyChallenge
+    ? (dailyPlayed
+        ? dailyChallenge.nextRelease.getTime()
+        : dailyAvailable
+        ? dailyChallenge.cutoffTime.getTime()
+        : beforeRelease
+        ? dailyChallenge.releaseTime.getTime()
+        : dailyChallenge.nextRelease.getTime())
+    : Date.now()
 
   useEffect(() => {
     setCountdown(formatCountdown(countdownTarget - Date.now()))
@@ -160,7 +160,7 @@ export default function Home({
     nextSport === sport
       ? { borderColor: accent, color: accent, background: accentBg, fontWeight: 700 }
       : {}
-  const showRoundPicker = tab !== 'teams'
+   const showRoundPicker = tab !== 'teams' && tab !== 'tournament' && tab !== 'lightning'
 
   return (
     <div className={styles.wrap}>
@@ -174,9 +174,11 @@ export default function Home({
               <button className={styles.profileBtn} onClick={onViewProfile} title="View profile">
                 👤
               </button>
-              <button className={styles.logoutBtn} onClick={onLogout} title="Logout">
-                Log out
-              </button>
+              {user.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463' && (
+                <button className={styles.adminBtn} onClick={onAdmin} title="Admin Dashboard">
+                  Admin
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -189,15 +191,15 @@ export default function Home({
       </header>
 
       <section className={styles.dailyCard}>
-<div className={styles.dailyTop}>
-            <div>
-              <p className={styles.badge}>Daily challenge</p>
-              <h2 className={styles.dailyTitle}>{sportLabel} matchday</h2>
-            </div>
-            <button className={styles.dailyGhost} onClick={() => onViewDailyLeaderboard(sport)}>
-              Leaderboard
-            </button>
+        <div className={styles.dailyTop}>
+          <div>
+            <p className={styles.badge}>Daily challenge</p>
+            <h2 className={styles.dailyTitle}>{sportLabel} matchday</h2>
           </div>
+          <button className={styles.dailyGhost} onClick={() => onViewDailyLeaderboard(sport)}>
+            Leaderboard
+          </button>
+        </div>
 
         <p className={styles.dailyCopy}>
           Same {sportLabel.toLowerCase()} questions for everyone today. Score first, speed second.
@@ -208,7 +210,8 @@ export default function Home({
           <span>{dailyChallenge?.dateKey}</span>
           <span>{currentPlayerName ? `Playing as ${currentPlayerName}` : 'Play first, save score after'}</span>
         </div>
- <div className={styles.countdownRow}>
+
+        <div className={styles.countdownRow}>
           <div className={styles.countdownText}>
             <span className={styles.countdownLabel}>Daily status</span>
             <span className={styles.countdownMessage}>{dailyStatusMessage}</span>
@@ -255,19 +258,27 @@ export default function Home({
         </div>
       </div>
 
-      {/* ── Mode Tabs ── */}
-      <div className={styles.tabs}>
-        {['solo', 'online', 'teams'].map((nextTab) => (
-          <button
-            key={nextTab}
-            className={`${styles.tab} ${tab === nextTab ? styles.tabActive : ''}`}
-            style={tab === nextTab ? tabActiveStyle : {}}
-            onClick={() => setTab(nextTab)}
-          >
-            {nextTab === 'solo' ? 'Solo' : nextTab === 'online' ? 'Online' : 'Teams'}
-          </button>
-        ))}
-      </div>
+       {/* ── Mode Tabs ── */}
+       <div className={styles.tabs}>
+         {['solo', 'online', 'teams', 'lightning', 'tournament'].map((nextTab) => (
+           <button
+             key={nextTab}
+             className={`${styles.tab} ${tab === nextTab ? styles.tabActive : ''}`}
+             style={tab === nextTab ? tabActiveStyle : {}}
+             onClick={() => setTab(nextTab)}
+           >
+             {nextTab === 'solo'
+               ? 'Solo'
+               : nextTab === 'online'
+               ? 'Multiplayer'
+               : nextTab === 'teams'
+               ? 'Teams'
+               : nextTab === 'lightning'
+               ? 'Lightning'
+               : 'Tournament'}
+           </button>
+         ))}
+       </div>
 
       {showRoundPicker && (
         <div className={styles.section}>
@@ -338,6 +349,41 @@ export default function Home({
           </button>
         </div>
       )}
-    </div>
+
+       {/* ── Lightning ── */}
+       {tab === 'lightning' && (
+         <div className={styles.section}>
+           <p className={styles.onlineDesc}>
+             Fast-paced 60-second rush. Answer as many questions correctly as possible. Speed matters — wrong answers penalize -3 seconds. Climb the lightning leaderboard!
+           </p>
+
+           {/* Open lightning modes */}
+           <button
+             className={styles.startBtn}
+             style={startBtnStyle}
+             onClick={() => onStartLightning({ sport })}
+           >
+             ⚡ Open lightning modes →
+           </button>
+
+         </div>
+       )}
+
+       {/* ── Tournament ── */}
+       {tab === 'tournament' && (
+         <div className={styles.section}>
+           <p className={styles.onlineDesc}>
+             Single-elimination brackets. Create a tournament, invite players with a code or make it public, set a start time, and compete round by round until one champion remains.
+           </p>
+           <button
+             className={styles.startBtn}
+             style={startBtnStyle}
+             onClick={onStartTournament}
+           >
+             Enter tournament lobby {'>'}
+           </button>
+         </div>
+       )}
+     </div>
   )
 }

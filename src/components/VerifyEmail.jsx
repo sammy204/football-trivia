@@ -42,8 +42,9 @@ export default function VerifyEmail({ user, onVerified, onPlaySolo }) {
         <div className={styles.steps}>
           <div className={styles.step}>
             <div className={styles.stepNum}>1</div>
-            <div className={styles.stepText}>Open the email from Football Trivia</div>
+            <div className={styles.stepText}>Open the email from Trivela</div>
           </div>
+          
           <div className={styles.step}>
             <div className={styles.stepNum}>2</div>
             <div className={styles.stepText}>Click the verification link</div>
@@ -54,6 +55,9 @@ export default function VerifyEmail({ user, onVerified, onPlaySolo }) {
           </div>
         </div>
 
+    <div className={styles.spamNotice}>
+      📂 Can't find it? Check your <strong>spam or junk folder</strong> — verification emails sometimes land there.
+    </div>
         <button className={styles.btnPrimary} onClick={handleCheckVerification} disabled={checking}>
           {checking ? 'Checking...' : "I've verified my email ✓"}
         </button>

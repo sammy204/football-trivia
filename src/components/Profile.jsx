@@ -4,6 +4,7 @@ import { db } from '../lib/firebase'
 import { updateProfile } from 'firebase/auth'
 import { loadProfile, saveProfile } from '../lib/profile'
 import styles from './Profile.module.css'
+import { calculateWinStreak } from '../lib/streaks'
 
 const MILESTONES = [
   { id: 'wins10',    icon: '🏆', title: '10 Wins',        copy: 'Win 10 multiplayer matches.',         check: s => s.wins >= 10 },
@@ -23,7 +24,7 @@ function formatStreakDate(dateKey) {
   }
 }
 
-export default function Profile({ user, onBack, onUsernameUpdated }) {
+export default function Profile({ user, onBack, onUsernameUpdated, onLogout }) {
   const [stats, setStats] = useState(null)
   const [matches, setMatches] = useState([])
   const [streak, setStreak] = useState(null)
@@ -78,7 +79,7 @@ export default function Profile({ user, onBack, onUsernameUpdated }) {
         const losses = allMatches.filter(m => m.result === 'loss').length
         const draws = allMatches.filter(m => m.result === 'draw').length
         const totalPoints = allMatches.reduce((sum, m) => sum + (m.score || 0), 0)
-        const winStreak = statsData.winStreak || 0
+        const winStreak = calculateWinStreak(allMatches)
         const bestStreak = streakSnap.val()?.best || 0
 
         setStats({
@@ -136,9 +137,9 @@ export default function Profile({ user, onBack, onUsernameUpdated }) {
 
   return (
     <div className={styles.wrap}>
-      <button className={styles.backBtn} onClick={onBack}>
-        ← Back
-      </button>
+<button className={styles.backBtn} onClick={onBack}>
+          Back
+        </button>
 
       <div className={styles.header}>
         <h1 className={styles.title}>Profile</h1>
@@ -323,6 +324,13 @@ export default function Profile({ user, onBack, onUsernameUpdated }) {
           )}
         </>
       )}
+
+      {/* Logout section */}
+      <section className={styles.logoutSection}>
+        <button className={styles.logoutBtn} onClick={onLogout}>
+          Log out
+        </button>
+      </section>
     </div>
   )
 }

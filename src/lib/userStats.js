@@ -1,5 +1,6 @@
 import { ref, push, update, get, runTransaction } from 'firebase/database'
 import { db } from './firebase'
+import { calculateWinStreak } from './streaks'
 
 export async function saveMatchResult({ userId, username, opponent, opponentName, myScore, opponentScore, sport, rounds }) {
   const result = myScore > opponentScore ? 'win' : myScore < opponentScore ? 'loss' : 'draw'
@@ -13,6 +14,7 @@ export async function saveMatchResult({ userId, username, opponent, opponentName
     sport,
     rounds,
     date: new Date().toISOString(),
+    timestamp: Date.now(),
     isTeamGame: false,
   }
 
@@ -30,6 +32,10 @@ export async function saveMatchResult({ userId, username, opponent, opponentName
       totalPoints: (stats.totalPoints || 0) + (myScore || 0),
     }
   })
+  const allMatchesSnap = await get(ref(db, `users/${userId}/matches`))
+const allMatches = allMatchesSnap.val() ? Object.values(allMatchesSnap.val()) : []
+const winStreak = calculateWinStreak(allMatches)
+await update(ref(db, `users/${userId}/stats`), { winStreak })
 
   await update(ref(db, `users/${userId}/profile`), {
     username,
@@ -53,6 +59,7 @@ export async function saveTeamMatchResult({ userId, username, sport, teamName, t
     sport,
     rounds: questionsCount,
     date: new Date().toISOString(),
+    timestamp: Date.now(),
     isTeamGame: true,
     teamRank,
     teamsCount,

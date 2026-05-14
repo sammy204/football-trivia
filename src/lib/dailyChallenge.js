@@ -1,6 +1,5 @@
 import { get, off, onValue, ref, set } from 'firebase/database'
 import { db } from './firebase'
-import dailyChallenges from '../data/questions/daily'
 
 const DEFAULT_ROUNDS = 10
 export const DAILY_RELEASE_HOUR_NIGERIA = 12
@@ -27,6 +26,13 @@ export function getWeekKey(date = new Date()) {
   const firstDayOfYear = new Date(Date.UTC(year, 0, 1))
   const weekNumber = Math.ceil((((thursday - firstDayOfYear) / 86400000) + 1) / 7)
   return `${year}-W${String(weekNumber).padStart(2, '0')}`
+}
+
+function dateFromDateKey(dateKey) {
+  if (!dateKey || typeof dateKey !== 'string') return new Date()
+  const [year, month, day] = dateKey.split('-').map(Number)
+  if (!year || !month || !day) return new Date()
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0))
 }
 
 function getReleaseTimeUTC(date = new Date()) {
@@ -62,10 +68,7 @@ export function getNextDailyRelease(now = new Date()) {
     now.getUTCFullYear(),
     now.getUTCMonth(),
     now.getUTCDate() + 1,
-    0,
-    0,
-    0,
-    0
+    0, 0, 0, 0
   ))
   return getReleaseTimeUTC(tomorrow)
 }
@@ -80,22 +83,64 @@ export function isDailyChallengeAvailable(now = new Date()) {
   return isDailyChallengeOpen(now)
 }
 
-export function getDailyChallengeSet({ sport, date = new Date() }) {
-  const dateKey = getDateKey(date)
-  const sportChallenges = dailyChallenges[sport] || {}
-  const questions = sportChallenges[dateKey] || null
+// ─── Converts Firebase keyed options { a, b, c, d } back to array format ────
+// so the rest of the game (Quiz.jsx etc.) keeps working without any changes
+function normalizeQuestion(q) {
+  if (!q) return null
+
+  // Already in array format (shouldn't happen from Firebase but just in case)
+  if (Array.isArray(q.options)) return q
+
+  const keys = ['a', 'b', 'c', 'd']
+  const optionsArray = keys.map(k => q.options?.[k] ?? '')
+
+  // Convert answer key (e.g. 'b') back to the answer string (e.g. 'France')
+  const answerString = q.options?.[q.answer] ?? q.answer
 
   return {
-    dateKey,
-    sport,
-    questions: questions ? questions.map((question) => ({ ...question })) : null,
+    question: q.question,
+    options: optionsArray,
+    answer: answerString,
+    explanation: q.explanation ?? '',
   }
 }
 
-export function getDailyChallengeInfo({ sport, now = new Date(), rounds = DEFAULT_ROUNDS }) {
+// ─── Fetch daily questions from Firebase ─────────────────────────────────────
+export async function getDailyChallengeSet({ sport, date = new Date() }) {
+  const dateKey = getDateKey(date)
+
+  try {
+    const snap = await get(ref(db, `adminQuestions/${sport}/daily`))
+    const data = snap.val()
+
+    if (!data) {
+      return { dateKey, sport, questions: null }
+    }
+
+    // Filter questions assigned to today's dateKey
+    // Admin sets a scheduledDate field when assigning daily questions
+    // If no scheduledDate, fall back to all daily questions (for backwards compat)
+    const allQuestions = Object.values(data).map(normalizeQuestion).filter(Boolean)
+
+    const todayQuestions = allQuestions.filter(q => q.scheduledDate === dateKey)
+    const questions = todayQuestions.length > 0 ? todayQuestions : allQuestions
+
+    return {
+      dateKey,
+      sport,
+      questions: questions.length > 0 ? questions : null,
+    }
+  } catch (e) {
+    console.error('Failed to fetch daily challenge questions from Firebase:', e)
+    return { dateKey, sport, questions: null }
+  }
+}
+
+// ─── Async versions of getDailyChallenge ─────────────────────────────────────
+export async function getDailyChallengeInfo({ sport, now = new Date(), rounds = DEFAULT_ROUNDS }) {
   const releaseTime = getReleaseTimeUTC(now)
   const cutoffTime = getCutoffTimeUTC(now)
-  const challenge = getDailyChallenge({ sport, date: now, rounds })
+  const challenge = await getDailyChallenge({ sport, date: now, rounds })
   const available = isDailyChallengeOpen(now) && challenge.questions.length > 0
   const nextRelease = available ? cutoffTime : getNextDailyRelease(now)
 
@@ -108,8 +153,8 @@ export function getDailyChallengeInfo({ sport, now = new Date(), rounds = DEFAUL
   }
 }
 
-export function getDailyChallenge({ sport, date = new Date(), rounds = DEFAULT_ROUNDS }) {
-  const { dateKey, questions: challengeQuestions } = getDailyChallengeSet({ sport, date })
+export async function getDailyChallenge({ sport, date = new Date(), rounds = DEFAULT_ROUNDS }) {
+  const { dateKey, questions: challengeQuestions } = await getDailyChallengeSet({ sport, date })
   const questions = (challengeQuestions || []).slice(0, rounds)
 
   return {
@@ -121,6 +166,7 @@ export function getDailyChallenge({ sport, date = new Date(), rounds = DEFAULT_R
   }
 }
 
+// ─── Played tracking (unchanged) ─────────────────────────────────────────────
 function canUseStorage() {
   return typeof window !== 'undefined' && Boolean(window.localStorage)
 }
@@ -173,6 +219,7 @@ export async function markDailyChallengePlayedOnline({ userId, dateKey, sport, p
   }
 }
 
+// ─── Leaderboard (unchanged) ──────────────────────────────────────────────────
 function getLeaderboardPath({ dateKey, sport }) {
   return `dailyLeaderboards/${dateKey}/${sport}/entries`
 }
@@ -188,10 +235,7 @@ function sortEntries(entriesMap) {
       if ((a.totalTimeMs || 0) !== (b.totalTimeMs || 0)) return (a.totalTimeMs || 0) - (b.totalTimeMs || 0)
       return (a.displayName || '').localeCompare(b.displayName || '')
     })
-    .map((entry, index) => ({
-      ...entry,
-      rank: index + 1,
-    }))
+    .map((entry, index) => ({ ...entry, rank: index + 1 }))
 }
 
 function sortWeeklyEntries(entriesMap) {
@@ -201,10 +245,7 @@ function sortWeeklyEntries(entriesMap) {
       if ((b.daysPlayed || 0) !== (a.daysPlayed || 0)) return (b.daysPlayed || 0) - (a.daysPlayed || 0)
       return (a.displayName || '').localeCompare(b.displayName || '')
     })
-    .map((entry, index) => ({
-      ...entry,
-      rank: index + 1,
-    }))
+    .map((entry, index) => ({ ...entry, rank: index + 1 }))
 }
 
 export async function saveDailyLeaderboardEntry({
@@ -217,7 +258,6 @@ export async function saveDailyLeaderboardEntry({
   totalTimeMs,
 }) {
   const entryRef = ref(db, `${getLeaderboardPath({ dateKey, sport })}/${playerId}`)
-
   const snapshot = await get(entryRef)
   const current = snapshot.val()
 
@@ -250,6 +290,7 @@ export async function saveDailyLeaderboardEntry({
   const leaderboard = sortEntries(leaderboardSnapshot.val() || {})
 
   await saveWeeklyLeaderboardEntry({
+    dateKey,
     sport,
     playerId,
     displayName,
@@ -274,6 +315,7 @@ export function listenToDailyLeaderboard({ dateKey, sport }, callback, onError) 
 }
 
 export async function saveWeeklyLeaderboardEntry({
+  dateKey,
   sport,
   playerId,
   displayName,
@@ -281,9 +323,12 @@ export async function saveWeeklyLeaderboardEntry({
   totalQuestions,
   totalTimeMs,
 }) {
-  const weekKey = getWeekKey()
+  const safeScore = Number(score) || 0
+  const safeTotalQuestions = Number(totalQuestions) || 0
+  const safeTotalTimeMs = Number(totalTimeMs) || 0
+  const playedDateKey = dateKey || getDateKey()
+  const weekKey = getWeekKey(dateFromDateKey(playedDateKey))
   const entryRef = ref(db, `${getWeeklyLeaderboardPath({ weekKey, sport })}/${playerId}`)
-
   const snapshot = await get(entryRef)
   const current = snapshot.val()
 
@@ -291,18 +336,20 @@ export async function saveWeeklyLeaderboardEntry({
     await set(entryRef, {
       playerId,
       displayName,
-      score,
-      totalQuestions,
-      totalTimeMs,
+      score: safeScore,
+      totalQuestions: safeTotalQuestions,
+      totalTimeMs: safeTotalTimeMs,
       daysPlayed: 1,
-      accuracyPct: Math.round((score / totalQuestions) * 100),
+      lastPlayedDateKey: playedDateKey,
+      accuracyPct: safeTotalQuestions > 0 ? Math.round((safeScore / safeTotalQuestions) * 100) : 0,
       updatedAt: Date.now(),
     })
   } else {
-    const newScore = (current.score || 0) + score
-    const newTotalQuestions = (current.totalQuestions || 0) + totalQuestions
-    const newTotalTimeMs = (current.totalTimeMs || 0) + totalTimeMs
-    const newDaysPlayed = (current.daysPlayed || 0) + 1
+    const alreadyCountedToday = current.lastPlayedDateKey === playedDateKey
+    const newScore = (current.score || 0) + safeScore
+    const newTotalQuestions = (current.totalQuestions || 0) + safeTotalQuestions
+    const newTotalTimeMs = (current.totalTimeMs || 0) + safeTotalTimeMs
+    const newDaysPlayed = alreadyCountedToday ? (current.daysPlayed || 1) : (current.daysPlayed || 0) + 1
 
     await set(entryRef, {
       ...current,
@@ -311,7 +358,8 @@ export async function saveWeeklyLeaderboardEntry({
       totalQuestions: newTotalQuestions,
       totalTimeMs: newTotalTimeMs,
       daysPlayed: newDaysPlayed,
-      accuracyPct: Math.round((newScore / newTotalQuestions) * 100),
+      lastPlayedDateKey: playedDateKey,
+      accuracyPct: newTotalQuestions > 0 ? Math.round((newScore / newTotalQuestions) * 100) : 0,
       updatedAt: Date.now(),
     })
   }

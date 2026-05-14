@@ -54,9 +54,7 @@ export default function DailyLeaderboard({ sport, onBack, highlightPlayerId }) {
 
   return (
     <div className={styles.wrap}>
-      <button className={styles.back} onClick={onBack}>
-        Back
-      </button>
+<button className={styles.backBtn} onClick={onBack}>Back</button>
 
       <div className={styles.tabs}>
         <button

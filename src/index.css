@@ -42,6 +42,15 @@ body {
 button { font-family: var(--font-body); cursor: pointer; border: none; background: none; }
 input { font-family: var(--font-body); }
 
+/* Prevent tap highlight on mobile */
+* { -webkit-tap-highlight-color: transparent; }
+
+/* Prevent iOS input zoom (font-size must be >= 16px on inputs) */
+input, select, textarea { font-size: max(16px, 1em); }
+
+/* Safe area insets for notched phones */
+.safeBottom { padding-bottom: env(safe-area-inset-bottom); }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }

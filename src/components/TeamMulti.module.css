@@ -4,22 +4,25 @@
   padding: 2rem 1.25rem 4rem;
 }
 
-.back {
-  padding: 8px 16px;
-  border-radius: 8px;
-  border: 1px solid var(--card-border);
-  background: transparent;
-  color: var(--white);
-  font-size: 13px;
-  font-weight: 600;
+.backBtn {
+  background: var(--green);
+  color: var(--pitch);
+  padding: 0.8rem 1.2rem;
+  border-radius: 12px;
+  font-weight: 700;
+  border: none;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, transform 0.1s;
   margin-bottom: 1.5rem;
   display: inline-block;
 }
 
-.back:hover {
-  background: rgba(255,255,255,0.08);
+.backBtn:hover {
+  background: var(--green-dark);
+}
+
+.backBtn:active {
+  transform: scale(0.98);
 }
 
 .title {
