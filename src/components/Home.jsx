@@ -104,11 +104,13 @@ export default function Home({
     return () => window.clearInterval(interval)
   }, [countdownTarget])
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || !('Notification' in window)) return
-    setNotificationPermission(Notification.permission)
-  }, [])
-
+ useEffect(() => {
+  if (typeof window === 'undefined' || !('Notification' in window)) return
+  setNotificationPermission(Notification.permission)
+  if (Notification.permission === 'granted' && user?.uid) {
+    subscribeUserToPush(user).catch(console.error)
+  }
+}, [user?.uid])
   useEffect(() => {
     if (
       typeof window === 'undefined' ||
