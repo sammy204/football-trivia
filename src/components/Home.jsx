@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getDailyChallengeInfo } from '../lib/dailyChallenge'
+import { getActiveSeasonalEvents, getDateKey } from '../lib/seasonalEvents'
 import { subscribeUserToPush } from '../lib/pushNotifications'
 import styles from './Home.module.css'
 
@@ -21,6 +22,7 @@ export default function Home({
   onStartOnline,
   onStartTeam,
   onStartDaily,
+  onStartSeasonalEvent,
   onStartTournament,
   onStartLightning,
   onViewDailyLeaderboard,
@@ -35,6 +37,14 @@ export default function Home({
   const [soloName, setSoloName] = useState('')
   const [soloError, setSoloError] = useState('')
   const [countdown, setCountdown] = useState('00:00:00')
+
+  // ── Carousel state ──────────────────────────────────────────────────────────
+  const [carouselIndex, setCarouselIndex] = useState(0)
+  const [seasonalEvents, setSeasonalEvents] = useState([])
+  const [loadingSeasonalEvents, setLoadingSeasonalEvents] = useState(true)
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState(0)
+  const carouselRef = useRef(null)
 
   const isBasketball = sport === 'basketball'
   const accent = isBasketball ? '#FF6B35' : '#00FF87'
@@ -57,11 +67,28 @@ export default function Home({
     getDailyChallengeInfo({ sport, now: new Date(now) }).then(setDailyChallenge)
   }, [sport, now])
 
+  // ── Fetch seasonal events ────────────────────────────────────────────────────
+  useEffect(() => {
+    setLoadingSeasonalEvents(true)
+    getActiveSeasonalEvents()
+      .then((events) => {
+        setSeasonalEvents(events)
+        setCarouselIndex(0)
+        setLoadingSeasonalEvents(false)
+      })
+      .catch((err) => {
+        console.error('Failed to fetch seasonal events:', err)
+        setSeasonalEvents([])
+        setLoadingSeasonalEvents(false)
+      })
+  }, [])
+
   const currentPlayerName = user?.displayName || profile?.displayName || 'Player'
   const isSignedInPlayer = Boolean(user)
 
   const dailyAvailable = dailyChallenge?.available
   const beforeRelease = dailyChallenge ? now < dailyChallenge.releaseTime.getTime() : false
+
   const dailyButtonLabel = dailyPlayed
     ? 'Already played today'
     : dailyAvailable
@@ -71,12 +98,12 @@ export default function Home({
     : 'Back tomorrow at 12 PM'
 
   const dailyStatusMessage = dailyPlayed
-    ? 'You have played today\'s daily challenge. A new one drops tomorrow.'
+    ? "You have played today's daily challenge. A new one drops tomorrow."
     : dailyAvailable
-    ? 'Today\'s daily challenge is live now.'
+    ? "Today's daily challenge is live now."
     : beforeRelease
-    ? 'Today\'s daily challenge opens at 12 PM.'
-    : 'Today\'s challenge has ended. A new one drops tomorrow.'
+    ? "Today's daily challenge opens at 12 PM."
+    : "Today's challenge has ended. A new one drops tomorrow."
 
   const countdownLabel = dailyPlayed
     ? 'Back in'
@@ -87,13 +114,13 @@ export default function Home({
     : 'Back in'
 
   const countdownTarget = dailyChallenge
-    ? (dailyPlayed
-        ? dailyChallenge.nextRelease.getTime()
-        : dailyAvailable
-        ? dailyChallenge.cutoffTime.getTime()
-        : beforeRelease
-        ? dailyChallenge.releaseTime.getTime()
-        : dailyChallenge.nextRelease.getTime())
+    ? dailyPlayed
+      ? dailyChallenge.nextRelease.getTime()
+      : dailyAvailable
+      ? dailyChallenge.cutoffTime.getTime()
+      : beforeRelease
+      ? dailyChallenge.releaseTime.getTime()
+      : dailyChallenge.nextRelease.getTime()
     : Date.now()
 
   useEffect(() => {
@@ -104,13 +131,14 @@ export default function Home({
     return () => window.clearInterval(interval)
   }, [countdownTarget])
 
- useEffect(() => {
-  if (typeof window === 'undefined' || !('Notification' in window)) return
-  setNotificationPermission(Notification.permission)
-  if (Notification.permission === 'granted' && user?.uid) {
-    subscribeUserToPush(user).catch(console.error)
-  }
-}, [user?.uid])
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return
+    setNotificationPermission(Notification.permission)
+    if (Notification.permission === 'granted' && user?.uid) {
+      subscribeUserToPush(user).catch(console.error)
+    }
+  }, [user?.uid])
+
   useEffect(() => {
     if (
       typeof window === 'undefined' ||
@@ -162,7 +190,45 @@ export default function Home({
     nextSport === sport
       ? { borderColor: accent, color: accent, background: accentBg, fontWeight: 700 }
       : {}
-   const showRoundPicker = tab !== 'teams' && tab !== 'tournament' && tab !== 'lightning'
+  const showRoundPicker = tab !== 'teams' && tab !== 'tournament' && tab !== 'lightning'
+
+  // ── Carousel ─────────────────────────────────────────────────────────────────
+  const totalCards = 1 + seasonalEvents.length
+  const todayKey = getDateKey()
+
+  function handleCarouselMouseDown(e) {
+    setIsDragging(true)
+    setDragStart(e.clientX)
+  }
+
+  function handleCarouselTouchStart(e) {
+    setIsDragging(true)
+    setDragStart(e.touches[0].clientX)
+  }
+
+  function handleCarouselMouseUp(e) {
+    if (!isDragging) return
+    setIsDragging(false)
+    const diff = dragStart - e.clientX
+    if (Math.abs(diff) > 50) {
+      if (diff > 0 && carouselIndex < totalCards - 1) setCarouselIndex(carouselIndex + 1)
+      else if (diff < 0 && carouselIndex > 0) setCarouselIndex(carouselIndex - 1)
+    }
+  }
+
+  function handleCarouselTouchEnd(e) {
+    if (!isDragging) return
+    setIsDragging(false)
+    const diff = dragStart - e.changedTouches[0].clientX
+    if (Math.abs(diff) > 50) {
+      if (diff > 0 && carouselIndex < totalCards - 1) setCarouselIndex(carouselIndex + 1)
+      else if (diff < 0 && carouselIndex > 0) setCarouselIndex(carouselIndex - 1)
+    }
+  }
+
+  function goToCard(index) {
+    setCarouselIndex(Math.max(0, Math.min(index, totalCards - 1)))
+  }
 
   return (
     <div className={styles.wrap}>
@@ -192,54 +258,165 @@ export default function Home({
         </p>
       </header>
 
-      <section className={styles.dailyCard}>
-        <div className={styles.dailyTop}>
-          <div>
-            <p className={styles.badge}>Daily challenge</p>
-            <h2 className={styles.dailyTitle}>{sportLabel} matchday</h2>
-          </div>
-          <button className={styles.dailyGhost} onClick={() => onViewDailyLeaderboard(sport)}>
-            Leaderboard
-          </button>
-        </div>
+      {/* ── CAROUSEL ── */}
+      {/* Outer wrapper: clips overflow so only 1 card shows at a time */}
+      <div className={styles.carouselWrap}>
 
-        <p className={styles.dailyCopy}>
-          Same {sportLabel.toLowerCase()} questions for everyone today. Score first, speed second.
-        </p>
-
-        <div className={styles.dailyMeta}>
-          <span>{dailyChallenge?.rounds || 10} questions</span>
-          <span>{dailyChallenge?.dateKey}</span>
-          <span>{currentPlayerName ? `Playing as ${currentPlayerName}` : 'Play first, save score after'}</span>
-        </div>
-
-        <div className={styles.countdownRow}>
-          <div className={styles.countdownText}>
-            <span className={styles.countdownLabel}>Daily status</span>
-            <span className={styles.countdownMessage}>{dailyStatusMessage}</span>
-          </div>
-          <div className={styles.countdownTimer}>
-            <span className={styles.countdownLabel}>{countdownLabel}</span>
-            <span className={styles.countdownValue}>{countdown}</span>
-          </div>
-        </div>
-
-        {!dailyAvailable && typeof window !== 'undefined' && 'Notification' in window && notificationPermission !== 'granted' && (
-          <button className={styles.reminderBtn} onClick={requestNotificationPermission}>
-            Enable reminder
-          </button>
-        )}
-
-        <button
-          className={styles.dailyBtn}
-          style={startBtnStyle}
-          onClick={() => onStartDaily({ sport })}
-          disabled={!dailyAvailable || dailyPlayed}
+        {/* Inner track: the only element that moves — slides all cards as one unit */}
+        <div
+          className={styles.carouselContainer}
+          ref={carouselRef}
+          onMouseDown={handleCarouselMouseDown}
+          onMouseUp={handleCarouselMouseUp}
+          onTouchStart={handleCarouselTouchStart}
+          onTouchEnd={handleCarouselTouchEnd}
+          style={{
+            transform: `translateX(-${carouselIndex * 100}%)`,
+            cursor: isDragging ? 'grabbing' : 'grab',
+            userSelect: isDragging ? 'none' : 'auto',
+          }}
         >
-          {dailyButtonLabel}
-        </button>
-      </section>
+          {/* Card 0: Daily Challenge */}
+          <section className={styles.carouselCard}>
+            <div className={styles.dailyTop}>
+              <div>
+                <p className={styles.badge}>Daily challenge</p>
+                <h2 className={styles.dailyTitle}>{sportLabel} matchday</h2>
+              </div>
+              <button className={styles.dailyGhost} onClick={() => onViewDailyLeaderboard(sport)}>
+                Leaderboard
+              </button>
+            </div>
 
+            <p className={styles.dailyCopy}>
+              Same {sportLabel.toLowerCase()} questions for everyone today. Score first, speed second.
+            </p>
+
+            <div className={styles.dailyMeta}>
+              <span>{dailyChallenge?.rounds || 10} questions</span>
+              <span>{dailyChallenge?.dateKey}</span>
+              <span>{currentPlayerName ? `Playing as ${currentPlayerName}` : 'Play first, save score after'}</span>
+            </div>
+
+            <div className={styles.countdownRow}>
+              <div className={styles.countdownText}>
+                <span className={styles.countdownLabel}>Daily status</span>
+                <span className={styles.countdownMessage}>{dailyStatusMessage}</span>
+              </div>
+              <div className={styles.countdownTimer}>
+                <span className={styles.countdownLabel}>{countdownLabel}</span>
+                <span className={styles.countdownValue}>{countdown}</span>
+              </div>
+            </div>
+
+            {!dailyAvailable &&
+              typeof window !== 'undefined' &&
+              'Notification' in window &&
+              notificationPermission !== 'granted' && (
+                <button className={styles.reminderBtn} onClick={requestNotificationPermission}>
+                  Enable reminder
+                </button>
+              )}
+
+            <button
+              className={styles.dailyBtn}
+              style={startBtnStyle}
+              onClick={() => onStartDaily({ sport })}
+              disabled={!dailyAvailable || dailyPlayed}
+            >
+              {dailyButtonLabel}
+            </button>
+          </section>
+
+          {/* Cards 1+: Seasonal Events */}
+          {seasonalEvents.map((event) => {
+            const isScheduled = event.startDate && event.startDate > todayKey
+            const eventSportLabel = event.sport === 'basketball' ? 'Basketball' : 'Football'
+            return (
+              <section key={event.id} className={styles.carouselCard}>
+                <div className={styles.dailyTop}>
+                  <div>
+                    <p className={styles.badge}>{isScheduled ? 'Upcoming seasonal event' : 'Seasonal event'}</p>
+                    <h2 className={styles.dailyTitle}>{event.name}</h2>
+                  </div>
+                </div>
+
+                <p className={styles.dailyCopy}>
+                  {event.description || `Join the ${event.name} challenge and compete for the crown.`}
+                </p>
+
+                <div className={styles.dailyMeta}>
+                  <span>{eventSportLabel}</span>
+                  <span>{event.dailyQuestions || 10} questions</span>
+                  <span>{event.startDate} → {event.endDate}</span>
+                  {event.coinMultiplier > 1 && <span>🪙 {event.coinMultiplier}x coins</span>}
+                </div>
+
+                <div className={styles.countdownRow}>
+                  <div className={styles.countdownText}>
+                    <span className={styles.countdownLabel}>Event info</span>
+                    <span className={styles.countdownMessage}>
+                      {isScheduled
+                        ? `Starts ${event.startDate}`
+                        : event.entryFee > 0
+                        ? `Entry: ${event.entryFee} coins`
+                        : 'Free to play'}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  className={styles.dailyBtn}
+                  style={startBtnStyle}
+                  onClick={() => onStartSeasonalEvent({
+                    eventId: event.id,
+                    eventName: event.name,
+                    sport: event.sport || sport,
+                    dailyQuestions: event.dailyQuestions || 10,
+                  })}
+                  disabled={isScheduled}
+                >
+                  {isScheduled ? 'Coming soon' : 'Play now →'}
+                </button>
+              </section>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── Carousel Navigation ── */}
+      {totalCards > 1 && (
+        <div className={styles.carouselNav}>
+          <button
+            className={styles.carouselArrow}
+            onClick={() => goToCard(carouselIndex - 1)}
+            disabled={carouselIndex === 0}
+          >
+            ←
+          </button>
+
+          <div className={styles.carouselDots}>
+            {Array.from({ length: totalCards }).map((_, i) => (
+              <button
+                key={i}
+                className={`${styles.carouselDot} ${i === carouselIndex ? styles.carouselDotActive : ''}`}
+                onClick={() => goToCard(i)}
+                style={i === carouselIndex ? { background: accent, borderColor: accent } : {}}
+              />
+            ))}
+          </div>
+
+          <button
+            className={styles.carouselArrow}
+            onClick={() => goToCard(carouselIndex + 1)}
+            disabled={carouselIndex === totalCards - 1}
+          >
+            →
+          </button>
+        </div>
+      )}
+
+      {/* ── Sport picker ── */}
       <div className={styles.section}>
         <p className={styles.label}>Choose your sport</p>
         <div className={styles.sportGrid}>
@@ -260,27 +437,27 @@ export default function Home({
         </div>
       </div>
 
-       {/* ── Mode Tabs ── */}
-       <div className={styles.tabs}>
-         {['solo', 'online', 'teams', 'lightning', 'tournament'].map((nextTab) => (
-           <button
-             key={nextTab}
-             className={`${styles.tab} ${tab === nextTab ? styles.tabActive : ''}`}
-             style={tab === nextTab ? tabActiveStyle : {}}
-             onClick={() => setTab(nextTab)}
-           >
-             {nextTab === 'solo'
-               ? 'Solo'
-               : nextTab === 'online'
-               ? 'Multiplayer'
-               : nextTab === 'teams'
-               ? 'Teams'
-               : nextTab === 'lightning'
-               ? 'Lightning'
-               : 'Tournament'}
-           </button>
-         ))}
-       </div>
+      {/* ── Mode Tabs ── */}
+      <div className={styles.tabs}>
+        {['solo', 'online', 'teams', 'lightning', 'tournament'].map((nextTab) => (
+          <button
+            key={nextTab}
+            className={`${styles.tab} ${tab === nextTab ? styles.tabActive : ''}`}
+            style={tab === nextTab ? tabActiveStyle : {}}
+            onClick={() => setTab(nextTab)}
+          >
+            {nextTab === 'solo'
+              ? 'Solo'
+              : nextTab === 'online'
+              ? 'Multiplayer'
+              : nextTab === 'teams'
+              ? 'Teams'
+              : nextTab === 'lightning'
+              ? 'Lightning'
+              : 'Tournament'}
+          </button>
+        ))}
+      </div>
 
       {showRoundPicker && (
         <div className={styles.section}>
@@ -352,40 +529,37 @@ export default function Home({
         </div>
       )}
 
-       {/* ── Lightning ── */}
-       {tab === 'lightning' && (
-         <div className={styles.section}>
-           <p className={styles.onlineDesc}>
-             Fast-paced 60-second rush. Answer as many questions correctly as possible. Speed matters — wrong answers penalize -3 seconds. Climb the lightning leaderboard!
-           </p>
+      {/* ── Lightning ── */}
+      {tab === 'lightning' && (
+        <div className={styles.section}>
+          <p className={styles.onlineDesc}>
+            Fast-paced 60-second rush. Answer as many questions correctly as possible. Speed matters — wrong answers penalize -3 seconds. Climb the lightning leaderboard!
+          </p>
+          <button
+            className={styles.startBtn}
+            style={startBtnStyle}
+            onClick={() => onStartLightning({ sport })}
+          >
+            ⚡ Open lightning modes →
+          </button>
+        </div>
+      )}
 
-           {/* Open lightning modes */}
-           <button
-             className={styles.startBtn}
-             style={startBtnStyle}
-             onClick={() => onStartLightning({ sport })}
-           >
-             ⚡ Open lightning modes →
-           </button>
-
-         </div>
-       )}
-
-       {/* ── Tournament ── */}
-       {tab === 'tournament' && (
-         <div className={styles.section}>
-           <p className={styles.onlineDesc}>
-             Single-elimination brackets. Create a tournament, invite players with a code or make it public, set a start time, and compete round by round until one champion remains.
-           </p>
-           <button
-             className={styles.startBtn}
-             style={startBtnStyle}
-             onClick={onStartTournament}
-           >
-             Enter tournament lobby {'>'}
-           </button>
-         </div>
-       )}
-     </div>
+      {/* ── Tournament ── */}
+      {tab === 'tournament' && (
+        <div className={styles.section}>
+          <p className={styles.onlineDesc}>
+            Single-elimination brackets. Create a tournament, invite players with a code or make it public, set a start time, and compete round by round until one champion remains.
+          </p>
+          <button
+            className={styles.startBtn}
+            style={startBtnStyle}
+            onClick={onStartTournament}
+          >
+            Enter tournament lobby {'>'}
+          </button>
+        </div>
+      )}
+    </div>
   )
 }

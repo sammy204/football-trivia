@@ -49,16 +49,23 @@ function getReleaseTimeUTC(date = new Date()) {
 }
 
 function getCutoffTimeUTC(date = new Date()) {
-  const nigeriaDate = new Date(date.getTime() + NIGERIA_UTC_OFFSET_HOURS * 60 * 60 * 1000)
-  return new Date(Date.UTC(
-    nigeriaDate.getUTCFullYear(),
-    nigeriaDate.getUTCMonth(),
-    nigeriaDate.getUTCDate(),
-    DAILY_RELEASE_HOUR_NIGERIA - NIGERIA_UTC_OFFSET_HOURS,
+  // Get today's date in Nigeria time
+  const nigeriaTime = date.getTime() + NIGERIA_UTC_OFFSET_HOURS * 60 * 60 * 1000
+  const nigeriaToday = new Date(nigeriaTime)
+  
+  // The cutoff time in Nigeria is 12:00:00 + DAILY_DURATION_MINUTES
+  // To express this as UTC, we subtract the offset from the hours
+  const utcHour = DAILY_RELEASE_HOUR_NIGERIA - NIGERIA_UTC_OFFSET_HOURS
+  
+  return Date.UTC(
+    nigeriaToday.getUTCFullYear(),
+    nigeriaToday.getUTCMonth(),
+    nigeriaToday.getUTCDate(),
+    utcHour,
     DAILY_DURATION_MINUTES,
     0,
     0
-  ))
+  )
 }
 
 export function getNextDailyRelease(now = new Date()) {

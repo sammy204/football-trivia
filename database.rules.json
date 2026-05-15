@@ -143,6 +143,32 @@
       ".write": "auth != null && auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463'"
     },
 
+    "seasonalEvents": {
+      ".read": true,
+      ".write": "auth != null && auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463'"
+    },
+
+    "seasonalLeaderboard": {
+      ".read": true,
+      "$eventId": {
+        "entries": {
+          ".write": "auth != null",
+          "$playerId": {
+            ".validate": "newData.hasChildren(['playerId', 'displayName', 'totalScore', 'bestScore', 'gamesPlayed', 'totalQuestions', 'totalTimeMs', 'accuracyPct', 'lastPlayedAt', 'updatedAt']) && newData.child('playerId').val() === $playerId && newData.child('displayName').isString() && newData.child('displayName').val().length > 0 && newData.child('totalScore').isNumber() && newData.child('totalScore').val() >= 0 && newData.child('bestScore').isNumber() && newData.child('bestScore').val() >= 0 && newData.child('gamesPlayed').isNumber() && newData.child('gamesPlayed').val() >= 1 && newData.child('totalQuestions').isNumber() && newData.child('totalQuestions').val() > 0 && newData.child('totalTimeMs').isNumber() && newData.child('totalTimeMs').val() >= 0 && newData.child('accuracyPct').isNumber() && newData.child('accuracyPct').val() >= 0 && newData.child('accuracyPct').val() <= 100"
+          }
+        }
+      }
+    },
+
+    "seasonalPlays": {
+      "$eventId": {
+        "$userId": {
+          ".read": "auth != null && auth.uid === $userId",
+          ".write": "auth != null && auth.uid === $userId"
+        }
+      }
+    },
+
     "onlineInvites": {
       "$playerId": {
         ".read": "auth != null",

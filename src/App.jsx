@@ -20,6 +20,8 @@ import Auth from './components/Auth'
 import VerifyEmail from './components/VerifyEmail'
 import AuthCallback from './components/AuthCallback'
 import Tournament from './components/Tournament'
+import SeasonalQuiz from './components/SeasonalQuiz'
+import SeasonalResults from './components/SeasonalResults'
 import { generateQuestions } from './lib/question'
 import { getPlayerByPlayerId } from './lib/multiplayer'
 import {
@@ -48,6 +50,12 @@ import {
   joinLightningRoom,
 } from './lib/lightningMultiplayer'
 import { sendInvitePushNotification } from './lib/inviteNotifications'
+import {
+  saveSeasonalLeaderboardEntry,
+  getUserSeasonalEntry,
+  listenToSeasonalLeaderboard,
+  getSeasonalEventQuestions,
+} from './lib/seasonalEvents'
 
 const TEAM_ROUNDS = 10
 
@@ -118,6 +126,13 @@ export default function App() {
   const [lightningH2HHistory, setLightningH2HHistory] = useState([])
   const [lightningH2HMeta, setLightningH2HMeta] = useState(null)
   const [lightningH2HOpponentName, setLightningH2HOpponentName] = useState('Opponent')
+
+  // Seasonal event state
+  const [eventData, setEventData] = useState(null)
+  const [seasonalQuestions, setSeasonalQuestions] = useState([])
+  const [seasonalScores, setSeasonalScores] = useState([])
+  const [seasonalHistory, setSeasonalHistory] = useState([])
+  const [seasonalResultMeta, setSeasonalResultMeta] = useState(null)
 
   const ADMIN_UID = 'K4qCnBhAVDMTkvK70SMVfbbsw463'
 
@@ -479,6 +494,49 @@ export default function App() {
       setError('Failed to create room: ' + e.message)
       setScreen('home')
     }
+  }
+
+  // Seasonal event handler
+  async function handleStartSeasonalEvent({ eventId, eventName, sport, dailyQuestions, questions }) {
+    if (!user) { setShowAuth(true); return }
+    if (!user.emailVerified) { setShowVerify(true); return }
+    const eventQuestions = Array.isArray(questions) && questions.length > 0
+      ? questions
+      : await getSeasonalEventQuestions({
+        sport: sport || selectedSport,
+        rounds: dailyQuestions || 10,
+      })
+
+    if (eventQuestions.length === 0) {
+      setError('This seasonal event has no questions yet. Add questions in Admin > Questions > Seasonal Event.')
+      return
+    }
+    
+    setEventData({ eventId, eventName, sport: sport || selectedSport, dailyQuestions, questions: eventQuestions })
+    setSeasonalQuestions(eventQuestions)
+    setSeasonalScores([])
+    setSeasonalHistory([])
+    setSeasonalResultMeta(null)
+    setScreen('seasonalQuiz')
+  }
+
+  function handleFinishSeasonalQuiz({ scores, history, totalTimeMs }) {
+    if (user?.uid) {
+      recordGameplayActivity({
+        userId: user.uid,
+        dateKey: getDateKey(),
+        source: 'seasonal',
+      }).catch((error) => console.error('Failed to record gameplay activity:', error))
+    }
+
+    setSeasonalScores(scores)
+    setSeasonalHistory(history)
+    setSeasonalResultMeta({ totalTimeMs })
+    setScreen('seasonalResults')
+  }
+
+  function handlePlaySeasonalAgain() {
+    handleStartSeasonalEvent(eventData)
   }
 
   async function handleAcceptLightningInvite(invite) {
@@ -881,6 +939,7 @@ export default function App() {
           onStartTournament={handleStartTournament}
           onStartLightning={handleStartLightning}
           onViewDailyLeaderboard={handleViewDailyLeaderboard}
+          onStartSeasonalEvent={handleStartSeasonalEvent}
           profile={profile}
           user={user}
           onViewProfile={() => setScreen('profile')}
@@ -1053,6 +1112,27 @@ export default function App() {
           opponentName={lightningH2HOpponentName}
           isWin={lightningH2HMeta?.isWin}
           isDraw={lightningH2HMeta?.isDraw}
+        />
+      )}
+
+      {screen === 'seasonalQuiz' && seasonalQuestions.length > 0 && (
+        <SeasonalQuiz
+          questions={seasonalQuestions}
+          event={eventData}
+          onFinish={handleFinishSeasonalQuiz}
+        />
+      )}
+
+      {screen === 'seasonalResults' && (
+        <SeasonalResults
+          scores={seasonalScores}
+          history={seasonalHistory}
+          eventId={eventData?.eventId}
+          eventName={eventData?.eventName}
+          profile={profile}
+          onHome={() => setScreen('home')}
+          onPlayAgain={handlePlaySeasonalAgain}
+          user={user}
         />
       )}
 

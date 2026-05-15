@@ -4,6 +4,7 @@ import { db } from '../lib/firebase'
 import styles from './Admin.module.css'
 import Notifications from './Notifications'
 import Analytics from './Analytics'
+import SeasonalEvents from './SeasonalEvents'
 
 const ADMIN_UID = 'K4qCnBhAVDMTkvK70SMVfbbsw463'
 
@@ -14,6 +15,7 @@ const SECTIONS = [
   { id: 'overview', label: 'Overview', icon: '⚡' },
   { id: 'questions', label: 'Questions', icon: '❓' },
   { id: 'users', label: 'Users', icon: '👥' },
+  { id: 'seasonal', label: 'Seasonal', icon: '🎯' },
   { id: 'notifications', label: 'Notifications', icon: '🔔' },
   { id: 'analytics', label: 'Analytics', icon: '📊' },
 ]
@@ -141,7 +143,7 @@ return (
 // ─── Question Manager ────────────────────────────────────────────────────────
 function QuestionManager() {
   const [sport, setSport] = useState('football')
-  const [tab, setTab] = useState('all') // 'all' | 'daily'
+  const [tab, setTab] = useState('all') // 'all' | 'daily' | 'seasonal'
   const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -155,6 +157,8 @@ function QuestionManager() {
 
   const dbPath = tab === 'daily'
     ? `adminQuestions/${sport}/daily`
+    : tab === 'seasonal'
+    ? `adminQuestions/${sport}/seasonal`
     : `adminQuestions/${sport}/bank`
 
   useEffect(() => {
@@ -284,6 +288,12 @@ function QuestionManager() {
           onClick={() => setTab('daily')}
         >
           Daily Challenge
+        </button>
+        <button
+          className={`${styles.bankTab} ${tab === 'seasonal' ? styles.bankTabActive : ''}`}
+          onClick={() => setTab('seasonal')}
+        >
+          Seasonal Event
         </button>
       </div>
 
@@ -543,17 +553,6 @@ function UserManager() {
   )
 }
 
-// ─── Placeholder sections ────────────────────────────────────────────────────
-function ComingSoon({ label }) {
-  return (
-    <div className={styles.comingSoonSection}>
-      <span className={styles.comingSoonIcon}>🚧</span>
-      <h3>{label}</h3>
-      <p>This section is coming soon.</p>
-    </div>
-  )
-}
-
 // ─── Main Admin component ────────────────────────────────────────────────────
 export default function Admin({ user, onBack }) {
   const [activeSection, setActiveSection] = useState('overview')
@@ -575,8 +574,9 @@ export default function Admin({ user, onBack }) {
       case 'overview': return <Overview />
       case 'questions': return <QuestionManager />
       case 'users': return <UserManager />
-       case 'notifications': return <Notifications />
-       case 'analytics': return <Analytics />
+      case 'seasonal': return <SeasonalEvents />
+      case 'notifications': return <Notifications user={user} />
+      case 'analytics': return <Analytics />
       default: return <Overview />
     }
   }
