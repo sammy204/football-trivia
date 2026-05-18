@@ -82,8 +82,8 @@ export function getNextDailyRelease(now = new Date()) {
 
 export function isDailyChallengeOpen(now = new Date()) {
   const release = getReleaseTimeUTC(now)
-  const cutoff = getCutoffTimeUTC(now)
-  return now >= release && now < cutoff
+  const cutoffTime = new Date(getCutoffTimeUTC(now))
+  return now >= release && now < cutoffTime
 }
 
 export function isDailyChallengeAvailable(now = new Date()) {
@@ -146,7 +146,7 @@ export async function getDailyChallengeSet({ sport, date = new Date() }) {
 // ─── Async versions of getDailyChallenge ─────────────────────────────────────
 export async function getDailyChallengeInfo({ sport, now = new Date(), rounds = DEFAULT_ROUNDS }) {
   const releaseTime = getReleaseTimeUTC(now)
-  const cutoffTime = getCutoffTimeUTC(now)
+  const cutoffTime = new Date(getCutoffTimeUTC(now))
   const challenge = await getDailyChallenge({ sport, date: now, rounds })
   const available = isDailyChallengeOpen(now) && challenge.questions.length > 0
   const nextRelease = available ? cutoffTime : getNextDailyRelease(now)
