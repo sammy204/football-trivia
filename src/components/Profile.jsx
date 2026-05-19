@@ -3,6 +3,8 @@ import { ref, get, update } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { updateProfile } from 'firebase/auth'
 import { loadProfile, saveProfile } from '../lib/profile'
+import { getDefaultAvatar, isImageAvatar } from '../lib/avatars'
+import AvatarGrid from './AvatarGrid'
 import styles from './Profile.module.css'
 import { calculateWinStreak } from '../lib/streaks'
 
@@ -24,7 +26,35 @@ function formatStreakDate(dateKey) {
   }
 }
 
-export default function Profile({ user, onBack, onUsernameUpdated, onLogout }) {
+function AvatarPreview({ value, className, onClick }) {
+  if (isImageAvatar(value)) {
+    return (
+      <img
+        src={value}
+        alt="Avatar"
+        className={className}
+        onClick={onClick}
+      />
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      className={className}
+      onClick={onClick}
+      aria-label="Change avatar"
+    >
+      P
+    </button>
+  )
+}
+
+function canUseAsAuthPhotoURL(value) {
+  return typeof value === 'string' && /^https?:\/\//.test(value)
+}
+
+export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpdated, onLogout, coinBalance = 0 }) {
   const [stats, setStats] = useState(null)
   const [matches, setMatches] = useState([])
   const [streak, setStreak] = useState(null)
@@ -35,6 +65,10 @@ export default function Profile({ user, onBack, onUsernameUpdated, onLogout }) {
   const [editingUsername, setEditingUsername] = useState(false)
   const [newUsername, setNewUsername] = useState('')
   const [saving, setSaving] = useState(false)
+  const [avatar, setAvatar] = useState(null) // Avatar state
+  const [editingAvatar, setEditingAvatar] = useState(false)
+  const [tempAvatar, setTempAvatar] = useState(null)
+  const [savingAvatar, setSavingAvatar] = useState(false)
 
   useEffect(() => {
     if (!user?.uid) {
@@ -54,15 +88,28 @@ export default function Profile({ user, onBack, onUsernameUpdated, onLogout }) {
           setPlayerId(playerIdSnap.val() || null)
         }
 
-        // Load daily streak
-        const streakSnap = await get(ref(db, `users/${user.uid}/dailyStreak`))
-        setStreak(streakSnap.val() || null)
+     // Load daily streak
+     const streakSnap = await get(ref(db, `users/${user.uid}/dailyStreak`))
+     setStreak(streakSnap.val() || null)
 
-        // Load stats
-        const statsSnap = await get(ref(db, `users/${user.uid}/stats`))
-        const statsData = statsSnap.val() || { wins: 0, losses: 0, totalGames: 0, draws: 0 }
+     // Load stats
+     const statsSnap = await get(ref(db, `users/${user.uid}/stats`))
+     const statsData = statsSnap.val() || { wins: 0, losses: 0, totalGames: 0, draws: 0 }
 
-        // Load recent matches
+     // Load avatar
+     const avatarSnap = await get(ref(db, `users/${user.uid}/profile/avatar`))
+     const avatarData = avatarSnap.val()
+     setAvatar(
+       isImageAvatar(avatarData)
+         ? avatarData
+         : isImageAvatar(cached?.avatar)
+         ? cached.avatar
+         : isImageAvatar(user.photoURL)
+         ? user.photoURL
+         : getDefaultAvatar()
+     )
+
+     // Load recent matches
         const matchesSnap = await get(ref(db, `users/${user.uid}/matches`))
         let allMatches = []
         if (matchesSnap.val()) {
@@ -104,32 +151,63 @@ export default function Profile({ user, onBack, onUsernameUpdated, onLogout }) {
     loadUserData()
   }, [user])
 
-  function handleCopyId() {
-    if (!playerId) return
-    navigator.clipboard.writeText(playerId).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
+   function handleCopyId() {
+     if (!playerId) return
+     navigator.clipboard.writeText(playerId).then(() => {
+       setCopied(true)
+       setTimeout(() => setCopied(false), 2000)
+     })
+   }
 
-  async function handleSaveUsername() {
-    if (!newUsername.trim() || !user) return
-    setSaving(true)
-    try {
-      await updateProfile(user, { displayName: newUsername.trim() })
-      await update(ref(db, `users/${user.uid}/profile`), {
-        displayName: newUsername.trim(),
-        updatedAt: new Date().toISOString(),
-      })
-      saveProfile({ displayName: newUsername.trim() })
-      setEditingUsername(false)
-      if (onUsernameUpdated) onUsernameUpdated(newUsername.trim())
-    } catch (err) {
-      console.error('Failed to update username:', err)
-      alert('Failed to update username. Please try again.')
-    }
-    setSaving(false)
-  }
+   const handleAvatarSelect = (avatar) => {
+     setTempAvatar(avatar);
+   };
+
+   async function handleSaveUsername() {
+     if (!newUsername.trim() || !user) return
+     setSaving(true)
+     try {
+       await updateProfile(user, { displayName: newUsername.trim() })
+       await update(ref(db, `users/${user.uid}/profile`), {
+         displayName: newUsername.trim(),
+         updatedAt: new Date().toISOString(),
+       })
+       const nextProfile = saveProfile({ displayName: newUsername.trim(), playerId, avatar })
+       setEditingUsername(false)
+       if (onUsernameUpdated) onUsernameUpdated(newUsername.trim())
+       if (onProfileUpdated) onProfileUpdated(nextProfile)
+     } catch (err) {
+       console.error('Failed to update username:', err)
+       alert('Failed to update username. Please try again.')
+     }
+     setSaving(false)
+   }
+
+   async function handleSaveAvatar() {
+     if (!user || !tempAvatar) return
+     setSavingAvatar(true)
+     try {
+       const displayName = user.displayName || loadProfile()?.displayName || 'Player'
+       if (canUseAsAuthPhotoURL(tempAvatar)) {
+         await updateProfile(user, { photoURL: tempAvatar })
+       }
+       // Update Firebase Realtime Database under profile
+       await update(ref(db, `users/${user.uid}/profile`), {
+         avatar: tempAvatar,
+         updatedAt: new Date().toISOString(),
+       })
+       // Update localStorage
+       const nextProfile = saveProfile({ displayName, playerId, avatar: tempAvatar })
+       setAvatar(tempAvatar)
+       setEditingAvatar(false)
+       setTempAvatar(null)
+       if (onProfileUpdated) onProfileUpdated(nextProfile)
+     } catch (err) {
+       console.error('Failed to update avatar:', err)
+       alert('Failed to update avatar. Please try again.')
+     }
+     setSavingAvatar(false)
+   }
 
   if (!user) return null
 
@@ -141,10 +219,59 @@ export default function Profile({ user, onBack, onUsernameUpdated, onLogout }) {
           Back
         </button>
 
-      <div className={styles.header}>
-        <h1 className={styles.title}>Profile</h1>
+       <div className={styles.header}>
+         <h1 className={styles.title}>Profile</h1>
 
-        {/* Username edit section */}
+         {/* Avatar section */}
+         <div className={styles.avatarSection}>
+           <div className={styles.avatarPreview}>
+             <AvatarPreview
+               value={editingAvatar ? tempAvatar || avatar || user.photoURL || getDefaultAvatar() : avatar || user.photoURL || getDefaultAvatar()}
+               className={`${styles.avatarImg} ${editingAvatar ? styles.editing : ''}`}
+               onClick={() => {
+                 setEditingAvatar(true);
+                 setTempAvatar(avatar || user.photoURL || getDefaultAvatar());
+               }}
+             />
+             {editingAvatar && (
+               <div className={styles.avatarOverlay}>
+                 <button
+                   className={styles.cancelBtn}
+                   onClick={() => {
+                     setEditingAvatar(false);
+                     setTempAvatar(null);
+                   }}
+                 >
+                   Cancel
+                 </button>
+                 <button
+                   className={styles.saveUsernameBtn}
+                   onClick={handleSaveAvatar}
+                   disabled={savingAvatar || !tempAvatar}
+                 >
+                   {savingAvatar ? 'Saving...' : 'Save'}
+                 </button>
+               </div>
+             )}
+           </div>
+           {editingAvatar ? (
+             <div className={styles.avatarPicker}>
+               <AvatarGrid value={tempAvatar} onChange={handleAvatarSelect} />
+             </div>
+           ) : (
+             <button
+               className={styles.editBtn}
+               onClick={() => {
+                 setEditingAvatar(true);
+                 setTempAvatar(avatar || user.photoURL || getDefaultAvatar());
+               }}
+             >
+               Change Avatar
+             </button>
+           )}
+         </div>
+
+         {/* Username edit section */}
         {editingUsername ? (
           <div className={styles.editUsernameRow}>
             <input
@@ -189,6 +316,17 @@ export default function Profile({ user, onBack, onUsernameUpdated, onLogout }) {
   </button>
 </div>
         )}
+
+        <div className={styles.walletCard}>
+          <div>
+            <p className={styles.walletLabel}>Virtual coins</p>
+            <p className={styles.walletCopy}>Wallet balance for rewards and event entry.</p>
+          </div>
+          <div className={styles.walletAmount}>
+            <span className={styles.walletMark}>C</span>
+            <strong>{coinBalance}</strong>
+          </div>
+        </div>
       </div>
 
       {loading ? (

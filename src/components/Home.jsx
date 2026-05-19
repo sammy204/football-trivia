@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { getDailyChallengeInfo } from '../lib/dailyChallenge'
 import { getActiveSeasonalEvents, getDateKey } from '../lib/seasonalEvents'
 import { subscribeUserToPush } from '../lib/pushNotifications'
+import { getPlayerAvatar } from '../lib/avatars'
 import styles from './Home.module.css'
 
 const ROUNDS = [5, 10, 15]
@@ -31,6 +32,7 @@ export default function Home({
   onViewProfile,
   onAdmin,
   dailyPlayed,
+  coinBalance = 0,
 }) {
   const [tab, setTab] = useState('solo')
   const [rounds, setRounds] = useState(5)
@@ -84,6 +86,7 @@ export default function Home({
   }, [])
 
   const currentPlayerName = user?.displayName || profile?.displayName || 'Player'
+  const currentAvatar = getPlayerAvatar(user, profile)
   const isSignedInPlayer = Boolean(user)
 
   const dailyAvailable = dailyChallenge?.available
@@ -237,18 +240,23 @@ export default function Home({
           <div className={styles.logoWrap}>
             <img className={styles.logo} src="/logo-mark.svg" alt="Sports trivia logo" />
           </div>
-          {user && (
-            <div className={styles.headerActions}>
-              <button className={styles.profileBtn} onClick={onViewProfile} title="View profile">
-                👤
-              </button>
-              {user.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463' && (
-                <button className={styles.adminBtn} onClick={onAdmin} title="Admin Dashboard">
-                  Admin
-                </button>
-              )}
-            </div>
-          )}
+           {user && (
+             <div className={styles.headerActions}>
+               <button className={styles.profileBtn} onClick={onViewProfile} title="View profile">
+                 <img
+                   src={currentAvatar}
+                   alt="Avatar"
+                   className={styles.avatarImg}
+                 />
+                 <span className={styles.profileName}>{currentPlayerName}</span>
+               </button>
+               {user.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463' && (
+                 <button className={styles.adminBtn} onClick={onAdmin} title="Admin Dashboard">
+                   Admin
+                 </button>
+               )}
+             </div>
+           )}
         </div>
         <h1 className={styles.title}>
           {isBasketball ? 'Basketball Trivia' : 'Football Trivia'}
@@ -332,6 +340,9 @@ export default function Home({
           {seasonalEvents.map((event) => {
             const isScheduled = event.startDate && event.startDate > todayKey
             const eventSportLabel = event.sport === 'basketball' ? 'Basketball' : 'Football'
+            const entryFee = Math.max(0, Math.round(Number(event.entryFee) || 0))
+            const canAffordEntry = coinBalance >= entryFee
+            const isLocked = isScheduled || !canAffordEntry
             return (
               <section key={event.id} className={styles.carouselCard}>
                 <div className={styles.dailyTop}>
@@ -350,6 +361,7 @@ export default function Home({
                   <span>{event.dailyQuestions || 10} questions</span>
                   <span>{event.startDate} → {event.endDate}</span>
                   {event.coinMultiplier > 1 && <span>🪙 {event.coinMultiplier}x coins</span>}
+                  {entryFee > 0 && <span>Entry: {entryFee} coins</span>}
                 </div>
 
                 <div className={styles.countdownRow}>
@@ -358,8 +370,10 @@ export default function Home({
                     <span className={styles.countdownMessage}>
                       {isScheduled
                         ? `Starts ${event.startDate}`
-                        : event.entryFee > 0
-                        ? `Entry: ${event.entryFee} coins`
+                        : entryFee > 0
+                        ? canAffordEntry
+                          ? `Entry: ${entryFee} coins`
+                          : `Need ${entryFee - coinBalance} more coins`
                         : 'Free to play'}
                     </span>
                   </div>
@@ -373,10 +387,12 @@ export default function Home({
                     eventName: event.name,
                     sport: event.sport || sport,
                     dailyQuestions: event.dailyQuestions || 10,
+                    coinMultiplier: event.coinMultiplier || 1,
+                    entryFee,
                   })}
-                  disabled={isScheduled}
+                  disabled={isLocked}
                 >
-                  {isScheduled ? 'Coming soon' : 'Play now →'}
+                  {isScheduled ? 'Coming soon' : canAffordEntry ? 'Play now →' : 'Not enough coins'}
                 </button>
               </section>
             )

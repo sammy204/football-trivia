@@ -7,11 +7,12 @@ export const TEAM_PLAYER_ROUNDS = 10
 export const TEAM_MAX_PLAYERS = 5
 export const TEAM_MIN_PLAYERS = 2
 
-function createPlayerRecord({ uid, displayName, playerId }) {
+function createPlayerRecord({ uid, displayName, playerId, photoURL = null }) {
   return {
     uid,
     displayName,
     playerId,
+    photoURL,
     score: 0,
     currentQuestion: 0,
     completed: false,
@@ -68,87 +69,107 @@ export function isRoomFull(teams, teamSize = TEAM_MAX_PLAYERS) {
 }
 
 export async function createTeamRoom({
-  hostUid,
-  hostDisplayName,
-  hostPlayerId,
-  sport,
-  rounds,
-  teamSize,
-  numTeams,
-  myTeamName,
-}) {
-  const code = generateRoomCode()
-  const teams = {
-    team1: {
-      name: myTeamName,
-      score: 0,
-      captainUid: hostUid,
-      members: {
-        [hostPlayerId]: createPlayerRecord({
-          uid: hostUid,
-          displayName: hostDisplayName,
-          playerId: hostPlayerId,
-        }),
-      },
-    },
-  }
+   hostUid,
+   hostDisplayName,
+   hostPlayerId,
+   hostPhotoURL = null,
+   sport,
+   rounds,
+   teamSize,
+   numTeams,
+   myTeamName,
+   wager = 0,
+ }) {
+   const code = generateRoomCode()
+   const teams = {
+     team1: {
+       name: myTeamName,
+       score: 0,
+       captainUid: hostUid,
+       members: {
+         [hostPlayerId]: createPlayerRecord({
+           uid: hostUid,
+           displayName: hostDisplayName,
+           playerId: hostPlayerId,
+           photoURL: hostPhotoURL,
+         }),
+       },
+     },
+   }
 
-  for (let i = 2; i <= numTeams; i += 1) {
-    teams[`team${i}`] = {
-      name: `Team ${i}`,
-      score: 0,
-      captainUid: null,
-      members: {},
-    }
-  }
+   for (let i = 2; i <= numTeams; i += 1) {
+     teams[`team${i}`] = {
+       name: `Team ${i}`,
+       score: 0,
+       captainUid: null,
+       members: {},
+     }
+   }
 
-  await set(ref(db, `teamRooms/${code}`), {
-    code,
-    sport,
-    rounds,
-    status: 'waiting',
-    hostUid,
-    settings: { teamSize, numTeams, playerRounds: rounds },
-    teams,
-    createdAt: Date.now(),
-  })
+   await set(ref(db, `teamRooms/${code}`), {
+     code,
+     sport,
+     rounds,
+     status: 'waiting',
+     hostUid,
+     wager: {
+       amount: wager,
+       pot: wager,
+       paid: hostUid ? { [hostUid]: wager } : {},
+     },
+     settings: { teamSize, numTeams, playerRounds: rounds },
+     teams,
+     createdAt: Date.now(),
+   })
 
-  return code
-}
+   return code
+ }
 
 export async function joinTeamAsCaptain({
-  roomCode,
-  teamId,
-  uid,
-  displayName,
-  playerId,
-  teamName,
-}) {
-  const roomSnap = await get(ref(db, `teamRooms/${roomCode}`))
-  if (!roomSnap.exists()) throw new Error('Room not found.')
-  const room = roomSnap.val()
-  if (room.status !== 'waiting') throw new Error('Game already started.')
+   roomCode,
+   teamId,
+   uid,
+   displayName,
+   playerId,
+   teamName,
+   wager = 0,
+   photoURL = null,
+ }) {
+   const roomSnap = await get(ref(db, `teamRooms/${roomCode}`))
+   if (!roomSnap.exists()) throw new Error('Room not found.')
+   const room = roomSnap.val()
+   if (room.status !== 'waiting') throw new Error('Game already started.')
 
-  const team = room.teams?.[teamId]
-  if (!team) throw new Error('Team not found.')
-  if (team.captainUid) throw new Error('This team already has a captain.')
+   const team = room.teams?.[teamId]
+   if (!team) throw new Error('Team not found.')
+   if (team.captainUid) throw new Error('This team already has a captain.')
 
-  await update(ref(db, `teamRooms/${roomCode}/teams/${teamId}`), {
-    name: teamName,
-    captainUid: uid,
-    score: 0,
-  })
+   await update(ref(db, `teamRooms/${roomCode}/teams/${teamId}`), {
+     name: teamName,
+     captainUid: uid,
+     score: 0,
+   })
 
-  await update(ref(db, `teamRooms/${roomCode}/teams/${teamId}/members/${playerId}`), createPlayerRecord({
-    uid,
-    displayName,
-    playerId,
-  }))
+   await update(ref(db, `teamRooms/${roomCode}/teams/${teamId}/members/${playerId}`), createPlayerRecord({
+     uid,
+     displayName,
+     playerId,
+     photoURL,
+   }))
 
-  return room
-}
+   const stake = wager || room.wager?.amount || 0
+   if (stake > 0) {
+     await update(ref(db, `teamRooms/${roomCode}/wager`), {
+       amount: stake,
+       pot: (room.wager?.pot || 0) + stake,
+       [`paid/${uid}`]: stake,
+     })
+   }
 
-export async function joinTeamByCode({ roomCode, teamId, uid, displayName, playerId }) {
+   return room
+ }
+
+export async function joinTeamByCode({ roomCode, teamId, uid, displayName, playerId, wager = 0, photoURL = null }) {
   const roomSnap = await get(ref(db, `teamRooms/${roomCode}`))
   if (!roomSnap.exists()) throw new Error('Room not found.')
   const room = roomSnap.val()
@@ -163,12 +184,22 @@ export async function joinTeamByCode({ roomCode, teamId, uid, displayName, playe
     uid,
     displayName,
     playerId,
+    photoURL,
   }))
+
+  const stake = wager || room.wager?.amount || 0
+  if (stake > 0) {
+    await update(ref(db, `teamRooms/${roomCode}/wager`), {
+      amount: stake,
+      pot: (room.wager?.pot || 0) + stake,
+      [`paid/${uid}`]: stake,
+    })
+  }
 
   return room
 }
 
-export async function sendInvite({ targetPlayerId, roomCode, teamId, teamName, hostDisplayName, sport }) {
+export async function sendInvite({ targetPlayerId, roomCode, teamId, teamName, hostDisplayName, sport, wager = 0 }) {
   const inviteRef = push(ref(db, `invites/${targetPlayerId}`))
   await set(inviteRef, {
     roomCode,
@@ -176,18 +207,19 @@ export async function sendInvite({ targetPlayerId, roomCode, teamId, teamName, h
     teamName,
     hostDisplayName,
     sport,
+    wager,
     status: 'pending',
     createdAt: Date.now(),
   })
   return inviteRef.key
 }
 
-export async function respondToInvite({ playerId, inviteId, accept, uid, displayName, roomCode, teamId }) {
+export async function respondToInvite({ playerId, inviteId, accept, uid, displayName, roomCode, teamId, wager = 0, photoURL = null }) {
   await update(ref(db, `invites/${playerId}/${inviteId}`), {
     status: accept ? 'accepted' : 'declined',
   })
   if (!accept) return
-  await joinTeamByCode({ roomCode, teamId, uid, displayName, playerId })
+  await joinTeamByCode({ roomCode, teamId, uid, displayName, playerId, wager, photoURL })
 }
 
 export async function startTeamGame(roomCode) {

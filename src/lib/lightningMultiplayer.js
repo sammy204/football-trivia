@@ -5,10 +5,11 @@ const LIGHTNING_ROOMS_PATH = 'lightningRooms'
 const LIGHTNING_INVITES_PATH = 'lightningInvites'
 
 // Room operations
-export function createLightningRoom({ playerName, sport, rounds, code }) {
+export function createLightningRoom({ playerName, sport, rounds, code, hostUid, wager = 0 }) {
   const roomData = {
     host: {
       name: playerName,
+      uid: hostUid || null,
       score: 0,
       timeLeft: 60,
       finished: false,
@@ -17,13 +18,18 @@ export function createLightningRoom({ playerName, sport, rounds, code }) {
     guest: null,
     sport,
     rounds,
+    wager: {
+      amount: wager,
+      pot: wager,
+      paid: hostUid ? { [hostUid]: wager } : {},
+    },
     status: 'waiting',
     createdAt: Date.now(),
   }
   return set(ref(db, `${LIGHTNING_ROOMS_PATH}/${code}`), roomData)
 }
 
-export function joinLightningRoom({ code, playerName }) {
+export function joinLightningRoom({ code, playerName, guestUid }) {
   return get(ref(db, `${LIGHTNING_ROOMS_PATH}/${code}`)).then((snap) => {
     if (!snap.exists()) throw new Error('Room not found')
     const room = snap.val()
@@ -33,11 +39,16 @@ export function joinLightningRoom({ code, playerName }) {
     return update(ref(db, `${LIGHTNING_ROOMS_PATH}/${code}`), {
       guest: {
         name: playerName,
+        uid: guestUid || null,
         score: 0,
         timeLeft: 60,
         finished: false,
         started: false,
       },
+      ...(guestUid && room.wager?.amount ? {
+        'wager/pot': (room.wager?.pot || 0) + room.wager.amount,
+        [`wager/paid/${guestUid}`]: room.wager.amount,
+      } : {}),
       status: 'waiting',
     })
   })

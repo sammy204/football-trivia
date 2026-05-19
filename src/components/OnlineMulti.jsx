@@ -12,6 +12,9 @@ import { recordGameplayActivity } from '../lib/streaks'
 import { explosionConfetti } from '../lib/confetti'
 import { recordMatchWinner } from '../lib/tournament'
 import { sendInvitePushNotification } from '../lib/inviteNotifications'
+import { awardCoins, ONLINE_1V1_WAGER, spendCoins } from '../lib/coins'
+import { getDefaultAvatar, getPlayerAvatar } from '../lib/avatars'
+import { loadProfile } from '../lib/profile'
 import styles from './OnlineMulti.module.css'
 
 export default function OnlineMulti({
@@ -23,6 +26,7 @@ export default function OnlineMulti({
   onInviteHandled,
   tournamentMatchMeta,
   onTournamentMatchComplete,
+  coinBalance = 0,
 }) {
   const [screen, setScreen] = useState('intro')
   const [name, setName] = useState(user?.displayName || '')
@@ -36,8 +40,11 @@ export default function OnlineMulti({
   const [matchSaved, setMatchSaved] = useState(false)
   const [inviteStatus, setInviteStatus] = useState(null)
   const [incomingInvite, setIncomingInvite] = useState(null)
+  const playerAvatar = getPlayerAvatar(user, loadProfile())
+  const [coinMessage, setCoinMessage] = useState('')
   const advancedQuestionRef = useRef(-1)
   const advanceTimerRef = useRef(null)
+  const acceptHandledRef = useRef(false)
 
   const accent = sport === 'basketball' ? '#FF6B35' : '#00FF87'
   const accentText = sport === 'basketball' ? '#fff' : '#0a1f0f'
@@ -47,6 +54,8 @@ export default function OnlineMulti({
   const guestScore = room?.players?.guest?.score || 0
   const hostName = room?.players?.host?.name || 'Host'
   const guestName = room?.players?.guest?.name || 'Guest'
+  const hostPhotoURL = room?.players?.host?.photoURL || null
+  const guestPhotoURL = room?.players?.guest?.photoURL || null
   const q = room?.questions?.[room?.currentQuestion]
   const myScore = role === 'host' ? hostScore : guestScore
   const opponentScore = role === 'host' ? guestScore : hostScore
@@ -65,10 +74,10 @@ export default function OnlineMulti({
     get(ref(db, `rooms/${tCode}`)).then(async (snap) => {
       if (!snap.exists()) {
         const questions = await generateQuestions({ rounds, sport })
-        await createRoom({ playerName, questions, rounds, sport, code: tCode })
+        await createRoom({ playerName, questions, rounds, sport, code: tCode, hostUid: user?.uid, hostPhotoURL: playerAvatar })
         setRole('host')
       } else {
-        await joinRoom({ code: tCode, playerName })
+        await joinRoom({ code: tCode, playerName, guestUid: user?.uid, guestPhotoURL: playerAvatar })
         setRole('guest')
       }
 
@@ -97,7 +106,7 @@ export default function OnlineMulti({
     if (!myPlayerId) return
 
     const unsub = listenToOnlineInvite(myPlayerId, (invite) => {
-      if (invite && screen === 'lobby') {
+      if (invite && screen === 'lobby' && !pendingInvite) {
         setIncomingInvite(invite)
       }
     })
@@ -106,6 +115,9 @@ export default function OnlineMulti({
 
   useEffect(() => {
     if (!pendingInvite) return
+    if (acceptHandledRef.current) return  
+  acceptHandledRef.current = true  
+    setIncomingInvite(null)
     const acceptInvite = async () => {
       await handleAcceptInvite(pendingInvite)
     }
@@ -120,8 +132,29 @@ export default function OnlineMulti({
     setInviteStatus('sending')
 
     try {
-      const questions = await generateQuestions({ rounds, sport })
-      const c = await createRoom({ playerName: name.trim(), questions, rounds, sport })
+      const stake = await spendCoins({
+        userId: user.uid,
+        amount: ONLINE_1V1_WAGER,
+        reason: 'online_1v1_stake',
+        sourceId: `online-stake-host:${user.uid}:${sport}:${rounds}`,
+        metadata: { sport, rounds },
+      })
+      if (!stake.ok) {
+        setError(`You need ${ONLINE_1V1_WAGER} coins to enter multiplayer.`)
+        setInviteStatus(null)
+        return
+      }
+
+       const questions = await generateQuestions({ rounds, sport })
+       const c = await createRoom({
+         playerName: name.trim(),
+         questions,
+         rounds,
+         sport,
+         hostUid: user.uid,
+         wager: ONLINE_1V1_WAGER,
+         hostPhotoURL: playerAvatar
+       })
       setRoomCode(c)
       setRole('host')
 
@@ -170,7 +203,19 @@ export default function OnlineMulti({
   async function handleAcceptInvite(invite = incomingInvite) {
     if (!invite) return
     try {
-      const r = await joinRoom({ code: invite.roomCode, playerName: name.trim() })
+      const stake = await spendCoins({
+        userId: user.uid,
+        amount: ONLINE_1V1_WAGER,
+        reason: 'online_1v1_stake',
+        sourceId: `online-stake-guest:${invite.roomCode}:${user.uid}`,
+        metadata: { sport: invite.sport, rounds: invite.rounds },
+      })
+      if (!stake.ok) {
+        setError(`You need ${ONLINE_1V1_WAGER} coins to accept this match.`)
+        return
+      }
+
+       const r = await joinRoom({ code: invite.roomCode, playerName: name.trim(), guestUid: user.uid, guestPhotoURL: playerAvatar })
       setRoomCode(invite.roomCode)
       setRole('guest')
       setRoom(r)
@@ -232,6 +277,31 @@ export default function OnlineMulti({
         await recordGameplayActivity({ userId: user.uid, source: 'online' })
         setMatchSaved(true)
 
+        if (!tournamentMatchMeta) {
+          const roomPot = room?.wager?.pot || ONLINE_1V1_WAGER * 2
+          if (result === 'win') {
+            const paid = await awardCoins({
+              userId: user.uid,
+              amount: roomPot,
+              reason: 'online_1v1_payout',
+              sourceId: `online-payout:${roomCode}:${user.uid}`,
+              metadata: { roomCode, sport, rounds, result },
+            })
+            if (paid.ok) setCoinMessage(`Winner payout: +${paid.amount} coins`)
+          } else if (result === 'draw') {
+            const refund = await awardCoins({
+              userId: user.uid,
+              amount: ONLINE_1V1_WAGER,
+              reason: 'online_1v1_draw_refund',
+              sourceId: `online-draw-refund:${roomCode}:${user.uid}`,
+              metadata: { roomCode, sport, rounds },
+            })
+            if (refund.ok) setCoinMessage(`Draw refund: +${refund.amount} coins`)
+          } else {
+            setCoinMessage(`${ONLINE_1V1_WAGER} coins staked`)
+          }
+        }
+
         if (tournamentMatchMeta && role === 'host') {
   const { tournamentCode, roundIndex, matchIndex } = tournamentMatchMeta
   const snap = await get(ref(db, `tournaments/${tournamentCode}/bracket/${roundIndex}/${matchIndex}`))
@@ -279,9 +349,27 @@ export default function OnlineMulti({
         <>
           <button className={styles.backBtn} onClick={onBack}>Back</button>
           <h2 className={styles.title}>{sportLabel} Multiplayer Rules</h2>
+          {!tournamentMatchMeta && (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: 'var(--card-bg)', border: '1px solid var(--card-border)',
+        borderRadius: 10, padding: '10px 16px', marginBottom: 12,
+      }}>
+        <span style={{ color: 'var(--muted)', fontSize: 13 }}>Your balance</span>
+        <span style={{ color: accent, fontWeight: 800, fontSize: 15 }}>
+          C {coinBalance}
+        </span>
+      </div>
+    )}
           <div className={styles.rulesCard}>
             <p className={styles.rulesLead}>Read this first so both players know exactly how the match works.</p>
             <ul className={styles.rulesList}>
+              {!tournamentMatchMeta && (
+                <>
+                  <li>Entry stake is {ONLINE_1V1_WAGER} coins per player.</li>
+                  <li>Winner takes the full {ONLINE_1V1_WAGER * 2}-coin pot.</li>
+                </>
+              )}
               <li>First correct answer wins the point.</li>
               <li>If both players answer wrong, no point is awarded.</li>
               <li>Scores stay hidden until the match ends.</li>
@@ -334,6 +422,24 @@ export default function OnlineMulti({
               <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 12 }}>
                 {incomingInvite.rounds} questions · {incomingInvite.sport}
               </p>
+               <div style={{
+      display: 'flex', justifyContent: 'space-between',
+      marginBottom: 12, fontSize: 13,
+    }}>
+      <span style={{ color: 'var(--muted)' }}>Entry cost</span>
+      <span style={{ color: accent, fontWeight: 700 }}>C {ONLINE_1V1_WAGER}</span>
+    </div>
+    <div style={{
+      display: 'flex', justifyContent: 'space-between',
+      marginBottom: 12, fontSize: 13,
+    }}>
+      <span style={{ color: 'var(--muted)' }}>Your balance</span>
+      <span style={{ color: coinBalance >= ONLINE_1V1_WAGER ? accent : '#FF5C5C', fontWeight: 700 }}>
+        C {coinBalance}
+      </span>
+    </div>
+
+    <div style={{ display: 'flex', gap: 8 }}></div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
                   className={styles.btn}
@@ -432,15 +538,25 @@ export default function OnlineMulti({
         <>
           <h2 className={styles.title}>Game Over!</h2>
           <div className={styles.scores}>
-            <div className={styles.scoreBox}>
-              <p className={styles.scoreName}>{hostName}</p>
-              <p className={styles.scoreNum} style={{ color: accent }}>{hostScore}</p>
-            </div>
+           <div className={styles.scoreBox}>
+             <p className={styles.scoreName}>{hostName}</p>
+             <img
+              src={hostPhotoURL || getDefaultAvatar()}
+               alt={`${hostName}'s avatar`}
+               className={styles.avatarImg}
+             />
+             <p className={styles.scoreNum} style={{ color: accent }}>{hostScore}</p>
+           </div>
             <p className={styles.vs}>VS</p>
-            <div className={styles.scoreBox}>
-              <p className={styles.scoreName}>{guestName}</p>
-              <p className={styles.scoreNum}>{guestScore}</p>
-            </div>
+             <div className={styles.scoreBox}>
+               <p className={styles.scoreName}>{guestName}</p>
+               <img
+                src={guestPhotoURL || getDefaultAvatar()}
+                 alt={`${guestName}'s avatar`}
+                 className={styles.avatarImg}
+               />
+               <p className={styles.scoreNum}>{guestScore}</p>
+             </div>
           </div>
           <p className={styles.winner} style={{ color: accent }}>
             {result === 'win' ? '🏆 You win!' : result === 'loss' ? '😔 You lost!' : "🤝 It's a draw!"}
@@ -448,6 +564,11 @@ export default function OnlineMulti({
           {matchSaved && (
             <p style={{ color: accent, fontSize: 13, textAlign: 'center', marginBottom: 8 }}>
               ✓ Match saved to your profile
+            </p>
+          )}
+          {coinMessage && (
+            <p style={{ color: accent, fontSize: 13, textAlign: 'center', marginBottom: 8 }}>
+              {coinMessage}
             </p>
           )}
           {tournamentMatchMeta ? (

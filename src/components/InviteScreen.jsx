@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { respondToInvite } from '../lib/teamMultiplayer'
 import { loadProfile } from '../lib/profile'
+import { spendCoins, TEAM_PLAYER_WAGER } from '../lib/coins'
+import { getPlayerAvatar } from '../lib/avatars'
 import styles from './InviteScreen.module.css'
 
 export default function InviteScreen({ invites, user, onAccepted, onClose }) {
@@ -11,12 +13,29 @@ export default function InviteScreen({ invites, user, onAccepted, onClose }) {
 
   const profile = loadProfile()
   const playerId = profile?.playerId
+  const playerAvatar = getPlayerAvatar(user, profile)
 
   async function handle(invite, accept) {
     if (!playerId || !user?.uid) return
+    const inviteWager = Math.max(TEAM_PLAYER_WAGER, Math.round(Number(invite.wager) || 0))
     setLoading(invite.id)
     setError(null)
     try {
+      if (accept) {
+        const stake = await spendCoins({
+          userId: user.uid,
+          amount: inviteWager,
+          reason: 'team_stake',
+          sourceId: `team-stake-invite:${invite.roomCode}:${user.uid}`,
+          metadata: { roomCode: invite.roomCode, teamId: invite.teamId, sport: invite.sport },
+        })
+        if (!stake.ok) {
+          setError(`You need ${inviteWager} coins to accept this team invite.`)
+          setLoading(null)
+          return
+        }
+      }
+
       await respondToInvite({
         playerId,
         inviteId: invite.id,
@@ -25,6 +44,8 @@ export default function InviteScreen({ invites, user, onAccepted, onClose }) {
         displayName: user.displayName || 'Player',
         roomCode: invite.roomCode,
         teamId: invite.teamId,
+        wager: inviteWager,
+        photoURL: playerAvatar,
       })
       if (accept) {
         onAccepted({ roomCode: invite.roomCode, teamId: invite.teamId, sport: invite.sport })
@@ -56,6 +77,9 @@ export default function InviteScreen({ invites, user, onAccepted, onClose }) {
                 </p>
                 <p className={styles.inviteMeta}>
                   Invited by <strong>{invite.hostDisplayName}</strong> · {invite.sport === 'basketball' ? '🏀' : '⚽'} {invite.sport}
+                </p>
+                <p className={styles.inviteMeta}>
+                  Entry stake: {Math.max(TEAM_PLAYER_WAGER, Math.round(Number(invite.wager) || 0))} coins
                 </p>
               </div>
               <div className={styles.inviteActions}>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ref, onValue, off, update } from 'firebase/database'
 import { db } from '../lib/firebase'
+import { LIGHTNING_H2H_WAGER } from '../lib/coins'
 import styles from './LightningH2H.module.css'
 
 const TIMER_SECS = 60
@@ -211,6 +212,7 @@ export default function LightningH2H({ questionsHost, questionsGuest, roomCode, 
           ) : (
             <>
               <h2>{opponentStarted ? `${opponentName} already started` : 'Ready to play?'}</h2>
+              <p>{LIGHTNING_H2H_WAGER} coins are staked. Winner takes {LIGHTNING_H2H_WAGER * 2} coins.</p>
               <p>Your timer starts only when you press Start.</p>
               <button
                 className={styles.startBtn}

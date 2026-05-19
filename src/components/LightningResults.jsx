@@ -11,6 +11,8 @@ export default function LightningResults({
   opponentName,
   isWin,
   isDraw,
+  coinReward,
+  coinBalance,
 }) {
   const { sport, totalQuestions } = config
   const [showReview, setShowReview] = useState(false)
@@ -68,6 +70,20 @@ export default function LightningResults({
           <p className={styles.statLabel}>Correct answers</p>
         </div>
       </div>
+
+      {coinReward && (
+        <div className={styles.coinPanel}>
+          <div>
+            <p className={styles.coinKicker}>{coinReward.label || 'Coins earned'}</p>
+            <p className={styles.coinAmount}>{coinReward.amount > 0 ? `+${coinReward.amount}` : '0'}</p>
+          </div>
+          <div className={styles.coinBalance}>
+            <span>Balance</span>
+            <strong>{coinBalance}</strong>
+          </div>
+          {coinReward.detail && <p className={styles.coinDetail}>{coinReward.detail}</p>}
+        </div>
+      )}
 
       <div className={styles.actions}>
         <button className={styles.ghostBtn} onClick={onHome}>Home</button>

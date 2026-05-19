@@ -1,0 +1,53 @@
+.avatarGrid {
+  padding: 1rem;
+  background: rgba(0, 255, 135, 0.06);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.avatarTitle {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.1rem;
+  color: var(--white);
+  text-align: center;
+}
+
+.avatarOptions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 0.7rem;
+}
+
+.avatarBtn {
+  display: grid;
+  justify-items: center;
+  align-items: center;
+  min-height: 90px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.avatarBtn:hover {
+  border-color: var(--accent);
+  transform: scale(1.05);
+}
+
+.avatarBtn.selected {
+  border-color: var(--accent);
+  background: rgba(0,255,135,0.12);
+  color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(0,255,135,0.18), 0 10px 24px rgba(0,0,0,0.22);
+}
+
+.avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  object-fit: cover;
+}

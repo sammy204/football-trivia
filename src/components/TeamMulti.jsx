@@ -16,6 +16,8 @@ import {
 import { getPlayerByPlayerId } from '../lib/multiplayer'
 import { sendInvitePushNotification } from '../lib/inviteNotifications'
 import { saveTeamMatchResult } from '../lib/userStats'
+import { awardCoins, spendCoins, TEAM_PLAYER_WAGER, TEAM_WAGER_OPTIONS } from '../lib/coins'
+import { getDefaultAvatar, getPlayerAvatar } from '../lib/avatars'
 import styles from './TeamMulti.module.css'
 
 const MEDALS = ['🥇', '🥈', '🥉', '🏅']
@@ -28,7 +30,7 @@ function getOrdinal(value) {
   return `${value}th`
 }
 
-export default function TeamMulti({ sport, onBack, user, initialJoinCode, initialJoinTeamId }) {
+export default function TeamMulti({ sport, onBack, user, initialJoinCode, initialJoinTeamId, coinBalance = 0 }) {
   const [screen, setScreen] = useState(initialJoinCode && initialJoinTeamId ? 'waiting' : 'intro')
   const [step, setStep] = useState('mode')
   const [numTeams, setNumTeams] = useState(2)
@@ -48,14 +50,18 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
   const [loading, setLoading] = useState(false)
   const [timeLeft, setTimeLeft] = useState(20)
   const [timedOut, setTimedOut] = useState(false)
+  const [coinMessage, setCoinMessage] = useState('')
+  const [wagerAmount, setWagerAmount] = useState(TEAM_PLAYER_WAGER)
   const timerRef = useRef(null)
 
   const accent = sport === 'basketball' ? '#FF6B35' : '#00FF87'
   const accentText = sport === 'basketball' ? '#fff' : '#0a1f0f'
   const profile = loadProfile()
   const playerId = profile?.playerId
+  const playerAvatar = getPlayerAvatar(user, profile)
   const roomUnsubRef = useRef(null)
   const resultsSavedRef = useRef(false)
+  
 
   function attachToRoom(code, teamId, captain) {
     roomUnsubRef.current?.()
@@ -92,6 +98,27 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
               memberScore: myMember.score || 0,
               questionsCount: myMember.questions?.length || TEAM_PLAYER_ROUNDS,
             }).catch(err => console.error('Failed to save team result:', err))
+
+            if (teamRank === 1) {
+              const winningMembers = Object.values(myTeam.members || {})
+              const share = Math.floor((data.wager?.pot || 0) / Math.max(1, winningMembers.length))
+              if (share > 0) {
+                awardCoins({
+                  userId: myMember.uid,
+                  amount: share,
+                  reason: 'team_payout',
+                  sourceId: `team-payout:${code}:${myMember.uid}`,
+                  metadata: { roomCode: code, teamId: capturedTeamId, teamName: myTeam.name },
+                })
+                  .then((paid) => {
+                    if (paid.ok) setCoinMessage(`Team payout: +${paid.amount} coins`)
+                  })
+                  .catch(err => console.error('Failed to pay team coins:', err))
+              }
+           } else {
+            const roomFee = data.wager?.amount || TEAM_PLAYER_WAGER
+            setCoinMessage(`${roomFee} coins staked`)
+            }
           }
         }
         setScreen('results')
@@ -174,9 +201,23 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
   async function handleCreate() {
     if (!playerId || !user?.uid) return setError('You need a Player ID. Please sign in.')
     if (!myTeamName.trim()) return setError('Enter your team name.')
+    const roomFee = Math.max(TEAM_PLAYER_WAGER, Math.round(Number(wagerAmount) || 0))
     setError('')
     setLoading(true)
     try {
+      const stake = await spendCoins({
+        userId: user.uid,
+        amount: roomFee,
+        reason: 'team_stake',
+        sourceId: `team-stake-create:${user.uid}:${sport}:${numTeams}:${wagerAmount}`,
+        metadata: { sport },
+      })
+      if (!stake.ok) {
+        setError(`You need ${roomFee} coins to create a team room.`)
+        setLoading(false)
+        return
+      }
+
       const code = await createTeamRoom({
         hostUid: user.uid,
         hostDisplayName: user.displayName || 'Captain',
@@ -186,6 +227,8 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
         teamSize: TEAM_MAX_PLAYERS,
         numTeams,
         myTeamName: myTeamName.trim(),
+        wager: roomFee,
+        hostPhotoURL: playerAvatar,
       })
       attachToRoom(code, 'team1', true)
     } catch (e) {
@@ -202,6 +245,28 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
     setLoading(true)
     try {
       const code = joinCode.toUpperCase()
+       const { get, ref } = await import('firebase/database')
+    const { db } = await import('../lib/firebase')
+    const roomSnap = await get(ref(db, `teamRooms/${code}`))
+    if (!roomSnap.exists()) {
+      setError('Room not found.')
+      setLoading(false)
+      return
+    }
+    const roomFee = roomSnap.val()?.wager?.amount || TEAM_PLAYER_WAGER
+      const stake = await spendCoins({
+        userId: user.uid,
+        amount: roomFee,
+        reason: 'team_stake',
+        sourceId: `team-stake-captain:${code}:${user.uid}`,
+        metadata: { sport, roomCode: code },
+      })
+      if (!stake.ok) {
+        setError(`You need ${roomFee} coins to join this team match.`)
+        setLoading(false)
+        return
+      }
+
       await joinTeamAsCaptain({
         roomCode: code,
         teamId: joinTeamId,
@@ -209,6 +274,8 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
         displayName: user.displayName || 'Captain',
         playerId,
         teamName: joinTeamName.trim(),
+        wager: roomFee,
+        photoURL: playerAvatar,
       })
       attachToRoom(code, joinTeamId, true)
     } catch (e) {
@@ -229,6 +296,7 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
         teamName: room?.teams?.[myTeamId]?.name || myTeamId,
         hostDisplayName: user?.displayName || 'Captain',
         sport,
+        wager: room?.wager?.amount || TEAM_PLAYER_WAGER,
       })
       const opponent = await getPlayerByPlayerId(targetPlayerId)
       if (opponent?.uid) {
@@ -291,6 +359,8 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
           <div className={styles.summaryCard}>
             <p className={styles.summaryTitle}>Read this first</p>
             <ul className={styles.rulesList}>
+              <li>The host sets the entry fee — you'll see the amount before joining.</li>
+              <li>The winning team splits the full pot equally.</li>
               <li>Each player gets 10 questions of their own.</li>
               <li>Teammates do not answer the same questions.</li>
               <li>Every correct answer is worth 1 point.</li>
@@ -315,6 +385,25 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
           <p className={styles.sub}>
             Every player gets their own {TEAM_PLAYER_ROUNDS} questions. Team score is the sum of all correct answers.
           </p>
+          <p className={styles.sub}>
+            Entry stake: {TEAM_PLAYER_WAGER} coins per player. Winners split the pot.
+          </p>
+          <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      background: 'var(--card-bg)', border: '1px solid var(--card-border)',
+      borderRadius: 10, padding: '10px 16px', marginBottom: 16,
+    }}>
+      <span style={{ color: 'var(--muted)', fontSize: 13 }}>Your balance</span>
+      <span style={{
+        color: coinBalance >= TEAM_PLAYER_WAGER ? accent : '#FF5C5C',
+        fontWeight: 800, fontSize: 15,
+      }}>
+        C {coinBalance}
+      </span>
+    </div>
+
+    {error && <p className={styles.error}>{error}</p>}
+
           {error && <p className={styles.error}>{error}</p>}
           <div className={styles.modeGrid}>
             <button className={styles.modeCard} onClick={() => setStep('create')}>
@@ -332,6 +421,7 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
       )}
 
       {screen === 'setup' && step === 'create' && (
+        
         <>
           <button className={styles.backBtn} onClick={() => setStep('mode')}>Back</button>
           <h2 className={styles.title}>Create Room</h2>
@@ -349,6 +439,32 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
               onChange={event => setMyTeamName(event.target.value)}
             />
           </div>
+<div className={styles.configSection}>
+  <label className={styles.label}>Entry fee per player</label>
+  <div className={styles.btnGroup} style={{ marginBottom: 10 }}>
+    {TEAM_WAGER_OPTIONS.map(value => (
+      <button
+        key={value}
+        className={`${styles.pill} ${Number(wagerAmount) === value ? styles.pillActive : ''}`}
+        onClick={() => setWagerAmount(value)}
+        style={Number(wagerAmount) === value ? { background: accent, color: accentText, borderColor: accent } : {}}
+      >
+        C {value}
+      </button>
+    ))}
+  </div>
+  <input
+    className={styles.input}
+    type="number"
+    min={TEAM_PLAYER_WAGER}
+    placeholder="Enter amount (e.g. 25)"
+    value={wagerAmount}
+    onChange={e => setWagerAmount(Number(e.target.value) || TEAM_PLAYER_WAGER)}
+  />
+  <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 6 }}>
+    Winning team splits the full pot equally.
+  </p>
+</div>
 
           <div className={styles.configSection}>
             <label className={styles.label}>Number of teams</label>
@@ -395,6 +511,18 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
               onChange={event => setJoinCode(event.target.value.toUpperCase())}
             />
           </div>
+          {joinCode.length === 6 && (
+  <div style={{
+    display: 'flex', justifyContent: 'space-between',
+    background: 'var(--card-bg)', border: '1px solid var(--card-border)',
+    borderRadius: 10, padding: '10px 16px', marginBottom: 8,
+  }}>
+    <span style={{ color: 'var(--muted)', fontSize: 13 }}>Entry fee for this room</span>
+    <span style={{ color: accent, fontWeight: 800, fontSize: 14 }}>
+      C {room?.wager?.amount || '—'}
+    </span>
+  </div>
+)}
 
           <div className={styles.configSection}>
             <label className={styles.label}>Your team name</label>
@@ -443,6 +571,20 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
             <p className={styles.code} style={{ color: accent }}>{roomCode}</p>
             <p className={styles.codeSub}>Share this with the other captains</p>
           </div>
+           <div style={{
+  display: 'flex', justifyContent: 'space-between',
+  background: 'var(--card-bg)', border: '1px solid var(--card-border)',
+  borderRadius: 10, padding: '10px 16px', marginBottom: 12,
+}}>
+  <div>
+    <p style={{ color: 'var(--muted)', fontSize: 12, margin: 0 }}>Entry fee per player</p>
+    <p style={{ color: accent, fontWeight: 800, fontSize: 15, margin: 0 }}>C {room?.wager?.amount || 0}</p>
+  </div>
+  <div style={{ textAlign: 'right' }}>
+    <p style={{ color: 'var(--muted)', fontSize: 12, margin: 0 }}>Prize pot so far</p>
+    <p style={{ color: accent, fontWeight: 800, fontSize: 15, margin: 0 }}>C {room?.wager?.pot || 0}</p>
+  </div>
+</div>
 
           <div className={styles.summaryCard}>
             <p className={styles.summaryTitle}>Match format</p>
@@ -465,13 +607,18 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
                     {isMyTeam && <span className={styles.youBadge}>You</span>}
                   </p>
                   <p className={styles.teamCardCount}>{members.length}/{teamSize} players</p>
-                  <div className={styles.memberList}>
-                    {members.map(member => (
-                      <span key={member.playerId} className={`${styles.memberChip} ${isMyTeam ? styles.myMemberChip : ''}`}>
-                        {member.displayName}
-                      </span>
-                    ))}
-                  </div>
+                   <div className={styles.memberList}>
+                     {members.map(member => (
+                       <span key={member.playerId} className={`${styles.memberChip} ${isMyTeam ? styles.myMemberChip : ''}`}>
+                        <img
+                          src={member.photoURL || getDefaultAvatar()}
+                          alt={`${member.displayName}'s avatar`}
+                          className={styles.avatarImg}
+                        />
+                         {member.displayName}
+                       </span>
+                     ))}
+                   </div>
                   {!members.length && <p className={styles.noCaptain}>Waiting for players...</p>}
                   {!team.captainUid && <p className={styles.noCaptain}>Waiting for captain...</p>}
                 </div>
@@ -573,6 +720,11 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
               <div className={styles.memberStats}>
                 {myTeamMembers.map(member => (
                   <div key={member.playerId} className={styles.memberStatRow}>
+                    <img
+                      src={member.photoURL || getDefaultAvatar()}
+                      alt=""
+                      className={styles.avatarImg}
+                    />
                     <span className={styles.memberStatName}>
                       {member.displayName} got {member.score || 0}/{member.questions?.length || TEAM_PLAYER_ROUNDS}
                     </span>
@@ -661,9 +813,9 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
                   <span className={styles.medal}>{MEDALS[index]}</span>
                   <div className={styles.rankInfo}>
                     <p className={styles.rankName}>{team.name}</p>
-                    <p className={styles.rankMembers}>
+                    <div className={styles.rankMembers}>
                       {members.map(member => `${member.displayName} got ${member.score || 0}/${member.questions?.length || TEAM_PLAYER_ROUNDS}`).join(' · ')}
-                    </p>
+                    </div>
                   </div>
                   <span className={styles.rankScore} style={{ color: team.teamId === myTeamId ? accent : 'var(--white)' }}>
                     {team.score}/{members.length * TEAM_PLAYER_ROUNDS}
@@ -678,6 +830,12 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
               {rankings[0]?.teamId === myTeamId
                 ? '🏆 Your team won!'
                 : `Your team finished ${getOrdinal(myTeamPosition)}`}
+            </p>
+          )}
+
+          {coinMessage && (
+            <p className={styles.myResult} style={{ color: accent }}>
+              {coinMessage}
             </p>
           )}
 

@@ -453,6 +453,10 @@ function UserManager() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState(null)
+  const [coinAmount, setCoinAmount] = useState('')
+  const [coinReason, setCoinReason] = useState('manual_admin_award')
+  const [awardingCoins, setAwardingCoins] = useState(false)
+  const [coinToast, setCoinToast] = useState(null)
 
   useEffect(() => {
     const r = ref(db, 'users')
@@ -484,8 +488,45 @@ function UserManager() {
     return new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
   }
 
+  async function handleAwardCoins() {
+    const amount = parseInt(coinAmount)
+    if (!amount || amount <= 0) {
+      setCoinToast({ msg: 'Enter a valid amount.', type: 'error' })
+      setTimeout(() => setCoinToast(null), 3000)
+      return
+    }
+    if (!selected?.uid) return
+    setAwardingCoins(true)
+    try {
+      const { awardCoins } = await import('../lib/coins')
+      const result = await awardCoins({
+        userId: selected.uid,
+        amount,
+        reason: coinReason || 'manual_admin_award',
+        sourceId: `admin-award:${selected.uid}:${Date.now()}`,
+        metadata: { awardedBy: 'admin', displayName: selected.displayName },
+      })
+      if (result.ok) {
+        setCoinToast({ msg: `✅ Awarded ${amount} coins. New balance: C ${result.balance}`, type: 'success' })
+        setCoinAmount('')
+      } else {
+        setCoinToast({ msg: 'Award failed.', type: 'error' })
+      }
+    } catch (e) {
+      setCoinToast({ msg: 'Error: ' + e.message, type: 'error' })
+    }
+    setAwardingCoins(false)
+    setTimeout(() => setCoinToast(null), 4000)
+  }
+
   return (
     <div className={styles.qmWrap}>
+      {coinToast && (
+        <div className={`${styles.toast} ${styles[coinToast.type]}`}>
+          {coinToast.msg}
+        </div>
+      )}
+
       <div className={styles.qmToolbar}>
         <input
           className={styles.searchInput}
@@ -509,7 +550,12 @@ function UserManager() {
       ) : (
         <div className={styles.questionList}>
           {filtered.map(u => (
-            <div key={u.uid} className={styles.questionRow} style={{ cursor: 'pointer' }} onClick={() => setSelected(u)}>
+            <div
+              key={u.uid}
+              className={styles.questionRow}
+              style={{ cursor: 'pointer' }}
+              onClick={() => { setSelected(u); setCoinAmount(''); setCoinReason('manual_admin_award') }}
+            >
               <div className={styles.questionMeta}>
                 <span className={styles.statIcon}>👤</span>
               </div>
@@ -519,22 +565,22 @@ function UserManager() {
                   <span className={styles.optionChip}><strong>ID:</strong> {u.playerId || '—'}</span>
                   <span className={styles.optionChip}><strong>Streak:</strong> {u.dailyStreak?.current ?? 0} 🔥</span>
                   <span className={styles.optionChip}><strong>Joined:</strong> {formatDate(u.createdAt)}</span>
-                  <span className={styles.optionChip}><strong>UID:</strong> {u.uid.slice(0, 10)}…</span>
+                  <span className={styles.optionChip}><strong>Balance:</strong> C {u.wallet?.balance ?? 0}</span>
                 </div>
               </div>
               <div className={styles.questionActions}>
-                <button className={styles.editBtn} onClick={e => { e.stopPropagation(); setSelected(u) }}>View</button>
+                <button className={styles.editBtn} onClick={e => { e.stopPropagation(); setSelected(u); setCoinAmount(''); setCoinReason('manual_admin_award') }}>View</button>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* User detail modal */}
       {selected && (
         <div className={styles.modalOverlay} onClick={() => setSelected(null)}>
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>👤 {selected.displayName || 'Unnamed User'}</h3>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
               <p><strong>Player ID:</strong> {selected.playerId || '—'}</p>
               <p><strong>UID:</strong> {selected.uid}</p>
@@ -542,7 +588,85 @@ function UserManager() {
               <p><strong>Current Streak:</strong> {selected.dailyStreak?.current ?? 0} 🔥</p>
               <p><strong>Best Streak:</strong> {selected.dailyStreak?.best ?? 0} 🏆</p>
               <p><strong>Last Played:</strong> {selected.dailyStreak?.lastPlayedDateKey || '—'}</p>
+              <p><strong>Coin Balance:</strong> C {selected.wallet?.balance ?? 0}</p>
             </div>
+
+            <div style={{
+              background: 'rgba(0,255,135,0.06)',
+              border: '1px solid rgba(0,255,135,0.15)',
+              borderRadius: 10,
+              padding: '12px',
+              marginBottom: '16px',
+            }}>
+              <p style={{ color: '#00FF87', fontWeight: 700, marginBottom: 10, fontSize: 14 }}>
+                🪙 Award Coins
+              </p>
+
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                {[10, 25, 50, 100].map(preset => (
+                  <button
+                    key={preset}
+                    onClick={() => setCoinAmount(String(preset))}
+                    style={{
+                      flex: 1,
+                      padding: '6px 0',
+                      borderRadius: 6,
+                      border: coinAmount === String(preset)
+                        ? '1px solid #00FF87'
+                        : '1px solid rgba(255,255,255,0.1)',
+                      background: coinAmount === String(preset)
+                        ? 'rgba(0,255,135,0.15)'
+                        : 'rgba(255,255,255,0.05)',
+                      color: coinAmount === String(preset) ? '#00FF87' : '#fff',
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+
+              <input
+                className={styles.searchInput}
+                type="number"
+                placeholder="Or enter custom amount…"
+                value={coinAmount}
+                onChange={e => setCoinAmount(e.target.value)}
+                style={{ marginBottom: 8, width: '100%' }}
+              />
+
+              <input
+                className={styles.searchInput}
+                placeholder="Reason (e.g. compensation, promo)"
+                value={coinReason}
+                onChange={e => setCoinReason(e.target.value)}
+                style={{ marginBottom: 10, width: '100%' }}
+              />
+
+              <button
+                onClick={handleAwardCoins}
+                disabled={awardingCoins || !coinAmount}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  background: '#00FF87',
+                  color: '#0a1f0f',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontWeight: 800,
+                  fontSize: 14,
+                  cursor: awardingCoins || !coinAmount ? 'not-allowed' : 'pointer',
+                  opacity: awardingCoins || !coinAmount ? 0.6 : 1,
+                }}
+              >
+                {awardingCoins
+                  ? 'Awarding…'
+                  : `Award C ${coinAmount || '—'} to ${selected.displayName || 'User'}`}
+              </button>
+            </div>
+
             <div className={styles.modalActions}>
               <button className={styles.cancelBtn} onClick={() => setSelected(null)}>Close</button>
             </div>

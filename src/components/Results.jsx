@@ -19,6 +19,8 @@ export default function Results({
   onHome,
   onPlayAgain,
   user,
+  coinReward,
+  coinBalance,
 }) {
   const { mode, totalQuestions } = config
   const [showReview, setShowReview] = useState(false)
@@ -84,6 +86,20 @@ export default function Results({
           <p className={styles.statLabel}>Avg answer</p>
         </div>
       </div>
+
+      {coinReward && (
+        <div className={styles.coinPanel}>
+          <div>
+            <p className={styles.coinKicker}>{coinReward.label || 'Coins earned'}</p>
+            <p className={styles.coinAmount}>{coinReward.amount > 0 ? `+${coinReward.amount}` : '0'}</p>
+          </div>
+          <div className={styles.coinBalance}>
+            <span>Balance</span>
+            <strong>{coinBalance}</strong>
+          </div>
+          {coinReward.detail && <p className={styles.coinDetail}>{coinReward.detail}</p>}
+        </div>
+      )}
 
       {isDaily && (
         <div className={styles.dailyPanel}>

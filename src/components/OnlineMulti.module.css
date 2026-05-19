@@ -198,7 +198,21 @@
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
   backdrop-filter: blur(10px);
 }
-.scoreBox { text-align: center; }
+.scoreBox {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+}
+.avatarImg {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.22);
+  background: rgba(255,255,255,0.06);
+  object-fit: cover;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.22);
+}
 .scoreName {
   color: var(--muted);
   font-size: 12px;
@@ -478,7 +492,21 @@
   border-radius: 12px;
   padding: 16px 24px;
 }
-.scoreBox { text-align: center; }
+.scoreBox {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+}
+.avatarImg {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.22);
+  background: rgba(255,255,255,0.06);
+  object-fit: cover;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.22);
+}
 .scoreName {
   color: var(--muted);
   font-size: 12px;

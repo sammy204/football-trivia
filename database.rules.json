@@ -4,28 +4,45 @@
       ".read": "auth != null && auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463'",
 
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid",
+        ".read": "auth != null && (auth.uid === $uid || auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463')",
+        ".write":"auth != null && auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463'",
+
+        "playerId": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463')"
+        },
+
+        "displayName": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463')"
+        },
+
+        "createdAt": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463')"
+        },
 
         "profile": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463')",
           ".validate": "newData.hasChildren(['updatedAt']) || !newData.exists()"
         },
 
         "stats": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463')",
           ".validate": "!newData.exists() || newData.hasChildren()"
         },
 
         "matches": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463')",
           "$matchId": {
             ".validate": "!newData.exists() || newData.hasChildren(['result', 'sport', 'rounds', 'date'])"
           }
         },
 
         "dailyStreak": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463')",
           ".validate": "!newData.exists() || newData.hasChildren(['current', 'best', 'lastPlayedDateKey', 'updatedAt'])"
         },
 
         "playActivity": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463')",
           "$dateKey": {
             "$source": {
               ".validate": "!newData.exists() || newData.hasChildren(['dateKey', 'source', 'playedAt'])"
@@ -34,6 +51,7 @@
         },
 
         "notifications": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463')",
           "streakReminder": {
             ".validate": "!newData.exists() || newData.hasChildren(['lastSentDateKey'])"
           },
@@ -43,10 +61,22 @@
         },
 
         "pushSubscriptions": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463')",
           "$subscriptionId": {
             ".validate": "!newData.exists() || newData.hasChildren(['endpoint', 'keys', 'createdAt'])"
           }
-        }
+        },
+        "wallet": {
+  ".write": "auth != null && auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463'",
+  ".validate": "newData.hasChildren(['balance', 'updatedAt'])"
+},
+
+"coinLedger": {
+  ".write": "auth != null && auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463'",
+  "$entryId": {
+    ".validate": "newData.hasChildren(['type', 'amount', 'reason', 'createdAt'])"
+  }
+}
       }
     },
 

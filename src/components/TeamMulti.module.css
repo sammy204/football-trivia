@@ -263,12 +263,25 @@
 .memberList { display: flex; flex-wrap: wrap; gap: 6px; }
 
 .memberChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
   font-weight: 600;
-  padding: 3px 8px;
+  padding: 4px 9px 4px 4px;
   border-radius: 999px;
   background: rgba(255,255,255,0.08);
   color: var(--muted);
+}
+
+.avatarImg {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.24);
+  background: rgba(255,255,255,0.06);
+  object-fit: cover;
 }
 
 .myMemberChip {
@@ -410,7 +423,7 @@
 
 .memberStatRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   padding: 10px 12px;

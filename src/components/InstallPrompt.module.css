@@ -1,0 +1,95 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background:
+    radial-gradient(circle at top, rgba(0,255,135,0.18), transparent 38%),
+    rgba(4, 14, 8, 0.94);
+  backdrop-filter: blur(12px);
+}
+
+.card {
+  width: min(100%, 390px);
+  padding: 24px;
+  border: 1px solid rgba(0,255,135,0.24);
+  border-radius: 16px;
+  background: rgba(10,31,15,0.96);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.42);
+}
+
+.logo {
+  width: 58px;
+  height: 58px;
+  display: block;
+  margin-bottom: 18px;
+}
+
+.kicker {
+  margin: 0 0 8px;
+  color: #00FF87;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0 0 10px;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 42px;
+  line-height: 0.95;
+}
+
+.copy {
+  margin: 0 0 18px;
+  color: rgba(245,245,240,0.68);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.steps {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 20px;
+  padding-left: 20px;
+  color: rgba(245,245,240,0.86);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.actions {
+  display: grid;
+  gap: 10px;
+}
+
+.installBtn,
+.continueBtn {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.installBtn {
+  border: none;
+  background: #00FF87;
+  color: #0a1f0f;
+}
+
+.continueBtn {
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.04);
+  color: rgba(245,245,240,0.86);
+}
+
+@media (max-width: 360px) {
+  .title {
+    font-size: 36px;
+  }
+}

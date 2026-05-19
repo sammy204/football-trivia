@@ -26,6 +26,143 @@ const db = admin.firestore()
 const rtdb = admin.database()
 const subscriptionsCollection = db.collection('push_subscriptions')
 const testRoutesEnabled = String(process.env.ENABLE_TEST_ROUTES).toLowerCase() === 'true'
+const ADMIN_UID = process.env.ADMIN_UID || 'K4qCnBhAVDMTkvK70SMVfbbsw463'
+const STARTING_COIN_BALANCE = 50
+
+function normalizeAmount(amount) {
+  return Math.max(0, Math.round(Number(amount) || 0))
+}
+
+function ledgerKey(sourceId) {
+  return String(sourceId || `${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    .replace(/[.#$/[\]]/g, '-')
+}
+
+async function requireFirebaseUser(req, res, next) {
+  const header = req.headers.authorization || ''
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null
+
+  if (!token) {
+    return res.status(401).json({ error: 'Missing auth token' })
+  }
+
+  try {
+    req.firebaseUser = await admin.auth().verifyIdToken(token)
+    return next()
+  } catch (error) {
+    return res.status(401).json({ error: 'Invalid auth token' })
+  }
+}
+
+function canAwardReason({ uid, targetUserId, reason, amount }) {
+  if (uid === ADMIN_UID) return true
+  if (uid !== targetUserId) return false
+
+  const selfAwardCaps = {
+    quiz_reward: 40,
+    daily_reward: 80,
+    seasonal_reward: 150,
+    lightning_solo_reward: 100,
+    online_1v1_payout: 200,
+    online_1v1_draw_refund: 100,
+    lightning_h2h_payout: 200,
+    lightning_h2h_draw_refund: 100,
+    team_payout: 500,
+  }
+
+  return amount > 0 && amount <= (selfAwardCaps[reason] || 0)
+}
+
+async function ensureWallet(userId) {
+  const walletRef = rtdb.ref(`users/${userId}/wallet`)
+  const result = await walletRef.transaction((current) => {
+    if (current) {
+      return {
+        ...current,
+        balance: normalizeAmount(current.balance),
+        updatedAt: Date.now(),
+      }
+    }
+
+    return {
+      balance: STARTING_COIN_BALANCE,
+      lifetimeEarned: STARTING_COIN_BALANCE,
+      lifetimeSpent: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }
+  })
+
+  return result.snapshot.val()
+}
+
+async function mutateCoins({ userId, amount, reason, sourceId, metadata = {}, type }) {
+  const safeAmount = normalizeAmount(amount)
+  const walletRef = rtdb.ref(`users/${userId}/wallet`)
+  const entryRef = rtdb.ref(`users/${userId}/coinLedger/${ledgerKey(sourceId || `${type}-${Date.now()}`)}`)
+  const existing = await entryRef.get()
+
+  if (existing.exists()) {
+    const wallet = await ensureWallet(userId)
+    return { ok: true, balance: wallet?.balance || 0, amount: 0, duplicate: true }
+  }
+
+  if (safeAmount <= 0) {
+    const wallet = await ensureWallet(userId)
+    return { ok: true, balance: wallet?.balance || 0, amount: 0 }
+  }
+
+  let insufficient = false
+  const result = await walletRef.transaction((current) => {
+    const wallet = current || {
+      balance: STARTING_COIN_BALANCE,
+      lifetimeEarned: STARTING_COIN_BALANCE,
+      lifetimeSpent: 0,
+      createdAt: Date.now(),
+    }
+    const balance = normalizeAmount(wallet.balance)
+
+    if (type === 'spend') {
+      if (balance < safeAmount) {
+        insufficient = true
+        return
+      }
+
+      return {
+        ...wallet,
+        balance: balance - safeAmount,
+        lifetimeEarned: normalizeAmount(wallet.lifetimeEarned),
+        lifetimeSpent: normalizeAmount(wallet.lifetimeSpent) + safeAmount,
+        updatedAt: Date.now(),
+      }
+    }
+
+    return {
+      ...wallet,
+      balance: balance + safeAmount,
+      lifetimeEarned: normalizeAmount(wallet.lifetimeEarned) + safeAmount,
+      lifetimeSpent: normalizeAmount(wallet.lifetimeSpent),
+      updatedAt: Date.now(),
+    }
+  })
+
+  const balance = result.snapshot.val()?.balance || 0
+  if (!result.committed || insufficient) {
+    return { ok: false, balance, amount: 0, insufficient: true }
+  }
+
+  await entryRef.set({
+    type,
+    amount: safeAmount,
+    reason,
+    sourceId: sourceId || null,
+    balanceAfter: balance,
+    metadata,
+    createdAt: Date.now(),
+  })
+
+  return { ok: true, balance, amount: safeAmount }
+}
 
 // Middleware
 app.use(cors())
@@ -169,6 +306,78 @@ app.post('/api/subscriptions', async (req, res) => {
   } catch (error) {
     console.error('Error saving subscription:', error)
     res.status(500).json({ error: 'Failed to save subscription' })
+  }
+})
+
+app.post('/api/coins/ensure', requireFirebaseUser, async (req, res) => {
+  const userId = req.body?.userId || req.firebaseUser.uid
+
+  if (userId !== req.firebaseUser.uid && req.firebaseUser.uid !== ADMIN_UID) {
+    return res.status(403).json({ error: 'Not allowed' })
+  }
+
+  try {
+    const wallet = await ensureWallet(userId)
+    res.json({ ok: true, wallet })
+  } catch (error) {
+    console.error('Failed to ensure coin wallet:', error)
+    res.status(500).json({ error: 'Failed to ensure wallet' })
+  }
+})
+
+app.post('/api/coins/award', requireFirebaseUser, async (req, res) => {
+  const { userId, amount, reason, sourceId, metadata } = req.body || {}
+  const safeAmount = normalizeAmount(amount)
+
+  if (!userId || !reason) {
+    return res.status(400).json({ error: 'Missing userId or reason' })
+  }
+
+  if (!canAwardReason({
+    uid: req.firebaseUser.uid,
+    targetUserId: userId,
+    reason,
+    amount: safeAmount,
+  })) {
+    return res.status(403).json({ error: 'Coin award not allowed' })
+  }
+
+  try {
+    const result = await mutateCoins({
+      userId,
+      amount: safeAmount,
+      reason,
+      sourceId,
+      metadata,
+      type: 'earn',
+    })
+    res.json(result)
+  } catch (error) {
+    console.error('Failed to award coins:', error)
+    res.status(500).json({ error: 'Failed to award coins' })
+  }
+})
+
+app.post('/api/coins/spend', requireFirebaseUser, async (req, res) => {
+  const { userId, amount, reason, sourceId, metadata } = req.body || {}
+
+  if (!userId || userId !== req.firebaseUser.uid) {
+    return res.status(403).json({ error: 'Not allowed' })
+  }
+
+  try {
+    const result = await mutateCoins({
+      userId,
+      amount,
+      reason,
+      sourceId,
+      metadata,
+      type: 'spend',
+    })
+    res.json(result)
+  } catch (error) {
+    console.error('Failed to spend coins:', error)
+    res.status(500).json({ error: 'Failed to spend coins' })
   }
 })
 

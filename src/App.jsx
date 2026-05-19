@@ -9,6 +9,7 @@ import Loading from './components/Loading'
 import OnlineMulti from './components/OnlineMulti'
 import TeamMulti from './components/TeamMulti'
 import InviteScreen from './components/InviteScreen'
+import InstallPrompt from './components/InstallPrompt'
 import DailyLeaderboard from './components/DailyLeaderboard'
 import LightningRound from './components/LightningRound'
 import LightningH2H from './components/LightningH2H'
@@ -56,8 +57,19 @@ import {
   listenToSeasonalLeaderboard,
   getSeasonalEventQuestions,
 } from './lib/seasonalEvents'
+import {
+  awardCoins,
+  ensureCoinWallet,
+  LIGHTNING_H2H_WAGER,
+  calculateLightningCoinReward,
+  calculateQuizCoinReward,
+  calculateSeasonalCoinReward,
+  listenToCoinBalance,
+  spendCoins,
+} from './lib/coins'
 
 const TEAM_ROUNDS = 10
+const INSTALL_INTEREST_KEY = 'trivela-install-interest'
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -108,6 +120,11 @@ export default function App() {
   const [incomingInviteForAccept, setIncomingInviteForAccept] = useState(null)
   const [tournamentMatchMeta, setTournamentMatchMeta] = useState(null)
   const [activeTournamentCode, setActiveTournamentCode] = useState(null)
+  const [coinBalance, setCoinBalance] = useState(0)
+  const [coinReward, setCoinReward] = useState(null)
+  const [installPromptEligible, setInstallPromptEligible] = useState(() => (
+    typeof window !== 'undefined' && window.localStorage.getItem(INSTALL_INTEREST_KEY) === 'true'
+  ))
 
   // Lightning Solo state
   const [lightningSoloQuestions, setLightningSoloQuestions] = useState([])
@@ -169,7 +186,22 @@ export default function App() {
   useEffect(() => {
     if (user?.uid) {
       setProfileState(loadProfile())
+      window.localStorage.setItem(INSTALL_INTEREST_KEY, 'true')
+      setInstallPromptEligible(true)
     }
+  }, [user?.uid])
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setCoinBalance(0)
+      return
+    }ensureCoinWallet(user.uid).catch(console.error)
+
+    return listenToCoinBalance(
+      user.uid,
+      setCoinBalance,
+      (error) => console.error('Failed to listen to coin balance:', error)
+    )
   }, [user?.uid])
 
   useEffect(() => {
@@ -351,6 +383,11 @@ export default function App() {
     setScreen('home')
   }
 
+  function handleProfileUpdated(nextProfile) {
+    setProfile(nextProfile)
+    setProfileState(nextProfile)
+  }
+
   async function handleLogout() {
     try {
       await logOut()
@@ -362,10 +399,13 @@ export default function App() {
   }
 
   async function launchGame(config) {
+    window.localStorage.setItem(INSTALL_INTEREST_KEY, 'true')
+    setInstallPromptEligible(true)
     setGameConfig(config)
     setSelectedSport(config.sport)
     setReviewData([])
     setResultMeta(null)
+    setCoinReward(null)
     setSaveState({ status: 'idle', rank: null })
     setScreen('loading')
     setError(null)
@@ -414,6 +454,46 @@ export default function App() {
     setScreen('tournament')
   }
 
+  async function awardUserCoins({ amount, reason, sourceId, metadata, label, detail }) {
+    if (!user?.uid) {
+      return {
+        amount: 0,
+        label: 'Coins not saved',
+        detail: 'Sign in before playing to earn coins.',
+        muted: true,
+      }
+    }
+
+    if (amount <= 0) return null
+
+    try {
+      const awarded = await awardCoins({
+        userId: user.uid,
+        amount,
+        reason,
+        sourceId,
+        metadata,
+      })
+
+      if (!awarded.ok) return null
+
+      setCoinBalance(awarded.balance)
+      return {
+        amount: awarded.amount || amount,
+        label,
+        detail,
+      }
+    } catch (error) {
+      console.error('Failed to award coins:', error)
+      return {
+        amount: 0,
+        label: 'Coins not saved',
+        detail: 'The wallet update failed. Please try again.',
+        muted: true,
+      }
+    }
+  }
+
   function handleTournamentMatch({ roomCode, sport, rounds }) {
     setTournamentMatchMeta({ roomCode })
     setGameConfig({ sport, rounds })
@@ -445,9 +525,21 @@ export default function App() {
     if (!user) { setShowAuth(true); return }
     if (!user.emailVerified) { setShowVerify(true); return }
     setSelectedSport(sport)
-    setLightningH2HConfig({ sport, mode: 'h2h' })
+    setLightningH2HConfig({ sport, mode: 'h2h', wager: LIGHTNING_H2H_WAGER })
 
     try {
+      const stake = await spendCoins({
+        userId: user.uid,
+        amount: LIGHTNING_H2H_WAGER,
+        reason: 'lightning_h2h_stake',
+        sourceId: `lightning-stake-host:${Date.now()}:${user.uid}`,
+        metadata: { sport },
+      })
+      if (!stake.ok) {
+        setError(`You need ${LIGHTNING_H2H_WAGER} coins to start a Lightning Duel.`)
+        return
+      }
+
       const questionsHost = await generateQuestions({ rounds: 50, sport })
       const questionsGuest = await generateQuestions({ rounds: 50, sport })
       setLightningH2HQuestionsHost(questionsHost)
@@ -460,6 +552,8 @@ export default function App() {
         sport,
         rounds: 50,
         code: roomCode,
+        hostUid: user.uid,
+        wager: LIGHTNING_H2H_WAGER,
       })
 
       const opponent = await getPlayerByPlayerId(opponentPlayerId)
@@ -497,9 +591,18 @@ export default function App() {
   }
 
   // Seasonal event handler
-  async function handleStartSeasonalEvent({ eventId, eventName, sport, dailyQuestions, questions }) {
+  async function handleStartSeasonalEvent({
+    eventId,
+    eventName,
+    sport,
+    dailyQuestions,
+    questions,
+    coinMultiplier = 1,
+    entryFee = 0,
+  }) {
     if (!user) { setShowAuth(true); return }
     if (!user.emailVerified) { setShowVerify(true); return }
+
     const eventQuestions = Array.isArray(questions) && questions.length > 0
       ? questions
       : await getSeasonalEventQuestions({
@@ -511,16 +614,54 @@ export default function App() {
       setError('This seasonal event has no questions yet. Add questions in Admin > Questions > Seasonal Event.')
       return
     }
+
+    const fee = Math.max(0, Math.round(Number(entryFee) || 0))
+    if (fee > 0) {
+      let spent
+      try {
+        spent = await spendCoins({
+          userId: user.uid,
+          amount: fee,
+          reason: 'seasonal_entry',
+          sourceId: `seasonal-entry:${eventId}:${user.uid}`,
+          metadata: {
+            eventId,
+            eventName,
+            sport: sport || selectedSport,
+          },
+        })
+      } catch (error) {
+        console.error('Failed to spend seasonal entry coins:', error)
+        setError('Could not process event entry coins. Please try again.')
+        return
+      }
+
+      if (!spent.ok) {
+        setCoinBalance(spent.balance)
+        setError(`You need ${fee} coins to enter this event.`)
+        return
+      }
+      setCoinBalance(spent.balance)
+    }
     
-    setEventData({ eventId, eventName, sport: sport || selectedSport, dailyQuestions, questions: eventQuestions })
+    setEventData({
+      eventId,
+      eventName,
+      sport: sport || selectedSport,
+      dailyQuestions,
+      questions: eventQuestions,
+      coinMultiplier,
+      entryFee: fee,
+    })
     setSeasonalQuestions(eventQuestions)
     setSeasonalScores([])
     setSeasonalHistory([])
     setSeasonalResultMeta(null)
+    setCoinReward(null)
     setScreen('seasonalQuiz')
   }
 
-  function handleFinishSeasonalQuiz({ scores, history, totalTimeMs }) {
+  async function handleFinishSeasonalQuiz({ scores, history, totalTimeMs }) {
     if (user?.uid) {
       recordGameplayActivity({
         userId: user.uid,
@@ -529,6 +670,27 @@ export default function App() {
       }).catch((error) => console.error('Failed to record gameplay activity:', error))
     }
 
+    const rewardAmount = calculateSeasonalCoinReward({
+      score: scores[0],
+      totalQuestions: history.length,
+      multiplier: eventData?.coinMultiplier,
+    })
+    const reward = await awardUserCoins({
+      amount: rewardAmount,
+      reason: 'seasonal_reward',
+      sourceId: `seasonal-reward:${eventData?.eventId}:${user?.uid}`,
+      metadata: {
+        eventId: eventData?.eventId,
+        eventName: eventData?.eventName,
+        score: scores[0],
+        totalQuestions: history.length,
+        multiplier: eventData?.coinMultiplier || 1,
+      },
+      label: 'Seasonal coins earned',
+      detail: `${eventData?.coinMultiplier || 1}x event multiplier`,
+    })
+
+    setCoinReward(reward)
     setSeasonalScores(scores)
     setSeasonalHistory(history)
     setSeasonalResultMeta({ totalTimeMs })
@@ -542,13 +704,26 @@ export default function App() {
   async function handleAcceptLightningInvite(invite) {
     try {
       const sport = invite.sport
+      const stake = await spendCoins({
+        userId: user.uid,
+        amount: LIGHTNING_H2H_WAGER,
+        reason: 'lightning_h2h_stake',
+        sourceId: `lightning-stake-guest:${invite.roomCode}:${user.uid}`,
+        metadata: { sport },
+      })
+      if (!stake.ok) {
+        setError(`You need ${LIGHTNING_H2H_WAGER} coins to accept this Lightning Duel.`)
+        return
+      }
+
       const questionsGuest = await generateQuestions({ rounds: 50, sport })
       setLightningH2HQuestionsGuest(questionsGuest)
-      setLightningH2HConfig({ sport, mode: 'h2h' })
+      setLightningH2HConfig({ sport, mode: 'h2h', wager: LIGHTNING_H2H_WAGER })
 
       await joinLightningRoom({
         code: invite.roomCode,
         playerName: user.displayName || 'Guest',
+        guestUid: user.uid,
       })
 
       setLightningH2HRoomCode(invite.roomCode)
@@ -567,7 +742,24 @@ export default function App() {
     setPendingLightningInvite(null)
   }
 
-  function handleFinishLightningSolo({ scores, history, totalTimeMs, totalQuestions }) {
+  async function handleFinishLightningSolo({ scores, history, totalTimeMs, totalQuestions }) {
+    const correctCount = history.filter(item => item.isCorrect).length
+    const rewardAmount = calculateLightningCoinReward({ correctAnswers: correctCount })
+    const reward = await awardUserCoins({
+      amount: rewardAmount,
+      reason: 'lightning_solo_reward',
+      sourceId: `lightning-solo:${lightningSoloConfig?.sport || selectedSport}:${totalQuestions}:${totalTimeMs}:${user?.uid}`,
+      metadata: {
+        sport: lightningSoloConfig?.sport,
+        correctAnswers: correctCount,
+        totalQuestions,
+        totalTimeMs,
+      },
+      label: 'Lightning coins earned',
+      detail: `${correctCount} correct answers`,
+    })
+
+    setCoinReward(reward)
     setLightningSoloScores(scores)
     setLightningSoloHistory(history)
     setLightningSoloMeta({ totalTimeMs, totalQuestions })
@@ -575,7 +767,6 @@ export default function App() {
       const prof = profile || loadProfile()
       const playerId = prof?.playerId || user.uid
       const displayName = user.displayName || prof?.displayName || 'Anonymous'
-      const correctCount = history.filter(item => item.isCorrect).length
       saveLightningScore({
         sport: lightningSoloConfig.sport,
         playerId,
@@ -589,7 +780,47 @@ export default function App() {
     setScreen('lightningSoloResults')
   }
 
-  function handleFinishLightningH2H({ scores, history, totalTimeMs, totalQuestions, isWin, isDraw, opponentName }) {
+  async function handleFinishLightningH2H({ scores, history, totalTimeMs, totalQuestions, isWin, isDraw, opponentName }) {
+    const pot = (lightningH2HConfig?.wager || LIGHTNING_H2H_WAGER) * 2
+    if (isWin) {
+      const reward = await awardUserCoins({
+        amount: pot,
+        reason: 'lightning_h2h_payout',
+        sourceId: `lightning-h2h-payout:${lightningH2HRoomCode}:${user?.uid}`,
+        metadata: {
+          sport: lightningH2HConfig?.sport,
+          score: scores[0],
+          opponentScore: scores[1],
+          isWin,
+          totalQuestions,
+          totalTimeMs,
+        },
+        label: 'Duel pot won',
+        detail: `Winner takes the ${pot}-coin pot`,
+      })
+      setCoinReward(reward)
+    } else if (isDraw) {
+      const refund = await awardUserCoins({
+        amount: lightningH2HConfig?.wager || LIGHTNING_H2H_WAGER,
+        reason: 'lightning_h2h_draw_refund',
+        sourceId: `lightning-h2h-refund:${lightningH2HRoomCode}:${user?.uid}`,
+        metadata: {
+          sport: lightningH2HConfig?.sport,
+          score: scores[0],
+          opponentScore: scores[1],
+        },
+        label: 'Duel stake refunded',
+        detail: 'Draw result returns your entry stake',
+      })
+      setCoinReward(refund)
+    } else {
+      setCoinReward({
+        amount: 0,
+        label: 'Duel stake lost',
+        detail: `${lightningH2HConfig?.wager || LIGHTNING_H2H_WAGER} coins went to the winner`,
+        muted: true,
+      })
+    }
     setLightningH2HFinalScores(scores)
     setLightningH2HHistory(history)
     setLightningH2HMeta({ totalTimeMs, totalQuestions, isWin, isDraw })
@@ -688,7 +919,7 @@ export default function App() {
     track('game_started', { sport, mode: 'daily', rounds: challenge.rounds })
   }
 
-  function handleFinish({ scores, history, totalTimeMs }) {
+  async function handleFinish({ scores, history, totalTimeMs }) {
     if (gameConfig?.mode === 'daily' && gameConfig?.challengeKey && gameConfig?.sport) {
       markDailyChallengePlayed({ dateKey: gameConfig.challengeKey, sport: gameConfig.sport })
       if (user?.uid) {
@@ -713,6 +944,29 @@ export default function App() {
       }).catch((error) => console.error('Failed to record gameplay activity:', error))
     }
 
+    const rewardAmount = calculateQuizCoinReward({
+      mode: gameConfig?.mode,
+      score: scores[0],
+      totalQuestions: history.length,
+    })
+    const reward = await awardUserCoins({
+      amount: rewardAmount,
+      reason: gameConfig?.mode === 'daily' ? 'daily_reward' : 'quiz_reward',
+      sourceId: gameConfig?.mode === 'daily'
+        ? `daily_reward:${gameConfig?.challengeKey}:${user?.uid}`
+        : `${gameConfig?.mode || 'quiz'}:${gameConfig?.challengeKey || Date.now()}:${Date.now()}`,
+      metadata: {
+        sport: gameConfig?.sport,
+        mode: gameConfig?.mode,
+        score: scores[0],
+        totalQuestions: history.length,
+        totalTimeMs,
+      },
+      label: gameConfig?.mode === 'daily' ? 'Daily coins earned' : 'Coins earned',
+      detail: gameConfig?.mode === 'daily' ? 'Daily challenge pays 2x' : 'Correct answers plus perfect bonus',
+    })
+
+    setCoinReward(reward)
     setFinalScores(scores)
     setReviewData(history)
     setResultMeta({ totalTimeMs })
@@ -940,11 +1194,12 @@ export default function App() {
           onStartLightning={handleStartLightning}
           onViewDailyLeaderboard={handleViewDailyLeaderboard}
           onStartSeasonalEvent={handleStartSeasonalEvent}
-          profile={profile}
+          profile={profileState || profile}
           user={user}
           onViewProfile={() => setScreen('profile')}
           onAdmin={() => setScreen('admin')}
           dailyPlayed={dailyPlayed}
+          coinBalance={coinBalance}
         />
       )}
 
@@ -960,7 +1215,9 @@ export default function App() {
           user={user}
           onBack={() => setScreen('home')}
           onUsernameUpdated={(newName) => setUser({ ...user, displayName: newName })}
+          onProfileUpdated={handleProfileUpdated}
           onLogout={handleLogout}
+          coinBalance={coinBalance}
         />
       )}
 
@@ -978,6 +1235,7 @@ export default function App() {
           }}
           tournamentMatchMeta={null}
           onTournamentMatchComplete={null}
+          coinBalance={coinBalance}
         />
       )}
 
@@ -990,6 +1248,7 @@ export default function App() {
           initialJoinTeamId={teamConfig?.joinTeamId || null}
           onBack={() => setScreen('home')}
           user={user}
+          coinBalance={coinBalance}
         />
       )}
 
@@ -1087,6 +1346,8 @@ export default function App() {
           onHome={() => setScreen('home')}
           onPlayAgain={handlePlayAgain}
           user={user}
+          coinReward={coinReward}
+          coinBalance={coinBalance}
         />
       )}
 
@@ -1098,6 +1359,8 @@ export default function App() {
           onHome={() => setScreen('home')}
           onPlayAgain={handlePlayLightningSoloAgain}
           onViewLeaderboard={() => handleViewLightningLeaderboard(lightningSoloConfig?.sport)}
+          coinReward={coinReward}
+          coinBalance={coinBalance}
         />
       )}
 
@@ -1112,6 +1375,8 @@ export default function App() {
           opponentName={lightningH2HOpponentName}
           isWin={lightningH2HMeta?.isWin}
           isDraw={lightningH2HMeta?.isDraw}
+          coinReward={coinReward}
+          coinBalance={coinBalance}
         />
       )}
 
@@ -1133,6 +1398,8 @@ export default function App() {
           onHome={() => setScreen('home')}
           onPlayAgain={handlePlaySeasonalAgain}
           user={user}
+          coinReward={coinReward}
+          coinBalance={coinBalance}
         />
       )}
 
@@ -1178,6 +1445,10 @@ export default function App() {
           onClose={() => setShowInvites(false)}
         />
       )}
+
+      <InstallPrompt
+        enabled={installPromptEligible && screen === 'home' && Boolean(user) && !showAuth && !showVerify && !showAuthCallback}
+      />
     </div>
   )
 }

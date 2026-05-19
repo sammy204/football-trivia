@@ -28,7 +28,7 @@ export function loadProfile() {
   }
 }
 
-export function saveProfile({ displayName, playerId }) {
+export function saveProfile({ displayName, playerId, avatar }) {
   const cleanedName = displayName.trim()
   if (!cleanedName) throw new Error('Display name is required.')
 
@@ -36,6 +36,7 @@ export function saveProfile({ displayName, playerId }) {
     id: loadProfile()?.id || `player-${Math.random().toString(36).slice(2, 10)}`,
     playerId: playerId || loadProfile()?.playerId || null,
     displayName: cleanedName,
+    avatar: avatar || loadProfile()?.avatar || null,
   }
 
   if (canUseStorage()) {

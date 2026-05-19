@@ -125,6 +125,116 @@
   margin-bottom: 12px;
 }
 
+.avatarSection {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 18px 0 14px;
+  flex-wrap: wrap;
+}
+
+.avatarPreview {
+  position: relative;
+  width: 86px;
+  height: 86px;
+  flex: 0 0 auto;
+}
+
+.avatarImg {
+  width: 86px;
+  height: 86px;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(0, 255, 135, 0.4);
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  color: var(--white);
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 1;
+  object-fit: cover;
+  cursor: pointer;
+}
+
+button.avatarImg {
+  padding: 0;
+}
+
+.avatarImg.editing {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(0, 255, 135, 0.12);
+}
+
+.avatarOverlay {
+  position: absolute;
+  left: 98px;
+  top: 50%;
+  display: flex;
+  gap: 8px;
+  transform: translateY(-50%);
+}
+
+.avatarPicker {
+  flex: 1 0 100%;
+  width: 100%;
+}
+
+.walletCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,179,71,0.34);
+  background:
+    radial-gradient(circle at top right, rgba(255,179,71,0.18), transparent 42%),
+    rgba(255,255,255,0.04);
+}
+
+.walletLabel {
+  margin: 0 0 6px;
+  color: #FFD27A;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.walletCopy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.walletAmount {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  color: #FFD27A;
+}
+
+.walletAmount strong {
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.walletMark {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #FFD27A;
+  color: #201400;
+  font-size: 15px;
+  font-weight: 900;
+}
+
 .loading,
 .error {
   padding: 16px;
@@ -448,6 +558,22 @@
 }
 
 @media (max-width: 520px) {
+  .avatarSection {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .avatarOverlay {
+    position: static;
+    margin-top: 10px;
+    transform: none;
+  }
+
+  .avatarPreview {
+    height: auto;
+    min-height: 86px;
+  }
+
   .heroTop {
     flex-direction: column;
   }
@@ -460,5 +586,10 @@
   .playerIdRow {
     flex-wrap: wrap;
     gap: 8px;
+  }
+
+  .walletCard {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

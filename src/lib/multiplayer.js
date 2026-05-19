@@ -6,7 +6,7 @@ export function generateRoomCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase()
 }
 
-export async function createRoom({ playerName, questions, rounds, sport, code: presetCode }) {
+export async function createRoom({ playerName, questions, rounds, sport, code: presetCode, hostUid, wager = 0, hostPhotoURL = null }) {
   const code = presetCode || generateRoomCode()  // ← use preset if given
   const roomRef = ref(db, `rooms/${code}`)
   await set(roomRef, {
@@ -22,22 +22,34 @@ export async function createRoom({ playerName, questions, rounds, sport, code: p
       winner: null,
     },
     players: {
-      host: { name: playerName, score: 0, answered: false }
+      host: { name: playerName, uid: hostUid || null, score: 0, answered: false, photoURL: hostPhotoURL }
+    },
+    wager: {
+      amount: wager,
+      pot: wager,
+      paid: hostUid ? { [hostUid]: wager } : {},
+      settled: false,
     },
     answers: {}
   })
   return code
 }
 
-export async function joinRoom({ code, playerName }) {
+export async function joinRoom({ code, playerName, guestUid, guestPhotoURL = null }) {
   const roomRef = ref(db, `rooms/${code}`)
   const snapshot = await get(roomRef)
   if (!snapshot.exists()) throw new Error('Room not found.')
   const room = snapshot.val()
   if (room.status !== 'waiting') throw new Error('Game already started.')
   await update(ref(db, `rooms/${code}/players`), {
-    guest: { name: playerName, score: 0, answered: false }
+    guest: { name: playerName, uid: guestUid || null, score: 0, answered: false, photoURL: guestPhotoURL }
   })
+  if (guestUid && room.wager?.amount) {
+    await update(ref(db, `rooms/${code}/wager`), {
+      pot: (room.wager?.pot || 0) + (room.wager?.amount || 0),
+      [`paid/${guestUid}`]: room.wager.amount,
+    })
+  }
   return room
 }
 
