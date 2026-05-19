@@ -292,7 +292,7 @@ app.post('/api/subscriptions', async (req, res) => {
   }
 
   try {
-    const id = Buffer.from(subscription.endpoint).toString('base64').slice(0, 100)
+   const id = Buffer.from(subscription.endpoint).toString('base64').replace(/[/+=]/g, '-').slice(0, 100)
     await subscriptionsCollection.doc(id).set({
       ...subscription,
       userId,
