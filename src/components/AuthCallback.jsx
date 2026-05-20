@@ -4,17 +4,6 @@ import { auth } from '../lib/firebase'
 import { signInWithGoogle } from '../lib/auth'
 import Auth from './Auth'
 import styles from './VerifyEmailComplete.module.css'
-async function sendWelcomeEmail(email, displayName) {
-  try {
-    await fetch(`${import.meta.env.VITE_PUSH_BACKEND_URL}/send-welcome-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, displayName })
-    })
-  } catch (err) {
-    console.error('Welcome email failed:', err)
-  }
-}
 
 export default function AuthCallback({ onSuccess, onPlaySolo }) {
   const [mode, setMode] = useState(null) // 'verifyEmail' | 'resetPassword' | null
@@ -74,11 +63,7 @@ export default function AuthCallback({ onSuccess, onPlaySolo }) {
 await auth.currentUser?.reload()
 setStatus('success')
 
-// Send welcome email after verified
-const user = auth.currentUser
-if (user) {
-  await sendWelcomeEmail(user.email, user.displayName || user.email.split('@')[0])
-}
+
 
 if (onSuccess) onSuccess()
     } catch (err) {

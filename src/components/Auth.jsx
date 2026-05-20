@@ -38,6 +38,8 @@ export default function Auth({ onSuccess, onPlaySolo }) {
 // Assign a unique FTB-XXXX player ID on signup
        await assignPlayerIdToUser(user.uid, username)
 
+// Send welcome email
+        await sendWelcomeEmail(email, username)
 
 onSuccess(user, 'verify')
       } else if (tab === 'reset') {
