@@ -843,7 +843,7 @@ app.post('/send-welcome-email', async (req, res) => {
                         <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:32px;">
                           <tr>
                             <td align="center">
-                              <a href="https://trivela.vercel.app" style="display:inline-block;background:linear-gradient(135deg,#00c853,#007a2e);color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 40px;border-radius:50px;letter-spacing:0.5px;">Start Playing →</a>
+                              <a href="https://trivela-delta.vercel.app/" style="display:inline-block;background:linear-gradient(135deg,#00c853,#007a2e);color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 40px;border-radius:50px;letter-spacing:0.5px;">Start Playing →</a>
                             </td>
                           </tr>
                         </table>
