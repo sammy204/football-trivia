@@ -746,8 +746,10 @@ process.on('SIGTERM', () => {
 })
 app.post('/send-welcome-email', async (req, res) => {
   const { email, displayName } = req.body
+ console.log('Welcome email endpoint hit:', email, displayName)
 
   if (!email || !displayName) {
+    console.log('Missing email or displayName')
     return res.status(400).json({ error: 'Email and display name are required' })
   }
 
