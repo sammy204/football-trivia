@@ -3,6 +3,18 @@ import { signUpWithEmail, signInWithEmail, signInWithGoogle, resetPassword } fro
 import { assignPlayerIdToUser } from '../lib/profile'
 import styles from './Auth.module.css'
 
+async function sendWelcomeEmail(email, displayName) {
+  try {
+    await fetch(`${import.meta.env.VITE_PUSH_BACKEND_URL}/send-welcome-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, displayName })
+    })
+  } catch (err) {
+    console.error('Welcome email failed:', err)
+  }
+}
+
 export default function Auth({ onSuccess, onPlaySolo }) {
   const [tab, setTab] = useState('login')
   const [username, setUsername] = useState('')
@@ -23,10 +35,13 @@ export default function Auth({ onSuccess, onPlaySolo }) {
 
         const user = await signUpWithEmail({ username, email, password })
 
-        // Assign a unique FTB-XXXX player ID on signup
-        await assignPlayerIdToUser(user.uid, username)
+// Assign a unique FTB-XXXX player ID on signup
+       await assignPlayerIdToUser(user.uid, username)
 
-        onSuccess(user, 'verify')
+// Send welcome email
+        await sendWelcomeEmail(email, username)
+
+onSuccess(user, 'verify')
       } else if (tab === 'reset') {
         if (!email.trim()) { setError('Please enter your email address'); setLoading(false); return }
         await resetPassword({ email })
@@ -60,12 +75,18 @@ export default function Auth({ onSuccess, onPlaySolo }) {
     setMessage(null)
     setLoading(true)
     try {
-      const user = await signInWithGoogle()
+   const user = await signInWithGoogle()
 
-      // For Google sign-in: assign if new user, fetch if existing
-      await assignPlayerIdToUser(user.uid, user.displayName || 'Player')
+// For Google sign-in: assign if new user, fetch if existing
+const isNewUser = user.metadata.creationTime === user.metadata.lastSignInTime
+await assignPlayerIdToUser(user.uid, user.displayName || 'Player')
 
-      onSuccess(user, user.emailVerified ? 'verified' : 'unverified')
+// Send welcome email only for new Google users
+if (isNewUser) {
+  await sendWelcomeEmail(user.email, user.displayName || 'Player')
+}
+
+onSuccess(user, user.emailVerified ? 'verified' : 'unverified')
     } catch (e) {
       setError('Google sign-in failed. Please try again.')
     }
