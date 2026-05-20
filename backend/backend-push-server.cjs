@@ -754,18 +754,22 @@ app.post('/send-welcome-email', async (req, res) => {
   }
 
   try {
-   const result = await resend.emails.send({
+    await resend.emails.send({
       from: 'onboarding@resend.dev',
       to: email,
       subject:'WELCOME TO TRIVELA 🎉',
       html: `
   <!DOCTYPE html>
   <html>
-    <body style="margin:0;padding:0;background:#0a1a0a;font-family:'Segoe UI',Arial,sans-serif;color:#ffffff;">
-      <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a1a0a;padding:40px 20px;">
+   <style>
+  body { background-color: #0a1a0a !important; }
+  * { color-scheme: dark !important; }
+</style>
+<body style="margin:0;padding:0;background:#0a1a0a !important;font-family:'Segoe UI',Arial,sans-serif;color:#ffffff;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a1a0a !important;padding:40px 20px;">
         <tr>
           <td align="center">
-            <table width="560" cellpadding="0" cellspacing="0" style="background:#0f2010;border-radius:16px;overflow:hidden;border:1px solid #1a3a1a;">
+            <table width="560" cellpadding="0" cellspacing="0" style="background:#0f2010 !important;border-radius:16px;overflow:hidden;border:1px solid #1a3a1a;">
 
               <!-- Header -->
               <tr>
@@ -810,7 +814,7 @@ app.post('/send-welcome-email', async (req, res) => {
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td style="padding-bottom:16px;">
-                        <table cellpadding="0" cellspacing="0" width="100%" style="background:#0a1a0a;border-radius:10px;padding:16px;border:1px solid #1a3a1a;">
+                        <table cellpadding="0" cellspacing="0" width="100%" style="background:#0a1a0a !important;border-radius:10px;padding:16px;border:1px solid #1a3a1a;">
                           <tr>
                             <td style="width:40px;font-size:22px;vertical-align:middle;">🎯</td>
                             <td style="padding-left:12px;vertical-align:middle;">
@@ -823,7 +827,7 @@ app.post('/send-welcome-email', async (req, res) => {
                     </tr>
                     <tr>
                       <td style="padding-bottom:16px;">
-                        <table cellpadding="0" cellspacing="0" width="100%" style="background:#0a1a0a;border-radius:10px;padding:16px;border:1px solid #1a3a1a;">
+                        <table cellpadding="0" cellspacing="0" width="100%" style="background:#0a1a0a !important;border-radius:10px;padding:16px;border:1px solid #1a3a1a;">
                           <tr>
                             <td style="width:40px;font-size:22px;vertical-align:middle;">⚡</td>
                             <td style="padding-left:12px;vertical-align:middle;">
@@ -836,7 +840,7 @@ app.post('/send-welcome-email', async (req, res) => {
                     </tr>
                     <tr>
                       <td style="padding-bottom:16px;">
-                        <table cellpadding="0" cellspacing="0" width="100%" style="background:#0a1a0a;border-radius:10px;padding:16px;border:1px solid #1a3a1a;">
+                        <table cellpadding="0" cellspacing="0" width="100%" style="background:#0a1a0a !important;border-radius:10px;padding:16px;border:1px solid #1a3a1a;">
                           <tr>
                             <td style="width:40px;font-size:22px;vertical-align:middle;">🏆</td>
                             <td style="padding-left:12px;vertical-align:middle;">
@@ -849,7 +853,7 @@ app.post('/send-welcome-email', async (req, res) => {
                     </tr>
                     <tr>
                       <td>
-                        <table cellpadding="0" cellspacing="0" width="100%" style="background:#0a1a0a;border-radius:10px;padding:16px;border:1px solid #1a3a1a;">
+                        <table cellpadding="0" cellspacing="0" width="100%" style="background:#0a1a0a !important;border-radius:10px;padding:16px;border:1px solid #1a3a1a;">
                           <tr>
                             <td style="width:40px;font-size:22px;vertical-align:middle;">🔥</td>
                             <td style="padding-left:12px;vertical-align:middle;">
@@ -893,7 +897,6 @@ app.post('/send-welcome-email', async (req, res) => {
   </html>
 `
     })
-     console.log('Resend result:', JSON.stringify(result))
     res.status(200).json({ success: true })
   } catch (error) {
     console.error('Welcome email error:', error)
