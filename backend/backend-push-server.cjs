@@ -757,113 +757,141 @@ app.post('/send-welcome-email', async (req, res) => {
     await resend.emails.send({
       from: 'onboarding@resend.dev',
       to: email,
-      subject: '⚽ Welcome to Trivela!',
+      subject:'WELCOME TO TRIVELA 🎉',
       html: `
-        <!DOCTYPE html>
-        <html>
-          <body style="margin:0;padding:0;background:#0f0f0f;font-family:'Segoe UI',sans-serif;color:#ffffff;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f0f;padding:40px 20px;">
+  <!DOCTYPE html>
+  <html>
+    <body style="margin:0;padding:0;background:#0a1a0a;font-family:'Segoe UI',Arial,sans-serif;color:#ffffff;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a1a0a;padding:40px 20px;">
+        <tr>
+          <td align="center">
+            <table width="560" cellpadding="0" cellspacing="0" style="background:#0f2010;border-radius:16px;overflow:hidden;border:1px solid #1a3a1a;">
+
+              <!-- Header -->
               <tr>
-                <td align="center">
-                  <table width="560" cellpadding="0" cellspacing="0" style="background:#1a1a1a;border-radius:16px;overflow:hidden;border:1px solid #2a2a2a;">
-                    
+                <td style="padding:36px 40px 28px;border-bottom:1px solid #1a3a1a;">
+                  <table cellpadding="0" cellspacing="0">
                     <tr>
-                      <td style="background:linear-gradient(135deg,#00c853,#007a2e);padding:40px 40px 30px;text-align:center;">
-                        <h1 style="margin:0;font-size:36px;font-weight:900;color:#ffffff;letter-spacing:-1px;">⚽ Trivela</h1>
-                        <p style="margin:8px 0 0;font-size:14px;color:rgba(255,255,255,0.8);letter-spacing:2px;text-transform:uppercase;">Sports Trivia. Elevated.</p>
+                      <td style="vertical-align:middle;">
+                        <img src="https://trivela-delta.vercel.app/logo-mark.svg" alt="Trivela" width="44" height="44" style="display:block;border-radius:50%;" />
+                      </td>
+                      <td style="padding-left:12px;vertical-align:middle;">
+                        <p style="margin:0;font-size:22px;font-weight:900;color:#ffffff;text-transform:uppercase;letter-spacing:2px;">Trivela</p>
+                        <p style="margin:2px 0 0;font-size:10px;color:#4ade80;text-transform:uppercase;letter-spacing:3px;">Compete. Challenge. Win.</p>
                       </td>
                     </tr>
-
-                    <tr>
-                      <td style="padding:40px;">
-                        <h2 style="margin:0 0 12px;font-size:24px;color:#ffffff;">Welcome, ${displayName} 👋</h2>
-                        <p style="margin:0 0 24px;font-size:15px;color:#aaaaaa;line-height:1.7;">
-                          You're now part of Trivela — the home of competitive sports trivia. Your football and basketball knowledge is about to be put to the test.
-                        </p>
-
-                        <hr style="border:none;border-top:1px solid #2a2a2a;margin:0 0 28px;" />
-
-                        <p style="margin:0 0 16px;font-size:13px;color:#666666;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">What's waiting for you</p>
-                        
-                        <table width="100%" cellpadding="0" cellspacing="0">
-                          <tr>
-                            <td style="padding:0 0 14px;">
-                              <table cellpadding="0" cellspacing="0">
-                                <tr>
-                                  <td style="width:36px;height:36px;background:#1f2e1f;border-radius:8px;text-align:center;vertical-align:middle;font-size:18px;">🎯</td>
-                                  <td style="padding-left:14px;">
-                                    <p style="margin:0;font-size:14px;color:#ffffff;font-weight:600;">Daily Challenge</p>
-                                    <p style="margin:2px 0 0;font-size:13px;color:#777777;">One challenge per sport, every day at 12 PM</p>
-                                  </td>
-                                </tr>
-                              </table>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td style="padding:0 0 14px;">
-                              <table cellpadding="0" cellspacing="0">
-                                <tr>
-                                  <td style="width:36px;height:36px;background:#1f1f2e;border-radius:8px;text-align:center;vertical-align:middle;font-size:18px;">⚡</td>
-                                  <td style="padding-left:14px;">
-                                    <p style="margin:0;font-size:14px;color:#ffffff;font-weight:600;">Online 1v1</p>
-                                    <p style="margin:2px 0 0;font-size:13px;color:#777777;">Challenge friends in real-time head to head</p>
-                                  </td>
-                                </tr>
-                              </table>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td style="padding:0 0 14px;">
-                              <table cellpadding="0" cellspacing="0">
-                                <tr>
-                                  <td style="width:36px;height:36px;background:#2e1f1f;border-radius:8px;text-align:center;vertical-align:middle;font-size:18px;">🏆</td>
-                                  <td style="padding-left:14px;">
-                                    <p style="margin:0;font-size:14px;color:#ffffff;font-weight:600;">Tournaments</p>
-                                    <p style="margin:2px 0 0;font-size:13px;color:#777777;">Single-elimination brackets, one champion</p>
-                                  </td>
-                                </tr>
-                              </table>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td>
-                              <table cellpadding="0" cellspacing="0">
-                                <tr>
-                                  <td style="width:36px;height:36px;background:#2e2a1f;border-radius:8px;text-align:center;vertical-align:middle;font-size:18px;">🔥</td>
-                                  <td style="padding-left:14px;">
-                                    <p style="margin:0;font-size:14px;color:#ffffff;font-weight:600;">Streaks & Badges</p>
-                                    <p style="margin:2px 0 0;font-size:13px;color:#777777;">Build your streak, earn badges, climb the board</p>
-                                  </td>
-                                </tr>
-                              </table>
-                            </td>
-                          </tr>
-                        </table>
-
-                        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:32px;">
-                          <tr>
-                            <td align="center">
-                              <a href="https://trivela-delta.vercel.app/" style="display:inline-block;background:linear-gradient(135deg,#00c853,#007a2e);color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 40px;border-radius:50px;letter-spacing:0.5px;">Start Playing →</a>
-                            </td>
-                          </tr>
-                        </table>
-                      </td>
-                    </tr>
-
-                    <tr>
-                      <td style="padding:20px 40px;border-top:1px solid #2a2a2a;text-align:center;">
-                        <p style="margin:0;font-size:12px;color:#444444;">You're receiving this because you just joined Trivela.</p>
-                        <p style="margin:6px 0 0;font-size:12px;color:#444444;">© 2025 Trivela. All rights reserved.</p>
-                      </td>
-                    </tr>
-
                   </table>
                 </td>
               </tr>
+
+              <!-- Hero -->
+              <tr>
+                <td style="padding:40px 40px 32px;">
+                  <p style="margin:0 0 8px;font-size:11px;color:#4ade80;text-transform:uppercase;letter-spacing:3px;font-weight:700;">Welcome aboard</p>
+                  <h1 style="margin:0 0 16px;font-size:36px;font-weight:900;color:#ffffff;text-transform:uppercase;letter-spacing:-0.5px;line-height:1.1;">${displayName} 🎉</h1>
+                  <p style="margin:0;font-size:15px;color:#86a886;line-height:1.8;">
+                    You're now part of Trivela — the home of competitive sports trivia. Your football and basketball knowledge is about to be put to the test.
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Divider -->
+              <tr>
+                <td style="padding:0 40px;">
+                  <div style="height:1px;background:#1a3a1a;"></div>
+                </td>
+              </tr>
+
+              <!-- Features -->
+              <tr>
+                <td style="padding:32px 40px;">
+                  <p style="margin:0 0 20px;font-size:11px;color:#4ade80;text-transform:uppercase;letter-spacing:3px;font-weight:700;">What's waiting for you</p>
+
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="padding-bottom:16px;">
+                        <table cellpadding="0" cellspacing="0" width="100%" style="background:#0a1a0a;border-radius:10px;padding:16px;border:1px solid #1a3a1a;">
+                          <tr>
+                            <td style="width:40px;font-size:22px;vertical-align:middle;">🎯</td>
+                            <td style="padding-left:12px;vertical-align:middle;">
+                              <p style="margin:0;font-size:14px;font-weight:700;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;">Daily Challenge</p>
+                              <p style="margin:3px 0 0;font-size:12px;color:#86a886;">One challenge per sport, every day at 12 PM</p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding-bottom:16px;">
+                        <table cellpadding="0" cellspacing="0" width="100%" style="background:#0a1a0a;border-radius:10px;padding:16px;border:1px solid #1a3a1a;">
+                          <tr>
+                            <td style="width:40px;font-size:22px;vertical-align:middle;">⚡</td>
+                            <td style="padding-left:12px;vertical-align:middle;">
+                              <p style="margin:0;font-size:14px;font-weight:700;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;">Online 1v1</p>
+                              <p style="margin:3px 0 0;font-size:12px;color:#86a886;">Challenge friends in real-time head to head</p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding-bottom:16px;">
+                        <table cellpadding="0" cellspacing="0" width="100%" style="background:#0a1a0a;border-radius:10px;padding:16px;border:1px solid #1a3a1a;">
+                          <tr>
+                            <td style="width:40px;font-size:22px;vertical-align:middle;">🏆</td>
+                            <td style="padding-left:12px;vertical-align:middle;">
+                              <p style="margin:0;font-size:14px;font-weight:700;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;">Tournaments</p>
+                              <p style="margin:3px 0 0;font-size:12px;color:#86a886;">Single-elimination brackets, one champion</p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <table cellpadding="0" cellspacing="0" width="100%" style="background:#0a1a0a;border-radius:10px;padding:16px;border:1px solid #1a3a1a;">
+                          <tr>
+                            <td style="width:40px;font-size:22px;vertical-align:middle;">🔥</td>
+                            <td style="padding-left:12px;vertical-align:middle;">
+                              <p style="margin:0;font-size:14px;font-weight:700;color:#ffffff;text-transform:uppercase;letter-spacing:0.5px;">Streaks & Badges</p>
+                              <p style="margin:3px 0 0;font-size:12px;color:#86a886;">Build your streak, earn badges, climb the board</p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- CTA -->
+              <tr>
+                <td style="padding:0 40px 40px;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td align="center">
+                        <a href="https://trivela-delta.vercel.app" style="display:inline-block;background:#4ade80;color:#0a1a0a;text-decoration:none;font-size:14px;font-weight:900;padding:16px 48px;border-radius:50px;text-transform:uppercase;letter-spacing:2px;">Start Playing →</a>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="padding:20px 40px;border-top:1px solid #1a3a1a;text-align:center;">
+                  <p style="margin:0;font-size:11px;color:#2d4a2d;">You're receiving this because you just joined Trivela.</p>
+                  <p style="margin:6px 0 0;font-size:11px;color:#2d4a2d;">© 2025 Trivela. All rights reserved.</p>
+                </td>
+              </tr>
+
             </table>
-          </body>
-        </html>
-      `
+          </td>
+        </tr>
+      </table>
+    </body>
+  </html>
+`
     })
 
     res.status(200).json({ success: true })
