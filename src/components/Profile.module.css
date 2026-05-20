@@ -593,3 +593,11 @@ button.avatarImg {
     flex-direction: column;
   }
 }
+.monthLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(245, 245, 240, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 16px 0 8px;
+}

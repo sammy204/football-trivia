@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { ref, get, update } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { updateProfile } from 'firebase/auth'
@@ -69,6 +69,9 @@ export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpda
   const [editingAvatar, setEditingAvatar] = useState(false)
   const [tempAvatar, setTempAvatar] = useState(null)
   const [savingAvatar, setSavingAvatar] = useState(false)
+  const [selectedMonth, setSelectedMonth] = useState('')
+  const [selectedDay, setSelectedDay] = useState(null)
+  const [showCalendar, setShowCalendar] = useState(false)
 
   useEffect(() => {
     if (!user?.uid) {
@@ -117,7 +120,7 @@ export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpda
           const matchesData = allMatches.sort(
             (a, b) => (b.timestamp || 0) - (a.timestamp || 0)
           )
-          setMatches(matchesData.slice(0, 10))
+          setMatches(matchesData.slice(0, 50))
         }
 
         // Calculate totals from match history (source of truth)
@@ -423,38 +426,164 @@ export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpda
             )}
           </section>
 
-          {/* Recent Matches */}
-          {matches.length > 0 && (
-            <section className={styles.matchesCard}>
-              <h2 className={styles.sectionTitle}>Recent Matches</h2>
-              <div className={styles.matchesList}>
-                {matches.map((match, idx) => (
-                  <div key={idx} className={styles.matchItem}>
-                    <div className={styles.matchHeader}>
-                      <span className={styles.opponent}>
-                        vs {match.opponentName || 'Unknown'}
-                      </span>
-                      <span
-                        className={styles.result}
-                        style={{
-                          color: match.result === 'win' ? '#00FF87' : '#FF5C5C',
-                        }}
-                      >
-                        {match.result === 'win' ? 'WON' : 'LOST'}
-                      </span>
-                    </div>
-                    <div className={styles.matchDetails}>
-                      <span>{match.sport === 'basketball' ? '🏀' : '⚽'} {match.sport}</span>
-                      <span>
-                        {match.date ? new Date(match.date).toLocaleDateString() : 'Unknown date'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+   {/* Recent Matches */}
+{matches.length > 0 && (() => {
+  const monthMap = {}
+  matches.forEach(match => {
+    const d = match.date ? new Date(match.date) : new Date(match.timestamp)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const label = d.toLocaleString('default', { month: 'long', year: 'numeric' })
+    if (!monthMap[key]) monthMap[key] = { key, label, matches: [] }
+    monthMap[key].matches.push({ ...match, _date: d })
+  })
 
+  const monthKeys = Object.keys(monthMap).sort((a, b) => b.localeCompare(a))
+  const activeMonth = selectedMonth || monthKeys[0] || ''
+  const currentMonthData = monthMap[activeMonth]
+  const currentMatches = currentMonthData?.matches || []
+
+  const [year, month] = activeMonth ? activeMonth.split('-').map(Number) : [null, null]
+  const firstDay = year ? new Date(year, month - 1, 1).getDay() : 0
+  const daysInMonth = year ? new Date(year, month, 0).getDate() : 0
+  const playedDays = new Set(currentMatches.map(m => m._date.getDate()))
+
+  const filteredMatches = selectedDay
+    ? currentMatches.filter(m => m._date.getDate() === selectedDay)
+    : currentMatches
+
+  return (
+    <section className={styles.matchesCard}>
+      <h2 className={styles.sectionTitle}>Recent Matches</h2>
+
+      {/* Month Dropdown */}
+      <select
+        value={activeMonth}
+        onChange={e => { setSelectedMonth(e.target.value); setSelectedDay(null) }}
+        style={{
+          width: '100%',
+          background: 'var(--card-bg)',
+          border: '1px solid var(--card-border)',
+          borderRadius: 8,
+          color: '#fff',
+          padding: '10px 12px',
+          fontSize: 14,
+          fontWeight: 600,
+          marginBottom: 16,
+          cursor: 'pointer',
+        }}
+      >
+        {monthKeys.map(k => (
+          <option key={k} value={k} style={{ background: '#0f2d18' }}>
+            {monthMap[k].label}
+          </option>
+        ))}
+      </select>
+
+      {/* Calendar Toggle */}
+      <button
+        onClick={() => { setShowCalendar(v => !v); setSelectedDay(null) }}
+        style={{
+          background: 'transparent',
+          border: '1px solid var(--card-border)',
+          borderRadius: 8,
+          color: 'rgba(245,245,240,0.6)',
+          fontSize: 13,
+          fontWeight: 600,
+          padding: '8px 12px',
+          cursor: 'pointer',
+          marginBottom: 12,
+          width: '100%',
+        }}
+      >
+        {showCalendar ? '▲ Hide Calendar' : '▼ Filter by Day'}
+      </button>
+
+      {/* Calendar Grid */}
+      {showCalendar && year && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
+            {['S','M','T','W','T','F','S'].map((d, i) => (
+              <div key={i} style={{
+                textAlign: 'center', fontSize: 11,
+                color: 'rgba(245,245,240,0.4)', fontWeight: 700, padding: '4px 0',
+              }}>{d}</div>
+            ))}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+            {Array.from({ length: firstDay }).map((_, i) => (
+              <div key={`empty-${i}`} />
+            ))}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1
+              const hasMatch = playedDays.has(day)
+              const isSelected = selectedDay === day
+              return (
+                <button
+                  key={day}
+                  onClick={() => hasMatch && setSelectedDay(isSelected ? null : day)}
+                  style={{
+                    background: isSelected ? '#00FF87' : hasMatch ? 'rgba(0,255,135,0.12)' : 'transparent',
+                    border: hasMatch ? '1px solid rgba(0,255,135,0.3)' : '1px solid transparent',
+                    borderRadius: 6,
+                    color: isSelected ? '#0a1f0f' : hasMatch ? '#00FF87' : 'rgba(245,245,240,0.3)',
+                    fontSize: 12,
+                    fontWeight: hasMatch ? 700 : 400,
+                    padding: '6px 2px',
+                    cursor: hasMatch ? 'pointer' : 'default',
+                    textAlign: 'center',
+                  }}
+                >
+                  {day}
+                </button>
+              )
+            })}
+          </div>
+          {selectedDay && (
+            <button
+              onClick={() => setSelectedDay(null)}
+              style={{
+                marginTop: 8, background: 'transparent', border: 'none',
+                color: 'rgba(245,245,240,0.4)', fontSize: 12, cursor: 'pointer', padding: 0,
+              }}
+            >
+              ✕ Clear day filter
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Match List */}
+      <div className={styles.matchesList}>
+        {filteredMatches.length === 0 ? (
+          <p style={{ color: 'rgba(245,245,240,0.4)', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>
+            No matches on this day.
+          </p>
+        ) : (
+          filteredMatches.map((match, idx) => (
+            <div key={idx} className={styles.matchItem}>
+              <div className={styles.matchHeader}>
+                <span className={styles.opponent}>vs {match.opponentName || 'Unknown'}</span>
+                <span className={styles.result} style={{ color: match.result === 'win' ? '#00FF87' : '#FF5C5C' }}>
+                  {match.result === 'win' ? 'WON' : 'LOST'}
+                </span>
+              </div>
+              <div className={styles.matchDetails}>
+                <span>{match.sport === 'basketball' ? '🏀' : '⚽'} {match.sport}</span>
+                <span>{match._date.toLocaleDateString()}</span>
+                {match.coinsEarned > 0 && (
+                  <span style={{ color: '#FFD700', fontWeight: 600 }}>+{match.coinsEarned} C</span>
+                )}
+                {match.coinsLost > 0 && (
+                  <span style={{ color: '#FF5C5C', fontWeight: 600 }}>-{match.coinsLost} C</span>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </section>
+  )
+})()}
           {matches.length === 0 && (
             <p className={styles.noMatches}>
               No matches yet. Start playing online to see your game history!

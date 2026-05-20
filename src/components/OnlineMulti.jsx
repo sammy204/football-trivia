@@ -258,12 +258,16 @@ export default function OnlineMulti({
     if (screen !== 'results') return
 
     async function save() {
+  if (matchSaved || !user) return
       if (matchSaved || !user) return
       try {
         const myScore = role === 'host' ? hostScore : guestScore
         const oppScore = role === 'host' ? guestScore : hostScore
         const opponentName = role === 'host' ? guestName : hostName
 
+     const roomPot = room?.wager?.pot || ONLINE_1V1_WAGER * 2
+     const earnedCoins = result === 'win' ? roomPot : result === 'draw' ? ONLINE_1V1_WAGER : 0
+     const lostCoins = result === 'loss' ? ONLINE_1V1_WAGER : 0
         await saveMatchResult({
           userId: user.uid,
           username: user.displayName || name,
@@ -273,7 +277,10 @@ export default function OnlineMulti({
           opponentScore: oppScore,
           sport,
           rounds,
+          coinsEarned: earnedCoins,
+          coinsLost: lostCoins,
         })
+        
         await recordGameplayActivity({ userId: user.uid, source: 'online' })
         setMatchSaved(true)
 
