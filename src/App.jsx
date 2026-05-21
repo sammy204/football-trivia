@@ -39,7 +39,6 @@ import { saveLightningScore } from './lib/lightningDaily'
 import { logOut } from './lib/auth'
 import { recordDailyChallengeActivity, recordGameplayActivity, resetBrokenDailyStreak, isStreakInDanger, getStreakStatus, isPast10PM } from './lib/streaks'
 import { listenToInvites } from './lib/teamMultiplayer'
-import { track } from '@vercel/analytics'
 import { auth } from './lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import {
@@ -70,6 +69,13 @@ import {
 
 const TEAM_ROUNDS = 10
 const INSTALL_INTEREST_KEY = 'trivela-install-interest'
+
+function trackEvent(name, data) {
+  if (!import.meta.env.PROD) return
+  import('@vercel/analytics')
+    .then(({ track }) => track(name, data))
+    .catch(() => {})
+}
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -416,7 +422,7 @@ export default function App() {
     setSaveState({ status: 'idle', rank: null })
     setScreen('loading')
     setError(null)
-    track('game_started', { sport: config.sport, mode: config.mode, rounds: config.rounds })
+    trackEvent('game_started', { sport: config.sport, mode: config.mode, rounds: config.rounds })
     try {
       const qs = await generateQuestions({ rounds: config.rounds, sport: config.sport })
       setQuestions(qs)
@@ -517,7 +523,7 @@ export default function App() {
     setLightningSoloMeta(null)
     setLightningSoloScores([])
     setError(null)
-    track('game_started', { sport, mode: 'lightning_solo' })
+    trackEvent('game_started', { sport, mode: 'lightning_solo' })
     try {
       const qs = await generateQuestions({ rounds: 50, sport })
       setLightningSoloQuestions(qs)
@@ -923,7 +929,7 @@ export default function App() {
     setResultMeta(null)
     setSaveState({ status: 'idle', rank: null })
     setScreen('quiz')
-    track('game_started', { sport, mode: 'daily', rounds: challenge.rounds })
+    trackEvent('game_started', { sport, mode: 'daily', rounds: challenge.rounds })
   }
 
   async function handleFinish({ scores, history, totalTimeMs }) {
@@ -1003,7 +1009,7 @@ export default function App() {
       })
       setGameConfig((current) => ({ ...current, players: [nextProfile.displayName] }))
       setSaveState({ status: 'saved', rank: saved.rank })
-      track('daily_score_saved', { sport: gameConfig.sport, score: finalScores[0], rank: saved.rank })
+      trackEvent('daily_score_saved', { sport: gameConfig.sport, score: finalScores[0], rank: saved.rank })
     } catch (e) {
       setSaveState({ status: 'error', rank: null })
       setError('Could not save your daily score. Please try again.')

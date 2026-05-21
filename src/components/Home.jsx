@@ -6,6 +6,9 @@ import { getPlayerAvatar } from '../lib/avatars'
 import styles from './Home.module.css'
 
 const ROUNDS = [5, 10, 15]
+const ADMIN_UID = 'K4qCnBhAVDMTkvK70SMVfbbsw463'
+const NOTIFICATION_REPAIR_KEY = 'trivela-notification-repair-needed'
+const NOTIFICATION_REPAIR_DISMISSED_KEY = 'trivela-notification-repair-dismissed'
 
 function formatCountdown(ms) {
   if (ms <= 0) return '00:00:00'
@@ -59,6 +62,13 @@ export default function Home({
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
   )
   const [notificationStatus, setNotificationStatus] = useState('')
+  const [notificationBusy, setNotificationBusy] = useState(false)
+  const [showNotificationRepair, setShowNotificationRepair] = useState(() => (
+    typeof window !== 'undefined' && window.localStorage.getItem(NOTIFICATION_REPAIR_KEY) === 'true'
+  ))
+  const [notificationRepairDismissed, setNotificationRepairDismissed] = useState(() => (
+    typeof window !== 'undefined' && window.localStorage.getItem(NOTIFICATION_REPAIR_DISMISSED_KEY) === 'true'
+  ))
   const [dailyChallenge, setDailyChallenge] = useState(null)
 
   useEffect(() => {
@@ -139,7 +149,25 @@ export default function Home({
     if (typeof window === 'undefined' || !('Notification' in window)) return
     setNotificationPermission(Notification.permission)
     if (Notification.permission === 'granted' && user?.uid) {
-      subscribeUserToPush(user).catch(console.error)
+      subscribeUserToPush(user)
+        .then((subscription) => {
+          const needsRepair = !subscription
+          setShowNotificationRepair(needsRepair)
+          if (needsRepair) {
+            window.localStorage.setItem(NOTIFICATION_REPAIR_KEY, 'true')
+            setNotificationRepairDismissed(false)
+            window.localStorage.removeItem(NOTIFICATION_REPAIR_DISMISSED_KEY)
+          } else {
+            window.localStorage.removeItem(NOTIFICATION_REPAIR_KEY)
+          }
+        })
+        .catch((error) => {
+          console.error(error)
+          setShowNotificationRepair(true)
+          window.localStorage.setItem(NOTIFICATION_REPAIR_KEY, 'true')
+          setNotificationRepairDismissed(false)
+          window.localStorage.removeItem(NOTIFICATION_REPAIR_DISMISSED_KEY)
+        })
     }
   }, [user?.uid])
 
@@ -176,34 +204,67 @@ export default function Home({
 
   async function requestNotificationPermission() {
     if (typeof window === 'undefined' || !('Notification' in window)) return
+    setNotificationBusy(true)
     setNotificationStatus('')
-    const permission = await Notification.requestPermission()
-    setNotificationPermission(permission)
-    if (permission === 'granted') {
-      try {
+    try {
+      const permission = await Notification.requestPermission()
+      setNotificationPermission(permission)
+      if (permission === 'granted') {
         const subscription = await subscribeUserToPush(user)
         setNotificationStatus(subscription ? 'Notifications enabled on this device.' : 'Notification setup failed.')
-      } catch (error) {
-        console.error('Failed to subscribe to push notifications:', error)
-        setNotificationStatus('Notification setup failed.')
+        setShowNotificationRepair(!subscription)
+        if (subscription) {
+          window.localStorage.removeItem(NOTIFICATION_REPAIR_KEY)
+        } else {
+          window.localStorage.setItem(NOTIFICATION_REPAIR_KEY, 'true')
+          setNotificationRepairDismissed(false)
+          window.localStorage.removeItem(NOTIFICATION_REPAIR_DISMISSED_KEY)
+        }
+      } else {
+        setNotificationStatus('Notification permission was not granted.')
       }
+    } catch (error) {
+      console.error('Failed to subscribe to push notifications:', error)
+      setNotificationStatus('Notification setup failed.')
+    } finally {
+      setNotificationBusy(false)
     }
   }
 
   async function repairNotificationSubscription() {
+    setNotificationBusy(true)
     setNotificationStatus('Refreshing notifications...')
     try {
       const subscription = await refreshPushSubscription(user)
       setNotificationStatus(subscription ? 'Notifications refreshed on this device.' : 'Notification refresh failed.')
+      setShowNotificationRepair(!subscription)
+      if (subscription) {
+        window.localStorage.removeItem(NOTIFICATION_REPAIR_KEY)
+        setNotificationRepairDismissed(true)
+        window.localStorage.setItem(NOTIFICATION_REPAIR_DISMISSED_KEY, 'true')
+      } else {
+        window.localStorage.setItem(NOTIFICATION_REPAIR_KEY, 'true')
+        setNotificationRepairDismissed(false)
+        window.localStorage.removeItem(NOTIFICATION_REPAIR_DISMISSED_KEY)
+      }
     } catch (error) {
       console.error('Failed to refresh push notifications:', error)
       setNotificationStatus('Notification refresh failed.')
+      setShowNotificationRepair(true)
+      window.localStorage.setItem(NOTIFICATION_REPAIR_KEY, 'true')
+      setNotificationRepairDismissed(false)
+      window.localStorage.removeItem(NOTIFICATION_REPAIR_DISMISSED_KEY)
+    } finally {
+      setNotificationBusy(false)
     }
   }
 
   const chipActiveStyle = { borderColor: accent, color: accent, background: accentBg }
   const startBtnStyle = { background: accent, color: accentText }
   const tabActiveStyle = { background: accent, color: accentText, borderColor: accent }
+  const shouldShowNotificationRepair =
+    notificationPermission === 'granted' &&
+    (showNotificationRepair || (user?.uid === ADMIN_UID && !notificationRepairDismissed))
   const sportActiveStyle = (nextSport) =>
     nextSport === sport
       ? { borderColor: accent, color: accent, background: accentBg, fontWeight: 700 }
@@ -336,15 +397,23 @@ export default function Home({
               typeof window !== 'undefined' &&
               'Notification' in window && (
                 <>
-                  {notificationPermission === 'granted' ? (
-                    <button className={styles.reminderBtn} onClick={repairNotificationSubscription}>
-                      Refresh notifications
+                  {shouldShowNotificationRepair ? (
+                    <button
+                      className={styles.reminderBtn}
+                      onClick={repairNotificationSubscription}
+                      disabled={notificationBusy}
+                    >
+                      {notificationBusy ? 'Refreshing...' : 'Refresh notifications'}
                     </button>
-                  ) : (
-                    <button className={styles.reminderBtn} onClick={requestNotificationPermission}>
-                      Enable reminder
+                  ) : notificationPermission !== 'granted' ? (
+                    <button
+                      className={styles.reminderBtn}
+                      onClick={requestNotificationPermission}
+                      disabled={notificationBusy}
+                    >
+                      {notificationBusy ? 'Enabling...' : 'Enable reminder'}
                     </button>
-                  )}
+                  ) : null}
                   {notificationStatus && (
                     <p className={styles.notificationStatus}>{notificationStatus}</p>
                   )}

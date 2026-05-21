@@ -5,6 +5,10 @@ const urlsToCache = [
   '/logo-mark.svg',
 ]
 
+function isLocalhost(url = self.location) {
+  return ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
+}
+
 // Install event - cache assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -80,6 +84,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
 
   const url = new URL(event.request.url)
+  if (isLocalhost(url)) return
 
   if (isNavigationRequest(event.request) || isAppShellAsset(url)) {
     event.respondWith(networkFirst(event.request))

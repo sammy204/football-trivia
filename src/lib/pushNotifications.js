@@ -1,5 +1,19 @@
 // Push notification subscription management
 
+const SERVICE_WORKER_READY_TIMEOUT_MS = 10000
+const SUBSCRIPTION_SAVE_TIMEOUT_MS = 10000
+
+function withTimeout(promise, timeoutMs, message) {
+  let timeoutId
+  const timeout = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs)
+  })
+
+  return Promise.race([promise, timeout]).finally(() => {
+    window.clearTimeout(timeoutId)
+  })
+}
+
 async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) {
     console.log('Service Workers not supported')
@@ -16,6 +30,19 @@ async function registerServiceWorker() {
     console.error('Service Worker registration failed:', error)
     return null
   }
+}
+
+async function getReadyServiceWorkerRegistration() {
+  const existingRegistration = await navigator.serviceWorker.getRegistration('/')
+  if (!existingRegistration) {
+    await registerServiceWorker()
+  }
+
+  return withTimeout(
+    navigator.serviceWorker.ready,
+    SERVICE_WORKER_READY_TIMEOUT_MS,
+    'Service worker was not ready in time.'
+  )
 }
 
 async function requestPushNotificationPermission() {
@@ -53,7 +80,7 @@ async function subscribeUserToPush(user) {
   }
 
   try {
-    const registration = await navigator.serviceWorker.ready
+    const registration = await getReadyServiceWorkerRegistration()
     const existingSubscription = await registration.pushManager.getSubscription()
 
     const subscription = existingSubscription || await registration.pushManager.subscribe({
@@ -65,9 +92,13 @@ async function subscribeUserToPush(user) {
       ? `${import.meta.env.VITE_PUSH_BACKEND_URL.replace(/\/$/, '')}/api/subscriptions`
       : '/api/subscriptions'
 
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), SUBSCRIPTION_SAVE_TIMEOUT_MS)
+
     const response = await fetch(backendUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({
         userId: user?.uid || null,
         email: user?.email || null,
@@ -75,7 +106,7 @@ async function subscribeUserToPush(user) {
         subscription,
         userAgent: navigator.userAgent,
       }),
-    })
+    }).finally(() => window.clearTimeout(timeoutId))
 
     if (!response.ok) {
       const message = await response.text().catch(() => '')
@@ -94,7 +125,7 @@ async function refreshPushSubscription(user) {
     return null
   }
 
-  const registration = await navigator.serviceWorker.ready
+  const registration = await getReadyServiceWorkerRegistration()
   const existingSubscription = await registration.pushManager.getSubscription()
 
   if (existingSubscription) {

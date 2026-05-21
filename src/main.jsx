@@ -2,10 +2,11 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
-import { inject } from '@vercel/analytics'
 import { registerServiceWorker } from './lib/pushNotifications'
 
-inject()
+if (import.meta.env.PROD) {
+  import('@vercel/analytics').then(({ inject }) => inject())
+}
 
 // Keep localhost fresh during development by removing any previously installed service worker.
 if ('serviceWorker' in navigator) {
