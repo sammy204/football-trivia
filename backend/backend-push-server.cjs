@@ -311,6 +311,7 @@ app.post('/api/subscriptions', async (req, res) => {
   const userId = payload.userId || null
   const email = payload.email || null
   const displayName = payload.displayName || null
+  const deviceId = payload.deviceId || null
   const userAgent = payload.userAgent || req.headers['user-agent'] || null
 
   if (!subscription || !subscription.endpoint) {
@@ -326,6 +327,7 @@ app.post('/api/subscriptions', async (req, res) => {
       userId,
       email,
       displayName,
+      deviceId,
       userAgent,
       registeredAt: existing.exists
         ? existing.data().registeredAt || admin.firestore.FieldValue.serverTimestamp()
@@ -335,6 +337,22 @@ app.post('/api/subscriptions', async (req, res) => {
     if (!existing.exists) {
       console.log(`New push subscription saved${userId ? ` for ${userId}` : ''}`)
     }
+
+    if (deviceId) {
+      const duplicateDeviceSubscriptions = await subscriptionsCollection
+        .where('deviceId', '==', deviceId)
+        .get()
+
+      const deletes = duplicateDeviceSubscriptions.docs
+        .filter((doc) => doc.id !== id)
+        .map((doc) => doc.ref.delete())
+
+      if (deletes.length > 0) {
+        await Promise.all(deletes)
+        console.log(`Removed ${deletes.length} old push subscription(s) for device ${deviceId}`)
+      }
+    }
+
     const snapshot = await subscriptionsCollection.get()
     res.status(201).json({ success: true, count: snapshot.size })
   } catch (error) {

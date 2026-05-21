@@ -198,13 +198,6 @@ export default function App() {
     }
   }, [user?.uid])
   
-   useEffect(() => {
-  if (!user?.uid) return
-  import('./lib/pushNotifications').then(({ subscribeUserToPush }) => {
-    subscribeUserToPush(user).catch(err => console.warn('Push subscribe failed:', err))
-  })
-}, [user?.uid])
-
   useEffect(() => {
     if (!user?.uid) {
       setCoinBalance(0)

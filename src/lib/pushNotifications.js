@@ -2,6 +2,7 @@
 
 const SERVICE_WORKER_READY_TIMEOUT_MS = 10000
 const SUBSCRIPTION_SAVE_TIMEOUT_MS = 10000
+const PUSH_DEVICE_ID_KEY = 'trivela-push-device-id'
 
 function withTimeout(promise, timeoutMs, message) {
   let timeoutId
@@ -12,6 +13,22 @@ function withTimeout(promise, timeoutMs, message) {
   return Promise.race([promise, timeout]).finally(() => {
     window.clearTimeout(timeoutId)
   })
+}
+
+function getPushDeviceId() {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return null
+  }
+
+  let deviceId = window.localStorage.getItem(PUSH_DEVICE_ID_KEY)
+  if (!deviceId) {
+    const randomPart = window.crypto?.randomUUID
+      ? window.crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    deviceId = `push-device-${randomPart}`
+    window.localStorage.setItem(PUSH_DEVICE_ID_KEY, deviceId)
+  }
+  return deviceId
 }
 
 async function registerServiceWorker() {
@@ -103,6 +120,7 @@ async function subscribeUserToPush(user) {
         userId: user?.uid || null,
         email: user?.email || null,
         displayName: user?.displayName || null,
+        deviceId: getPushDeviceId(),
         subscription,
         userAgent: navigator.userAgent,
       }),
