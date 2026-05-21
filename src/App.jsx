@@ -152,6 +152,7 @@ export default function App() {
   const [seasonalResultMeta, setSeasonalResultMeta] = useState(null)
 
   const ADMIN_UID = 'K4qCnBhAVDMTkvK70SMVfbbsw463'
+  const [pendingRematchInvite, setPendingRematchInvite] = useState(null)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -190,6 +191,13 @@ export default function App() {
       setInstallPromptEligible(true)
     }
   }, [user?.uid])
+  
+   useEffect(() => {
+  if (!user?.uid) return
+  import('./lib/pushNotifications').then(({ subscribeUserToPush }) => {
+    subscribeUserToPush(user).catch(err => console.warn('Push subscribe failed:', err))
+  })
+}, [user?.uid])
 
   useEffect(() => {
     if (!user?.uid) {
@@ -222,23 +230,22 @@ export default function App() {
 
   // Listen for online 1v1 invites
   useEffect(() => {
-    if (!user?.uid || !activePlayerId) return
-    const unsub = listenToOnlineInvite(activePlayerId, (invite) => {
-      if (invite) setPendingOnlineInvite(invite)
-      else setPendingOnlineInvite(null)
-    })
-    return unsub
-  }, [user?.uid, activePlayerId])
-
-  // Listen for lightning invites
-  useEffect(() => {
-    if (!user?.uid || !activePlayerId) return
-    const unsub = listenToLightningInvite(activePlayerId, (invite) => {
-      if (invite) setPendingLightningInvite(invite)
-      else setPendingLightningInvite(null)
-    })
-    return unsub
-  }, [user?.uid, activePlayerId])
+  if (!user?.uid || !activePlayerId) return
+  const unsub = listenToOnlineInvite(activePlayerId, (invite) => {
+    if (invite) {
+      if (screen === 'online') {
+        // Forward to OnlineMulti via a separate state
+        setPendingRematchInvite(invite)
+      } else {
+        setPendingOnlineInvite(invite)
+      }
+    } else {
+      setPendingOnlineInvite(null)
+      setPendingRematchInvite(null)
+    }
+  })
+  return unsub
+}, [user?.uid, activePlayerId, screen])
 
   // Listen for team invites globally
   useEffect(() => {

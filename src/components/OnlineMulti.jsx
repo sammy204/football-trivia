@@ -16,6 +16,8 @@ import { awardCoins, ONLINE_1V1_WAGER, spendCoins } from '../lib/coins'
 import { getDefaultAvatar, getPlayerAvatar } from '../lib/avatars'
 import { loadProfile } from '../lib/profile'
 import styles from './OnlineMulti.module.css'
+import { getFormBadge, getOpponentForm } from '../lib/userStats'
+import { LobbyFormRow } from './RivalrySection'
 
 export default function OnlineMulti({
   sport,
@@ -60,6 +62,8 @@ export default function OnlineMulti({
   const myScore = role === 'host' ? hostScore : guestScore
   const opponentScore = role === 'host' ? guestScore : hostScore
   const result = myScore > opponentScore ? 'win' : myScore < opponentScore ? 'loss' : 'draw'
+  const [myForm, setMyForm] = useState([])
+  const [opponentForm, setOpponentForm] = useState([])
 
   // Tournament match — auto join/create room using the pre-set room code
   useEffect(() => {
@@ -100,19 +104,18 @@ export default function OnlineMulti({
 
   // Listen for incoming invite for this user
   useEffect(() => {
-    if (!user?.uid) return
-    const profile = JSON.parse(localStorage.getItem('trivela-profile') || '{}')
-    const myPlayerId = profile?.playerId
-    if (!myPlayerId) return
+  if (!user?.uid) return
+  const profile = JSON.parse(localStorage.getItem('trivela-profile') || '{}')
+  const myPlayerId = profile?.playerId
+  if (!myPlayerId) return
 
-    const unsub = listenToOnlineInvite(myPlayerId, (invite) => {
-      if (invite && screen === 'lobby' && !pendingInvite) {
-        setIncomingInvite(invite)
-      }
-    })
-    return unsub
-  }, [user?.uid, screen])
-
+  const unsub = listenToOnlineInvite(myPlayerId, (invite) => {
+    if (invite && !pendingInvite) {
+      setIncomingInvite(invite)
+    }
+  })
+  return unsub
+}, [user?.uid])  // ← remove 'screen' so it never re-subscribes mid-match
   useEffect(() => {
     if (!pendingInvite) return
     if (acceptHandledRef.current) return  
@@ -124,6 +127,35 @@ export default function OnlineMulti({
     acceptInvite()
     if (onInviteHandled) onInviteHandled()
   }, [pendingInvite])
+    useEffect(() => {
+      if (!user?.uid) return
+      async function loadMyForm() {
+        try {
+          const snap = await get(ref(db, `users/${user.uid}/matches`))
+          if (snap.val()) {
+            const allMatches = Object.values(snap.val())
+            setMyForm(getFormBadge(allMatches, 5))
+          }
+        } catch { /* silent */ }
+      }
+      loadMyForm()
+    }, [user?.uid])
+
+      useEffect(() => {
+    if (screen !== 'waiting') return
+    if (!room?.players) return
+    async function loadOpponentForm() {
+      try {
+        const opponentUid = role === 'host'
+          ? room?.players?.guest?.uid
+          : room?.players?.host?.uid
+        if (!opponentUid) return
+        const form = await getOpponentForm(opponentUid, 5)
+        setOpponentForm(form)
+      } catch { /* silent */ }
+    }
+    loadOpponentForm()
+  }, [room?.players?.guest?.uid, room?.players?.host?.uid, screen])
 
   async function handleCreate() {
     if (!name.trim()) return setError('No username found.')
@@ -241,6 +273,83 @@ export default function OnlineMulti({
     setIncomingInvite(null)
   }
 
+
+   async function handleRematch() {
+  try {
+    const opponentUid = role === 'host'
+      ? room?.players?.guest?.uid
+      : room?.players?.host?.uid
+    const opponentName = role === 'host' ? guestName : hostName
+
+    if (!opponentUid) return setError('Cannot find opponent for rematch.')
+
+    // Get opponent's player ID from Firebase
+    const snap = await get(ref(db, `users/${opponentUid}/playerId`))
+    const opponentPId = snap.val()
+    if (!opponentPId) return setError('Opponent Player ID not found.')
+
+    const stake = await spendCoins({
+      userId: user.uid,
+      amount: ONLINE_1V1_WAGER,
+      reason: 'online_1v1_stake',
+      sourceId: `online-stake-host:${user.uid}:${sport}:${rounds}:rematch`,
+      metadata: { sport, rounds },
+    })
+    if (!stake.ok) {
+      setError(`You need ${ONLINE_1V1_WAGER} coins for a rematch.`)
+      return
+    }
+
+    const questions = await generateQuestions({ rounds, sport })
+    const c = await createRoom({
+      playerName: name.trim(),
+      questions,
+      rounds,
+      sport,
+      hostUid: user.uid,
+      wager: ONLINE_1V1_WAGER,
+      hostPhotoURL: playerAvatar,
+    })
+    setRoomCode(c)
+    setRole('host')
+    setMatchSaved(false)
+    setCoinMessage('')
+
+    await sendOnlineInvite({
+      fromName: name.trim(),
+      fromUserId: user?.uid,
+      toPlayerId: opponentPId,
+      roomCode: c,
+      sport,
+      rounds,
+      isRematch: true,
+    })
+
+    try {
+      await sendInvitePushNotification({
+        toUserId: opponentUid,
+        fromName: name.trim(),
+        roomCode: c,
+        sport,
+        type: 'online1v1',
+      })
+    } catch (e) {
+      console.warn('Push notification failed:', e)
+    }
+
+    setInviteStatus('waiting')
+    setScreen('waiting')
+
+    listenToRoom(c, data => {
+      setRoom(data)
+      if (data?.status === 'playing') setScreen('quiz')
+      if (data?.status === 'finished') setScreen('results')
+    })
+  } catch (e) {
+    setError(e.message)
+  }
+}
+
   async function handleStart() {
     await startGame(roomCode)
   }
@@ -271,7 +380,9 @@ export default function OnlineMulti({
         await saveMatchResult({
           userId: user.uid,
           username: user.displayName || name,
-          opponent: 'unknown',
+         opponent: role === 'host' 
+        ? room?.players?.guest?.uid 
+        : room?.players?.host?.uid,
           opponentName,
           myScore,
           opponentScore: oppScore,
@@ -423,10 +534,10 @@ export default function OnlineMulti({
               background: 'var(--card-bg)', border: '1px solid var(--card-border)',
               borderRadius: 12, padding: '16px', marginBottom: 16,
             }}>
-              <p style={{ color: '#fff', fontWeight: 700, marginBottom: 4 }}>
-                📨 {incomingInvite.fromName} invited you to a {incomingInvite.sport} match!
-              </p>
-              <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 12 }}>
+           <p style={{ color: '#fff', fontWeight: 700, marginBottom: 4 }}>
+             {incomingInvite.isRematch ? '🔁' : '📨'} {incomingInvite.fromName} {incomingInvite.isRematch ? 'wants a rematch!' : `invited you to a ${incomingInvite.sport} match!`}
+            </p>
+                      <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 12 }}>
                 {incomingInvite.rounds} questions · {incomingInvite.sport}
               </p>
                <div style={{
@@ -465,7 +576,8 @@ export default function OnlineMulti({
               </div>
             </div>
           )}
-
+          
+          
           <p className={styles.label} style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 4 }}>
             Player ID
           </p>
@@ -484,6 +596,7 @@ export default function OnlineMulti({
             {inviteStatus === 'sending' ? 'Sending invite…' : 'Send Invite & Create Room'}
           </button>
         </>
+        
       )}
 
       {screen === 'waiting' && (
@@ -492,6 +605,15 @@ export default function OnlineMulti({
           <h2 className={styles.title}>
             {role === 'host' ? 'Waiting for opponent…' : 'Waiting for host…'}
           </h2>
+              {(myForm.length > 0 || opponentForm.length > 0) && (
+      <LobbyFormRow
+        myForm={myForm}
+        opponentForm={opponentForm}
+        myName={name || user?.displayName || 'You'}
+        opponentName={role === 'host' ? guestName : hostName}
+        accent={accent}
+      />
+    )}
           {role === 'host' && !tournamentMatchMeta && (
             <div className={styles.codeBox}>
               <p className={styles.codeLabel}>Invite sent to</p>
@@ -578,15 +700,80 @@ export default function OnlineMulti({
               {coinMessage}
             </p>
           )}
-          {tournamentMatchMeta ? (
-            <button className={styles.backBtn} onClick={onTournamentMatchComplete}>
-              Back to Bracket
-            </button>
-          ) : (
-            <button className={styles.backBtn} onClick={onBack}>
-              Back to Home
-            </button>
-          )}
+
+          {incomingInvite && screen === 'results' && (
+  <div style={{
+    background: 'var(--card-bg)',
+    border: `1px solid ${accent}`,
+    borderRadius: 12,
+    padding: '16px',
+    marginBottom: 16,
+    marginTop: 8,
+  }}>
+    <p style={{ color: '#fff', fontWeight: 700, marginBottom: 4 }}>
+      🔁 {incomingInvite.fromName} wants a rematch!
+    </p>
+    <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 12 }}>
+      {incomingInvite.rounds} questions · {incomingInvite.sport}
+    </p>
+    <div style={{ display: 'flex', gap: 8 }}>
+      <button
+        className={styles.btn}
+        style={{ background: accent, color: accentText, flex: 1, padding: '10px' }}
+        onClick={() => handleAcceptInvite(incomingInvite)}
+      >
+        Accept Rematch
+      </button>
+      <button
+        className={styles.btnOutline}
+        style={{ border: '1px solid #FF5C5C', color: '#FF5C5C', flex: 1, padding: '10px' }}
+        onClick={handleDeclineInvite}
+      >
+        Decline
+      </button>
+    </div>
+  </div>
+)}
+                {tournamentMatchMeta ? (
+          <button className={styles.backBtn} onClick={onTournamentMatchComplete}>
+            Back to Bracket
+          </button>
+        ) : (
+        <div style={{ display: 'flex', gap: 10, marginTop: 8, justifyContent: 'center' }}>
+  <button
+    onClick={onBack}
+    style={{
+      background: accent,
+      color: accentText,
+      border: 'none',
+      borderRadius: 10,
+      padding: '10px 20px',
+      fontWeight: 700,
+      fontSize: 14,
+      cursor: 'pointer',
+      minWidth: 130,
+    }}
+  >
+    Back to Home
+  </button>
+  <button
+    onClick={handleRematch}
+    style={{
+      background: accent,
+      color: accentText,
+      border: 'none',
+      borderRadius: 10,
+      padding: '10px 20px',
+      fontWeight: 700,
+      fontSize: 14,
+      cursor: 'pointer',
+      minWidth: 130,
+    }}
+  >
+    🔁 Rematch
+  </button>
+</div>
+        )}
         </>
       )}
     </div>

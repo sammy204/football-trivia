@@ -167,7 +167,9 @@ export async function clearOnlineInvite(playerId) {
 }
 
 export async function getPlayerByPlayerId(playerId) {
+  console.log('Looking up Player ID:', JSON.stringify(playerId))
   const snap = await get(ref(db, `playerIds/${playerId}`))
+  console.log('Snap exists:', snap.exists(), 'Value:', snap.val())
   if (!snap.exists()) return null
   const uid = snap.val()
   return { uid }

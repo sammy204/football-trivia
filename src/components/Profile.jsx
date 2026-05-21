@@ -7,6 +7,8 @@ import { getDefaultAvatar, isImageAvatar } from '../lib/avatars'
 import AvatarGrid from './AvatarGrid'
 import styles from './Profile.module.css'
 import { calculateWinStreak } from '../lib/streaks'
+import { getRivalries, getFormBadge } from '../lib/userStats'
+import { RivalrySection, FormBadge } from './RivalrySection'
 
 const MILESTONES = [
   { id: 'wins10',    icon: '🏆', title: '10 Wins',        copy: 'Win 10 multiplayer matches.',         check: s => s.wins >= 10 },
@@ -72,6 +74,8 @@ export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpda
   const [selectedMonth, setSelectedMonth] = useState('')
   const [selectedDay, setSelectedDay] = useState(null)
   const [showCalendar, setShowCalendar] = useState(false)
+  const [rivalries, setRivalries] = useState([])
+  const [myForm, setMyForm] = useState([])
 
   useEffect(() => {
     if (!user?.uid) {
@@ -121,6 +125,8 @@ export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpda
             (a, b) => (b.timestamp || 0) - (a.timestamp || 0)
           )
           setMatches(matchesData.slice(0, 50))
+          setRivalries(getRivalries(allMatches))
+          setMyForm(getFormBadge(allMatches, 5))
         }
 
         // Calculate totals from match history (source of truth)
@@ -402,6 +408,12 @@ export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpda
                  </>
                )}
             </div>
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--card-border)' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: 'rgba(245,245,240,0.4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
+                 Recent Form
+             </p>
+              <FormBadge results={[...myForm].reverse()} />
+            </div>
           </section>
 
           {/* Milestones */}
@@ -425,7 +437,7 @@ export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpda
               </p>
             )}
           </section>
-
+        <RivalrySection rivalries={rivalries} accent="#00FF87" />
    {/* Recent Matches */}
 {matches.length > 0 && (() => {
   const monthMap = {}

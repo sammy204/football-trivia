@@ -13,7 +13,8 @@ export async function saveMatchResult({ userId, username, opponent, opponentName
     result,
     sport,
     rounds,
-    coinsEarned,          // ← add this
+    coinsEarned,
+    coinsLost: 0,
     date: new Date().toISOString(),
     timestamp: Date.now(),
     isTeamGame: false,
@@ -59,7 +60,7 @@ export async function saveTeamMatchResult({ userId, username, sport, teamName, t
     result,
     sport,
     rounds: questionsCount,
-    coinsEarned,
+    coinsEarned: 0,
     date: new Date().toISOString(),
     timestamp: Date.now(),
     isTeamGame: true,
@@ -99,3 +100,81 @@ export async function getUserStats(userId) {
 }
 
 export const test = 'working'
+
+export function getRivalries(matches, limit = 5) {
+  if (!matches || matches.length === 0) return []
+ 
+  const map = {}
+ 
+  for (const m of matches) {
+    // skip team games and matches with no opponent id
+    if (m.isTeamGame) continue
+    const id = m.opponent || 'unknown'
+    if (id === 'unknown') continue
+ 
+    if (!map[id]) {
+      map[id] = {
+        opponentId: id,
+        opponentName: m.opponentName || 'Unknown',
+        played: 0,
+        wins: 0,
+        losses: 0,
+        draws: 0,
+        lastResult: null,
+        lastTimestamp: 0,
+      }
+    }
+ 
+    const r = map[id]
+    r.played++
+    if (m.result === 'win') r.wins++
+    else if (m.result === 'loss') r.losses++
+    else r.draws++
+ 
+    if ((m.timestamp || 0) > r.lastTimestamp) {
+      r.lastTimestamp = m.timestamp || 0
+      r.lastResult = m.result
+      // update name in case it changed
+      if (m.opponentName) r.opponentName = m.opponentName
+    }
+  }
+ 
+  return Object.values(map)
+    .sort((a, b) => b.played - a.played || b.wins - a.wins)
+    .slice(0, limit)
+    .map(r => ({
+      ...r,
+      iWinning: r.wins > r.losses,
+      tied: r.wins === r.losses,
+    }))
+}
+ 
+/**
+ * getFormBadge
+ * Returns the last N results as an array of 'win' | 'loss' | 'draw' strings,
+ * most recent first, for rendering as colored dots.
+ *
+ * Usage:  getFormBadge(matches, 5)
+ * Returns: ['win', 'loss', 'win', 'win', 'draw']
+ */
+export function getFormBadge(matches, count = 5) {
+  if (!matches || matches.length === 0) return []
+
+  return [...matches]
+    .filter(m => !m.isTeamGame)
+    .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
+    .slice(-count)
+    .map(m => m.result || 'draw')
+}
+
+export async function getOpponentForm(opponentUid, count = 5) {
+  if (!opponentUid) return []
+  try {
+    const snap = await get(ref(db, `users/${opponentUid}/matches`))
+    if (!snap.val()) return []
+    const matches = Object.values(snap.val())
+    return getFormBadge(matches, count)
+  } catch {
+    return []
+  }
+}

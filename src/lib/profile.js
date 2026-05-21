@@ -56,19 +56,27 @@ export async function assignPlayerIdToUser(uid, displayName) {
   console.log('📦 Existing player ID:', existingId)
 
   let playerId
-  if (existingId) {
-    playerId = existingId
-    // No need to write to Firebase — already exists
-  } else {
+ if (existingId) {
+  playerId = existingId
+  // Make sure it's registered in the lookup table
+  await update(ref(db, `playerIds`), {
+    [playerId]: uid
+  })
+} else {
     // Generate a new one
     playerId = generatePlayerId()
     // Save to Firebase under users/{uid}
     try {
       await update(ref(db, `users/${uid}`), {
-        playerId,
-        displayName: displayName.trim(),
-        createdAt: Date.now(),
-      })
+  playerId,
+  displayName: displayName.trim(),
+  createdAt: Date.now(),
+})
+// Register in lookup table so other players can find this user by Player ID
+await update(ref(db, `playerIds`), {
+  [playerId]: uid
+})
+console.log('✅ Written to playerIds:', playerId, '->', uid)
       console.log('✅ Saved to Firebase successfully')
     } catch (err) {
       console.error('🔥 Firebase write failed:', err.code, err.message)

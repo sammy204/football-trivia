@@ -49,16 +49,24 @@ async function subscribeUserToPush(user) {
 
   try {
     const registration = await navigator.serviceWorker.ready
+
+    // Unsubscribe from any existing stale subscription first
+    const existingSubscription = await registration.pushManager.getSubscription()
+    if (existingSubscription) {
+      await existingSubscription.unsubscribe()
+    }
+
+    // Now subscribe fresh
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlB64ToUint8Array(
-         import.meta.env.VITE_VAPID_PUBLIC_KEY
+        import.meta.env.VITE_VAPID_PUBLIC_KEY
       ),
     })
 
     const backendUrl = import.meta.env.VITE_PUSH_BACKEND_URL
-  ? `${import.meta.env.VITE_PUSH_BACKEND_URL.replace(/\/$/, '')}/api/subscriptions`
-  : '/api/subscriptions'
+      ? `${import.meta.env.VITE_PUSH_BACKEND_URL.replace(/\/$/, '')}/api/subscriptions`
+      : '/api/subscriptions'
 
     await fetch(backendUrl, {
       method: 'POST',
@@ -77,7 +85,6 @@ async function subscribeUserToPush(user) {
     return null
   }
 }
-
 function urlB64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4)
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
