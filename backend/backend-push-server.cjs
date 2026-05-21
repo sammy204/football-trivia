@@ -224,30 +224,52 @@ function getDayDifference(fromDateKey, toDateKey) {
   return Math.round((toDate.getTime() - fromDate.getTime()) / (24 * 60 * 60 * 1000))
 }
 
-async function sendNotificationToUser({ userId, title, body, type, dateKey }) {
-  if (!userId) return { sent: 0, failed: 0 }
+function isExpiredPushSubscription(error) {
+  return error?.statusCode === 404 || error?.statusCode === 410
+}
 
-  const snapshot = await subscriptionsCollection.where('userId', '==', userId).get()
-  if (snapshot.empty) return { sent: 0, failed: 0 }
+async function sendNotificationToSubscription(doc, payload) {
+  try {
+    await webpush.sendNotification(doc.data(), payload)
+    return { sent: 1, failed: 0, deleted: 0 }
+  } catch (error) {
+    if (isExpiredPushSubscription(error)) {
+      await doc.ref.delete()
+      return { sent: 0, failed: 1, deleted: 1 }
+    }
 
-  const payload = JSON.stringify({ title, body, type, dateKey })
+    console.warn('Push send failed:', {
+      subscriptionId: doc.id,
+      statusCode: error.statusCode || null,
+      message: error.message || 'Unknown push error',
+    })
+    return { sent: 0, failed: 1, deleted: 0 }
+  }
+}
+
+async function sendNotificationToSnapshot(snapshot, payload) {
   let sent = 0
   let failed = 0
+  let deleted = 0
 
   for (const doc of snapshot.docs) {
-    const subscription = doc.data()
-    try {
-      await webpush.sendNotification(subscription, payload)
-      sent++
-    } catch (error) {
-      if (error.statusCode === 404 || error.statusCode === 410) {
-        await doc.ref.delete()
-      }
-      failed++
-    }
+    const result = await sendNotificationToSubscription(doc, payload)
+    sent += result.sent
+    failed += result.failed
+    deleted += result.deleted
   }
 
-  return { sent, failed }
+  return { sent, failed, deleted, total: snapshot.size }
+}
+
+async function sendNotificationToUser({ userId, title, body, type, dateKey }) {
+  if (!userId) return { sent: 0, failed: 0, deleted: 0 }
+
+  const snapshot = await subscriptionsCollection.where('userId', '==', userId).get()
+  if (snapshot.empty) return { sent: 0, failed: 0, deleted: 0 }
+
+  const payload = JSON.stringify({ title, body, type, dateKey })
+  return sendNotificationToSnapshot(snapshot, payload)
 }
 
 async function setNotificationSent({ userId, notificationType, dateKey }) {
@@ -310,7 +332,9 @@ app.post('/api/subscriptions', async (req, res) => {
         : admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true })
-    console.log(`Subscription saved to Firestore${userId ? ` for ${userId}` : ''}`)
+    if (!existing.exists) {
+      console.log(`New push subscription saved${userId ? ` for ${userId}` : ''}`)
+    }
     const snapshot = await subscriptionsCollection.get()
     res.status(201).json({ success: true, count: snapshot.size })
   } catch (error) {
@@ -410,24 +434,11 @@ app.post('/api/notify', async (req, res) => {
   }
 
   const payload = JSON.stringify({ title, body })
-  let sent = 0
-  let failed = 0
 
   try {
     const snapshot = await subscriptionsCollection.get()
-    for (const doc of snapshot.docs) {
-      const subscription = doc.data()
-      try {
-        await webpush.sendNotification(subscription, payload)
-        sent++
-      } catch (error) {
-        if (error.statusCode === 410) {
-          await doc.ref.delete()
-        }
-        failed++
-      }
-    }
-    res.json({ sent, failed, total: snapshot.size })
+    const result = await sendNotificationToSnapshot(snapshot, payload)
+    res.json(result)
   } catch (error) {
     console.error('Error sending notifications:', error)
     res.status(500).json({ error: 'Failed to send notifications' })
@@ -443,24 +454,10 @@ cron.schedule('0 11 * * *', async () => {
     body: 'Play now!',
   })
 
-  let sent = 0
-  let failed = 0
-
   try {
     const snapshot = await subscriptionsCollection.get()
-    for (const doc of snapshot.docs) {
-      const subscription = doc.data()
-      try {
-        await webpush.sendNotification(subscription, payload)
-        sent++
-      } catch (error) {
-        if (error.statusCode === 410) {
-          await doc.ref.delete()
-        }
-        failed++
-      }
-    }
-    console.log(`Sent to ${sent} users, ${failed} failed`)
+    const result = await sendNotificationToSnapshot(snapshot, payload)
+    console.log(`Daily notification sent to ${result.sent} subscriptions, ${result.failed} failed, ${result.deleted} deleted`)
   } catch (error) {
     console.error('Error in cron job:', error)
   }
@@ -475,24 +472,10 @@ cron.schedule('30 11 * * *', async () => {
     body: 'Come back tomorrow for a new one!',
   })
 
-  let sent = 0
-  let failed = 0
-
   try {
     const snapshot = await subscriptionsCollection.get()
-    for (const doc of snapshot.docs) {
-      const subscription = doc.data()
-      try {
-        await webpush.sendNotification(subscription, payload)
-        sent++
-      } catch (error) {
-        if (error.statusCode === 410) {
-          await doc.ref.delete()
-        }
-        failed++
-      }
-    }
-    console.log(`Closed notification sent to ${sent} users, ${failed} failed`)
+    const result = await sendNotificationToSnapshot(snapshot, payload)
+    console.log(`Closed notification sent to ${result.sent} subscriptions, ${result.failed} failed, ${result.deleted} deleted`)
   } catch (error) {
     console.error('Error in closing cron job:', error)
   }

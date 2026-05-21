@@ -159,6 +159,8 @@ export default function Home({
             window.localStorage.removeItem(NOTIFICATION_REPAIR_DISMISSED_KEY)
           } else {
             window.localStorage.removeItem(NOTIFICATION_REPAIR_KEY)
+            setNotificationRepairDismissed(true)
+            window.localStorage.setItem(NOTIFICATION_REPAIR_DISMISSED_KEY, 'true')
           }
         })
         .catch((error) => {
@@ -215,6 +217,8 @@ export default function Home({
         setShowNotificationRepair(!subscription)
         if (subscription) {
           window.localStorage.removeItem(NOTIFICATION_REPAIR_KEY)
+          setNotificationRepairDismissed(true)
+          window.localStorage.setItem(NOTIFICATION_REPAIR_DISMISSED_KEY, 'true')
         } else {
           window.localStorage.setItem(NOTIFICATION_REPAIR_KEY, 'true')
           setNotificationRepairDismissed(false)
