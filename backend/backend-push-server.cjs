@@ -7,6 +7,7 @@ const cors = require('cors')
 const webpush = require('web-push')
 const cron = require('node-cron')
 const admin = require('firebase-admin')
+const crypto = require('crypto')
 const { Resend } = require('resend')
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -288,21 +289,28 @@ app.post('/api/subscriptions', async (req, res) => {
   const userId = payload.userId || null
   const email = payload.email || null
   const displayName = payload.displayName || null
+  const userAgent = payload.userAgent || req.headers['user-agent'] || null
 
   if (!subscription || !subscription.endpoint) {
     return res.status(400).json({ error: 'Invalid subscription' })
   }
 
   try {
-   const id = Buffer.from(subscription.endpoint).toString('base64').replace(/[/+=]/g, '-').slice(0, 100)
-    await subscriptionsCollection.doc(id).set({
+    const id = crypto.createHash('sha256').update(subscription.endpoint).digest('hex')
+    const ref = subscriptionsCollection.doc(id)
+    const existing = await ref.get()
+    await ref.set({
       ...subscription,
       userId,
       email,
       displayName,
-      registeredAt: admin.firestore.FieldValue.serverTimestamp()
-    })
-    console.log('Subscription saved to Firestore')
+      userAgent,
+      registeredAt: existing.exists
+        ? existing.data().registeredAt || admin.firestore.FieldValue.serverTimestamp()
+        : admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true })
+    console.log(`Subscription saved to Firestore${userId ? ` for ${userId}` : ''}`)
     const snapshot = await subscriptionsCollection.get()
     res.status(201).json({ success: true, count: snapshot.size })
   } catch (error) {

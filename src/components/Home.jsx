@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { getDailyChallengeInfo } from '../lib/dailyChallenge'
 import { getActiveSeasonalEvents, getDateKey } from '../lib/seasonalEvents'
-import { subscribeUserToPush } from '../lib/pushNotifications'
+import { refreshPushSubscription, subscribeUserToPush } from '../lib/pushNotifications'
 import { getPlayerAvatar } from '../lib/avatars'
 import styles from './Home.module.css'
 
@@ -58,6 +58,7 @@ export default function Home({
   const [notificationPermission, setNotificationPermission] = useState(
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
   )
+  const [notificationStatus, setNotificationStatus] = useState('')
   const [dailyChallenge, setDailyChallenge] = useState(null)
 
   useEffect(() => {
@@ -175,14 +176,28 @@ export default function Home({
 
   async function requestNotificationPermission() {
     if (typeof window === 'undefined' || !('Notification' in window)) return
+    setNotificationStatus('')
     const permission = await Notification.requestPermission()
     setNotificationPermission(permission)
     if (permission === 'granted') {
       try {
-        await subscribeUserToPush(user)
+        const subscription = await subscribeUserToPush(user)
+        setNotificationStatus(subscription ? 'Notifications enabled on this device.' : 'Notification setup failed.')
       } catch (error) {
         console.error('Failed to subscribe to push notifications:', error)
+        setNotificationStatus('Notification setup failed.')
       }
+    }
+  }
+
+  async function repairNotificationSubscription() {
+    setNotificationStatus('Refreshing notifications...')
+    try {
+      const subscription = await refreshPushSubscription(user)
+      setNotificationStatus(subscription ? 'Notifications refreshed on this device.' : 'Notification refresh failed.')
+    } catch (error) {
+      console.error('Failed to refresh push notifications:', error)
+      setNotificationStatus('Notification refresh failed.')
     }
   }
 
@@ -319,11 +334,21 @@ export default function Home({
 
             {!dailyAvailable &&
               typeof window !== 'undefined' &&
-              'Notification' in window &&
-              notificationPermission !== 'granted' && (
-                <button className={styles.reminderBtn} onClick={requestNotificationPermission}>
-                  Enable reminder
-                </button>
+              'Notification' in window && (
+                <>
+                  {notificationPermission === 'granted' ? (
+                    <button className={styles.reminderBtn} onClick={repairNotificationSubscription}>
+                      Refresh notifications
+                    </button>
+                  ) : (
+                    <button className={styles.reminderBtn} onClick={requestNotificationPermission}>
+                      Enable reminder
+                    </button>
+                  )}
+                  {notificationStatus && (
+                    <p className={styles.notificationStatus}>{notificationStatus}</p>
+                  )}
+                </>
               )}
 
             <button

@@ -1,7 +1,4 @@
 // Push notification subscription management
-// Uses Firebase Cloud Messaging for cross-platform push notifications
-console.log('pushNotifications.js loaded!')
-console.log('ENV CHECK:', import.meta.env)
 
 async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) {
@@ -40,35 +37,35 @@ async function requestPushNotificationPermission() {
 }
 
 async function subscribeUserToPush(user) {
-  console.log('VAPID KEY:', import.meta.env.VITE_VAPID_PUBLIC_KEY)
-  console.log('BACKEND URL:', import.meta.env.VITE_PUSH_BACKEND_URL)
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     console.log('Push notifications not available')
     return null
   }
 
+  if (!('Notification' in window) || Notification.permission !== 'granted') {
+    console.log('Push notification permission has not been granted')
+    return null
+  }
+
+  if (!import.meta.env.VITE_VAPID_PUBLIC_KEY) {
+    console.error('Missing VITE_VAPID_PUBLIC_KEY')
+    return null
+  }
+
   try {
     const registration = await navigator.serviceWorker.ready
-
-    // Unsubscribe from any existing stale subscription first
     const existingSubscription = await registration.pushManager.getSubscription()
-    if (existingSubscription) {
-      await existingSubscription.unsubscribe()
-    }
 
-    // Now subscribe fresh
-    const subscription = await registration.pushManager.subscribe({
+    const subscription = existingSubscription || await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlB64ToUint8Array(
-        import.meta.env.VITE_VAPID_PUBLIC_KEY
-      ),
+      applicationServerKey: urlB64ToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY),
     })
 
     const backendUrl = import.meta.env.VITE_PUSH_BACKEND_URL
       ? `${import.meta.env.VITE_PUSH_BACKEND_URL.replace(/\/$/, '')}/api/subscriptions`
       : '/api/subscriptions'
 
-    await fetch(backendUrl, {
+    const response = await fetch(backendUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -76,14 +73,35 @@ async function subscribeUserToPush(user) {
         email: user?.email || null,
         displayName: user?.displayName || null,
         subscription,
+        userAgent: navigator.userAgent,
       }),
     })
+
+    if (!response.ok) {
+      const message = await response.text().catch(() => '')
+      throw new Error(`Subscription save failed (${response.status}): ${message}`)
+    }
 
     return subscription
   } catch (error) {
     console.error('Failed to subscribe to push notifications:', error)
     return null
   }
+}
+
+async function refreshPushSubscription(user) {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return null
+  }
+
+  const registration = await navigator.serviceWorker.ready
+  const existingSubscription = await registration.pushManager.getSubscription()
+
+  if (existingSubscription) {
+    await existingSubscription.unsubscribe()
+  }
+
+  return subscribeUserToPush(user)
 }
 function urlB64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4)
@@ -113,5 +131,6 @@ export {
   registerServiceWorker,
   requestPushNotificationPermission,
   subscribeUserToPush,
+  refreshPushSubscription,
   checkAndRequestPushSubscription,
 }

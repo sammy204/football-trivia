@@ -124,6 +124,13 @@
   transform: scale(0.98);
 }
 
+.notificationStatus {
+  margin: -4px 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
 .dailyBtn {
   width: 100%;
   padding: 15px;
