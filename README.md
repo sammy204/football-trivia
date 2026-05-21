@@ -1,64 +1,157 @@
 # Trivela
 
-A competitive sports trivia app for football and basketball fans.
+Trivela is a competitive sports trivia app for football and basketball fans.
 
----
+## What Is Trivela?
 
-## What is Trivela?
-
-Trivela is a sports quiz app where you can test your football and basketball knowledge solo, against friends, or compete globally on daily challenges.
-
----
+Trivela lets players test their sports knowledge in solo quizzes, daily challenges, real-time multiplayer, team matches, lightning rounds, seasonal events, and tournaments. Players can build streaks, earn coins, climb leaderboards, invite friends, and compete across football and basketball.
 
 ## Features
 
+### Sports
+
+- Football trivia
+- Basketball trivia
+- Sport-specific daily challenges, leaderboards, multiplayer rooms, lightning rounds, seasonal events, and tournaments
+
+### Accounts And Profiles
+
+- Email/password sign up and login
+- Google sign-in
+- Email verification flow
+- Password reset callback handling
+- Player profiles with display name, avatar, Player ID, match history, stats, streaks, badges, and coin balance
+- Player IDs used for direct invites in multiplayer modes
+
 ### Game Modes
-- **Solo** — play alone with 5, 10, or 15 question runs
-- **Online 1v1** — create a room, share a code, and go head to head with a friend in real time
-- **Team Multiplayer** — captains create teams, invite players by Player ID, and compete in balanced matches where every player answers 10 questions and scores are combined
-- **Daily Challenge** — one shared challenge per sport per day, open for 32 minutes at 12 PM Nigeria time
-- **Tournament** — single-elimination bracket tournaments with real-time 1v1 matches; create, join, or browse public tournaments, compete through rounds, and become the champion
+
+- **Solo Quiz** - play 5, 10, or 15 question runs at your own pace
+- **Daily Challenge** - one shared challenge per sport each day, open at 12 PM Nigeria time
+- **Online 1v1** - create or join real-time head-to-head rooms
+- **Team Multiplayer** - create team rooms, invite players by Player ID, and combine teammate scores
+- **Lightning Solo** - a 60-second speed trivia mode with leaderboard scoring
+- **Lightning 1v1** - invite another player to a timed duel using their Player ID
+- **Seasonal Events** - limited-time event quizzes with custom dates, entry fees, and coin multipliers
+- **Tournament Mode** - public or private single-elimination tournaments with live brackets and tournament matches
+
+### Daily Challenge
+
+- Separate daily challenge support for football and basketball
+- Daily availability window and countdown
+- One saved leaderboard entry per player per day
+- Ranking by score and completion time
+- Daily challenge rewards through the coin system
+
+### Multiplayer
+
+- Real-time online 1v1 rooms
+- Room codes for joining matches
+- Friend invites with accept/decline flows
+- Rematch invite handling
+- Team room creation with configurable team setup
+- Team captain flow
+- Team invites by Player ID
+- Balanced team start rules
+- Per-player team quizzes where teammates answer different questions
+- Team results, rankings, and coin payouts
+
+### Lightning
+
+- 60-second solo lightning mode
+- Lightning 1v1 duels
+- Player ID invites for lightning duels
+- Coin stake for lightning head-to-head matches
+- Winner-takes-pot payout handling
+- Lightning leaderboard by sport
+
+### Seasonal Events
+
+- Active and scheduled event cards on the home screen
+- Event-specific quiz questions
+- Configurable event name, description, sport, type, start date, end date, questions per play, entry fee, and coin multiplier
+- Seasonal leaderboard saving
+- Seasonal replay support
+- Coin rewards based on event multiplier
+
+### Tournaments
+
+- Create public or private tournaments
+- Join tournaments with a 6-character code
+- Browse public tournaments
+- Configurable tournament name, sport, max players, and start time
+- Lobby with player list and host controls
+- Single-elimination bracket generation
+- BYE handling
+- Live bracket visualization
+- Tournament match play
+- Automatic winner advancement
+- Champion display
+
+### Coins And Rewards
+
+- Starting coin wallet for signed-in players
+- Coin balance shown in the app
+- Coins earned from quiz performance
+- Daily challenge reward multiplier
+- Perfect-score and completion bonuses
+- Lightning solo rewards
+- Lightning 1v1 stakes and payouts
+- Team match stakes and payouts
+- Seasonal event entry fees and reward multipliers
+- Coin ledger protection against duplicate rewards
 
 ### Leaderboards
-- Daily leaderboard per sport showing rankings by score and completion time
-- Weekly leaderboard tracking cumulative performance across the week
 
-### Profiles & Stats
-- Personal profile with match history, win/loss record, and team game stats
-- Daily streak tracking with danger alerts at 10 PM and loss notifications after midnight
-- Badges for milestones and achievements (10 Wins, 50 Wins, 3-Day Streak, 7-Day Streak, 50 Points, 100 Points)
+- Daily leaderboard per sport
+- Lightning leaderboard per sport
+- Seasonal event leaderboards
+- Saved rankings with score and completion time
+- Profile-linked leaderboard entries
+
+### Streaks And Badges
+
+- Daily play activity tracking
+- Current daily streak tracking
+- Streak danger alerts after 10 PM
+- Streak loss detection after missed days
+- In-app streak notices
+- Achievement badges for wins, streaks, and score milestones
 
 ### Notifications
-- Push reminders for daily challenges and streak warnings
-- In-app streak notices when your streak is at risk
-- Online 1v1 invite notifications with accept/decline
-- Team match invite notifications
+
+- Browser push notification support
+- Daily challenge reminders
+- Daily challenge closed notifications
+- Streak reminder notifications
+- Streak lost notifications
+- Online 1v1 invite notifications
+- Lightning duel invite notifications
+- Team invite notifications
+- Device subscription repair flow for stale or broken push subscriptions
+- Automatic cleanup of expired push subscriptions
+
+### PWA Support
+
+- Service worker registration in production
+- Install prompt support
+- Cached app assets for a smoother app-like experience
+- Localhost-safe service worker behavior during development
 
 ### Admin Dashboard
-- **Overview** — total users, games played, daily challenges completed, and banned users
-- **Question Manager** — add, edit, and delete questions for both the question bank and daily challenges; search and filter by difficulty
-- **User Manager** — browse and search all users, view detailed player stats including streaks and join dates
-- **Notifications** — view all site-wide notifications and dismiss individually
-- **Analytics** — view aggregated app analytics data
-- Restricted to authorized admin accounts only
 
-### Tournament Mode
-- Create private or public tournaments with configurable name, sport, max players (4/8/16/32), and scheduled start time
-- Join tournaments via a 6-character code
-- Browse and discover public tournaments
-- Lobby view with player list and host controls
-- Automatic single-elimination bracket generation with BYE handling
-- Live bracket visualization with match status (pending, active, complete)
-- Real-time 1v1 match play within tournament rounds
-- Automatic advancement of winners and BYE resolution
-- Champion display and tournament winner badge
-
-### Sports
-- Football
-- Basketball
-
----
+- Restricted admin-only access
+- Overview stats for users, games, daily activity, and banned users
+- Player ID migration utility
+- Question manager for football and basketball
+- Add, edit, delete, search, and filter questions
+- Daily question management
+- User manager with searchable users and player stats
+- Seasonal event manager with active, scheduled, and ended event views
+- Create, end, reactivate, and delete seasonal events
+- Site-wide push notification sender
+- Sent notification log with dismiss controls
+- Analytics dashboard for app activity, game data, seasonal activity, and notification logs
 
 ## Tech
 
-Built with React, Firebase Authentication, Firebase Realtime Database, and deployed on Vercel.
+Trivela is built with React, Vite, Firebase Authentication, Firebase Realtime Database, Firebase Admin, Express, Web Push, and a production service worker.

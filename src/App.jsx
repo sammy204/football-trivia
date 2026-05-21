@@ -262,6 +262,14 @@ export default function App() {
     return unsub
   }, [user?.uid, activePlayerId])
 
+  useEffect(() => {
+    if (!user?.uid || !activePlayerId) return
+    const unsub = listenToLightningInvite(activePlayerId, (invite) => {
+      setPendingLightningInvite(invite || null)
+    })
+    return unsub
+  }, [user?.uid, activePlayerId])
+
   // Auto-open team invite popup anywhere in-app
   useEffect(() => {
     if (pendingInvites.length > 0) setShowInvites(true)
@@ -539,8 +547,15 @@ export default function App() {
     if (!user.emailVerified) { setShowVerify(true); return }
     setSelectedSport(sport)
     setLightningH2HConfig({ sport, mode: 'h2h', wager: LIGHTNING_H2H_WAGER })
+    const targetPlayerId = opponentPlayerId.trim().toUpperCase()
 
     try {
+      const opponent = await getPlayerByPlayerId(targetPlayerId)
+      if (!opponent) {
+        setError('Player ID not found.')
+        return
+      }
+
       const stake = await spendCoins({
         userId: user.uid,
         amount: LIGHTNING_H2H_WAGER,
@@ -569,16 +584,10 @@ export default function App() {
         wager: LIGHTNING_H2H_WAGER,
       })
 
-      const opponent = await getPlayerByPlayerId(opponentPlayerId)
-      if (!opponent) {
-        setError('Player ID not found.')
-        return
-      }
-
       await sendLightningInvite({
         fromName: user.displayName || 'Player',
         fromUserId: user.uid,
-        toPlayerId: opponentPlayerId,
+        toPlayerId: targetPlayerId,
         roomCode,
         sport,
       })
@@ -741,7 +750,7 @@ export default function App() {
 
       setLightningH2HRoomCode(invite.roomCode)
       setLightningH2HRole('guest')
-      await clearLightningInvite(loadProfile()?.playerId)
+      await clearLightningInvite(activePlayerId)
       setPendingLightningInvite(null)
       setScreen('lightningH2H')
     } catch (e) {
@@ -750,8 +759,7 @@ export default function App() {
   }
 
   function handleDeclineLightningInvite() {
-    const prof = loadProfile()
-    clearLightningInvite(prof?.playerId).catch(() => {})
+    clearLightningInvite(activePlayerId).catch(() => {})
     setPendingLightningInvite(null)
   }
 

@@ -7,7 +7,7 @@ export default function LightningModes({ sport, onBack, onStartSolo, onStartH2H,
   const isBasketball = sport === 'basketball'
 
   function handleInvite() {
-    const playerId = opponentPlayerId.trim()
+    const playerId = opponentPlayerId.trim().toUpperCase()
     if (!playerId) {
       setInviteError('Enter Player ID')
       return
@@ -42,7 +42,7 @@ export default function LightningModes({ sport, onBack, onStartSolo, onStartH2H,
               placeholder="Opponent Player ID"
               value={opponentPlayerId}
               onChange={(event) => {
-                setOpponentPlayerId(event.target.value)
+                setOpponentPlayerId(event.target.value.toUpperCase())
                 if (inviteError) setInviteError('')
               }}
             />

@@ -89,6 +89,7 @@ export function submitLightningAnswer({
 
 // Invite operations
 export function sendLightningInvite({ fromName, fromUserId, toPlayerId, roomCode, sport }) {
+  const targetPlayerId = String(toPlayerId || '').trim().toUpperCase()
   const invite = {
     fromName,
     fromUserId,
@@ -96,11 +97,12 @@ export function sendLightningInvite({ fromName, fromUserId, toPlayerId, roomCode
     sport,
     timestamp: Date.now(),
   }
-  return set(ref(db, `${LIGHTNING_INVITES_PATH}/${toPlayerId}`), invite)
+  return set(ref(db, `${LIGHTNING_INVITES_PATH}/${targetPlayerId}`), invite)
 }
 
 export function listenToLightningInvite(playerId, callback) {
-  const r = ref(db, `${LIGHTNING_INVITES_PATH}/${playerId}`)
+  const targetPlayerId = String(playerId || '').trim().toUpperCase()
+  const r = ref(db, `${LIGHTNING_INVITES_PATH}/${targetPlayerId}`)
   onValue(r, (snap) => {
     const data = snap.val()
     callback(data || null)
@@ -109,5 +111,6 @@ export function listenToLightningInvite(playerId, callback) {
 }
 
 export function clearLightningInvite(playerId) {
-  return remove(ref(db, `${LIGHTNING_INVITES_PATH}/${playerId}`))
+  const targetPlayerId = String(playerId || '').trim().toUpperCase()
+  return remove(ref(db, `${LIGHTNING_INVITES_PATH}/${targetPlayerId}`))
 }
