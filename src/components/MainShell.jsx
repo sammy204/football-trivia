@@ -1022,17 +1022,19 @@ export default function MainShell({
           onDeclineLightning={onDeclineLightningInvite}
         />
       )}
-      {activeTab === 'profile' && (
-        <Profile
-          user={user}
-          onUsernameUpdated={onUsernameUpdated}
-          onProfileUpdated={onProfileUpdated}
-          onLogout={onLogout}
-          coinBalance={coinBalance}
-          onAdmin={onAdmin}
-          isAdmin={isAdmin}
-        />
-      )}
+     {activeTab === 'profile' && (
+  <div className={styles.page}>
+    <Profile
+      user={user}
+      onUsernameUpdated={onUsernameUpdated}
+      onProfileUpdated={onProfileUpdated}
+      onLogout={onLogout}
+      coinBalance={coinBalance}
+      onAdmin={onAdmin}
+      isAdmin={isAdmin}
+    />
+  </div>
+)}
 
       <nav className={styles.bottomNav}>
         {NAV_ITEMS.map((item) => (

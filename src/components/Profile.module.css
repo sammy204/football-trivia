@@ -1,7 +1,6 @@
 .wrap {
-  width: min(100%, 430px);
-  margin: 0 auto;
-  padding: 2rem 1.25rem 4rem;
+    width: 100%;
+  padding: 0 0 1rem;
 }
 
 .backBtn {
@@ -679,8 +678,8 @@ button.avatarImg {
 
 @media (min-width: 768px) {
   .wrap {
-    width: min(100%, 430px);
-    padding: 3rem 1.5rem 4rem;
+    width: 100%;
+    padding: 0 0 1rem;
   }
 
   .title {
