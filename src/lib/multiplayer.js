@@ -94,7 +94,7 @@ export async function submitAnswer({ code, role, qIndex, answer, correct }) {
 
 export async function nextQuestion({ code, qIndex, total }) {
   if (qIndex + 1 >= total) {
-const roomSnap = await get(ref(db, `rooms/${code}`))
+    const roomSnap = await get(ref(db, `rooms/${code}`))
     const room = roomSnap.val()
     const hostScore = room?.players?.host?.score || 0
     const guestScore = room?.players?.guest?.score || 0
@@ -128,7 +128,7 @@ const roomSnap = await get(ref(db, `rooms/${code}`))
   } else {
     await update(ref(db, `rooms/${code}`), {
       currentQuestion: qIndex + 1,
-questionState: {
+      questionState: {
         answerCount: 0,
         resolved: false,
         winner: null,
@@ -143,7 +143,8 @@ export function listenToRoom(code, callback) {
   const roomRef = ref(db, `rooms/${code}`)
   onValue(roomRef, snap => callback(snap.val()))
   return () => off(roomRef)
-} 
+}
+
 export async function sendOnlineInvite({ fromName, fromUserId, toPlayerId, roomCode, sport, rounds }) {
   const inviteRef = ref(db, `onlineInvites/${toPlayerId}`)
   await set(inviteRef, {

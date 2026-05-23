@@ -1,4 +1,4 @@
-import { ref, get } from 'firebase/database'
+import { ref, get, set } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { useEffect, useRef, useState } from 'react'
 import { generateQuestions } from '../lib/question'
@@ -103,6 +103,7 @@ export default function OnlineMulti({
   }, [room?.players?.guest, room?.status])
 
   // Listen for incoming invite for this user
+    // Listen for incoming invite for this user
   useEffect(() => {
   if (!user?.uid) return
   const profile = JSON.parse(localStorage.getItem('trivela-profile') || '{}')
@@ -115,7 +116,7 @@ export default function OnlineMulti({
     }
   })
   return unsub
-}, [user?.uid])  // ← remove 'screen' so it never re-subscribes mid-match
+}, [user?.uid, pendingInvite])  // ← ADD pendingInvite to dependency 
   useEffect(() => {
     if (!pendingInvite) return
     if (acceptHandledRef.current) return  
@@ -274,7 +275,7 @@ export default function OnlineMulti({
   }
 
 
-   async function handleRematch() {
+  async function handleRematch() {
   try {
     const opponentUid = role === 'host'
       ? room?.players?.guest?.uid
@@ -283,7 +284,6 @@ export default function OnlineMulti({
 
     if (!opponentUid) return setError('Cannot find opponent for rematch.')
 
-    // Get opponent's player ID from Firebase
     const snap = await get(ref(db, `users/${opponentUid}/playerId`))
     const opponentPId = snap.val()
     if (!opponentPId) return setError('Opponent Player ID not found.')
@@ -299,21 +299,28 @@ export default function OnlineMulti({
       setError(`You need ${ONLINE_1V1_WAGER} coins for a rematch.`)
       return
     }
+await set(ref(db, `rooms/${roomCode}`), null)
+    // FIX: Use actual question count from completed match
+    const rematchRounds = room?.questions?.length || rounds
+    const questions = await generateQuestions({ rounds: rematchRounds, sport })
 
-    const questions = await generateQuestions({ rounds, sport })
-    const c = await createRoom({
+       const c = await createRoom({
       playerName: name.trim(),
       questions,
-      rounds,
+      rounds: rematchRounds,
       sport,
       hostUid: user.uid,
       wager: ONLINE_1V1_WAGER,
       hostPhotoURL: playerAvatar,
     })
+
     setRoomCode(c)
     setRole('host')
     setMatchSaved(false)
     setCoinMessage('')
+    setRoom(null)
+    setSelected(null)
+    SetAnswered(false)
 
     await sendOnlineInvite({
       fromName: name.trim(),
@@ -321,7 +328,7 @@ export default function OnlineMulti({
       toPlayerId: opponentPId,
       roomCode: c,
       sport,
-      rounds,
+      rounds: rematchRounds,
       isRematch: true,
     })
 

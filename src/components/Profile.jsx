@@ -56,7 +56,16 @@ function canUseAsAuthPhotoURL(value) {
   return typeof value === 'string' && /^https?:\/\//.test(value)
 }
 
-export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpdated, onLogout, coinBalance = 0 }) {
+export default function Profile({
+  user,
+  onBack,
+  onUsernameUpdated,
+  onProfileUpdated,
+  onLogout,
+  coinBalance = 0,
+  onAdmin,
+  isAdmin = false,
+}) {
   const [stats, setStats] = useState(null)
   const [matches, setMatches] = useState([])
   const [streak, setStreak] = useState(null)
@@ -74,6 +83,7 @@ export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpda
   const [selectedMonth, setSelectedMonth] = useState('')
   const [selectedDay, setSelectedDay] = useState(null)
   const [showCalendar, setShowCalendar] = useState(false)
+  const [visibleMatchesCount, setVisibleMatchesCount] = useState(5)
   const [rivalries, setRivalries] = useState([])
   const [myForm, setMyForm] = useState([])
 
@@ -224,9 +234,11 @@ export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpda
 
   return (
     <div className={styles.wrap}>
-<button className={styles.backBtn} onClick={onBack}>
+      {onBack && (
+        <button className={styles.backBtn} onClick={onBack}>
           Back
         </button>
+      )}
 
        <div className={styles.header}>
          <h1 className={styles.title}>Profile</h1>
@@ -408,8 +420,8 @@ export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpda
                  </>
                )}
             </div>
-            <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--card-border)' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: 'rgba(245,245,240,0.4)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
+            <div className={styles.formSection}>
+              <p className={styles.formTitle}>
                  Recent Form
              </p>
               <FormBadge results={[...myForm].reverse()} />
@@ -462,6 +474,7 @@ export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpda
   const filteredMatches = selectedDay
     ? currentMatches.filter(m => m._date.getDate() === selectedDay)
     : currentMatches
+  const visibleMatches = filteredMatches.slice(0, visibleMatchesCount)
 
   return (
     <section className={styles.matchesCard}>
@@ -469,23 +482,12 @@ export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpda
 
       {/* Month Dropdown */}
       <select
+        className={styles.monthSelect}
         value={activeMonth}
-        onChange={e => { setSelectedMonth(e.target.value); setSelectedDay(null) }}
-        style={{
-          width: '100%',
-          background: 'var(--card-bg)',
-          border: '1px solid var(--card-border)',
-          borderRadius: 8,
-          color: '#fff',
-          padding: '10px 12px',
-          fontSize: 14,
-          fontWeight: 600,
-          marginBottom: 16,
-          cursor: 'pointer',
-        }}
+        onChange={e => { setSelectedMonth(e.target.value); setSelectedDay(null); setVisibleMatchesCount(5) }}
       >
         {monthKeys.map(k => (
-          <option key={k} value={k} style={{ background: '#0f2d18' }}>
+          <option key={k} value={k}>
             {monthMap[k].label}
           </option>
         ))}
@@ -493,35 +495,21 @@ export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpda
 
       {/* Calendar Toggle */}
       <button
-        onClick={() => { setShowCalendar(v => !v); setSelectedDay(null) }}
-        style={{
-          background: 'transparent',
-          border: '1px solid var(--card-border)',
-          borderRadius: 8,
-          color: 'rgba(245,245,240,0.6)',
-          fontSize: 13,
-          fontWeight: 600,
-          padding: '8px 12px',
-          cursor: 'pointer',
-          marginBottom: 12,
-          width: '100%',
-        }}
+        className={styles.calendarToggle}
+        onClick={() => { setShowCalendar(v => !v); setSelectedDay(null); setVisibleMatchesCount(5) }}
       >
         {showCalendar ? '▲ Hide Calendar' : '▼ Filter by Day'}
       </button>
 
       {/* Calendar Grid */}
       {showCalendar && year && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
+        <div className={styles.calendarWrap}>
+          <div className={styles.calendarHeader}>
             {['S','M','T','W','T','F','S'].map((d, i) => (
-              <div key={i} style={{
-                textAlign: 'center', fontSize: 11,
-                color: 'rgba(245,245,240,0.4)', fontWeight: 700, padding: '4px 0',
-              }}>{d}</div>
+              <div key={i}>{d}</div>
             ))}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+          <div className={styles.calendarGrid}>
             {Array.from({ length: firstDay }).map((_, i) => (
               <div key={`empty-${i}`} />
             ))}
@@ -533,17 +521,8 @@ export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpda
                 <button
                   key={day}
                   onClick={() => hasMatch && setSelectedDay(isSelected ? null : day)}
-                  style={{
-                    background: isSelected ? '#00FF87' : hasMatch ? 'rgba(0,255,135,0.12)' : 'transparent',
-                    border: hasMatch ? '1px solid rgba(0,255,135,0.3)' : '1px solid transparent',
-                    borderRadius: 6,
-                    color: isSelected ? '#0a1f0f' : hasMatch ? '#00FF87' : 'rgba(245,245,240,0.3)',
-                    fontSize: 12,
-                    fontWeight: hasMatch ? 700 : 400,
-                    padding: '6px 2px',
-                    cursor: hasMatch ? 'pointer' : 'default',
-                    textAlign: 'center',
-                  }}
+                  className={`${styles.dayButton} ${hasMatch ? styles.hasMatch : ''} ${isSelected ? styles.selectedDay : ''}`}
+                  disabled={!hasMatch}
                 >
                   {day}
                 </button>
@@ -553,10 +532,7 @@ export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpda
           {selectedDay && (
             <button
               onClick={() => setSelectedDay(null)}
-              style={{
-                marginTop: 8, background: 'transparent', border: 'none',
-                color: 'rgba(245,245,240,0.4)', fontSize: 12, cursor: 'pointer', padding: 0,
-              }}
+              className={styles.clearDayButton}
             >
               ✕ Clear day filter
             </button>
@@ -567,11 +543,11 @@ export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpda
       {/* Match List */}
       <div className={styles.matchesList}>
         {filteredMatches.length === 0 ? (
-          <p style={{ color: 'rgba(245,245,240,0.4)', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>
+          <p className={styles.emptyMatches}>
             No matches on this day.
           </p>
         ) : (
-          filteredMatches.map((match, idx) => (
+          visibleMatches.map((match, idx) => (
             <div key={idx} className={styles.matchItem}>
               <div className={styles.matchHeader}>
                 <span className={styles.opponent}>vs {match.opponentName || 'Unknown'}</span>
@@ -593,6 +569,20 @@ export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpda
           ))
         )}
       </div>
+      {filteredMatches.length > 5 && (
+        <button
+          className={styles.moreMatchesBtn}
+          onClick={() => {
+            if (visibleMatchesCount >= filteredMatches.length) {
+              setVisibleMatchesCount(5)
+              return
+            }
+            setVisibleMatchesCount((count) => Math.min(count + 10, filteredMatches.length))
+          }}
+        >
+          {visibleMatchesCount >= filteredMatches.length ? 'Show less' : 'Show more'}
+        </button>
+      )}
     </section>
   )
 })()}
@@ -606,6 +596,11 @@ export default function Profile({ user, onBack, onUsernameUpdated, onProfileUpda
 
       {/* Logout section */}
       <section className={styles.logoutSection}>
+        {isAdmin && onAdmin && (
+          <button className={styles.adminBtn} onClick={onAdmin}>
+            Admin Dashboard
+          </button>
+        )}
         <button className={styles.logoutBtn} onClick={onLogout}>
           Log out
         </button>

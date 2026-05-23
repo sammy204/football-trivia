@@ -3,6 +3,7 @@ import { listenToOnlineInvite, clearOnlineInvite, joinRoom } from './lib/multipl
 import Admin from './components/Admin'
 import Landing from './components/Landing'
 import Home from './components/Home'
+import MainShell from './components/MainShell'
 import Quiz from './components/Quiz'
 import Results from './components/Results'
 import Loading from './components/Loading'
@@ -66,6 +67,8 @@ import {
   listenToCoinBalance,
   spendCoins,
 } from './lib/coins'
+import { recordModePlayed } from './lib/modeStats'
+import { getPlayerAvatar } from './lib/avatars'
 
 const TEAM_ROUNDS = 10
 const INSTALL_INTEREST_KEY = 'trivela-install-interest'
@@ -128,6 +131,8 @@ export default function App() {
   const [activeTournamentCode, setActiveTournamentCode] = useState(null)
   const [coinBalance, setCoinBalance] = useState(0)
   const [coinReward, setCoinReward] = useState(null)
+  const [mainInitialTab, setMainInitialTab] = useState('home')
+  const [modeReturnTab, setModeReturnTab] = useState('home')
   const [installPromptEligible, setInstallPromptEligible] = useState(() => (
     typeof window !== 'undefined' && window.localStorage.getItem(INSTALL_INTEREST_KEY) === 'true'
   ))
@@ -265,8 +270,8 @@ export default function App() {
 
   // Auto-open team invite popup anywhere in-app
   useEffect(() => {
-    if (pendingInvites.length > 0) setShowInvites(true)
-  }, [pendingInvites])
+    if (pendingInvites.length > 0 && screen !== 'home') setShowInvites(true)
+  }, [pendingInvites, screen])
 
   useEffect(() => {
     if (!user?.uid) return
@@ -341,7 +346,7 @@ export default function App() {
     return () => window.clearTimeout(timeout)
   }, [streakNotice])
 
-  const sport = gameConfig?.sport || selectedSport
+  const sport = screen === 'home' ? selectedSport : gameConfig?.sport || selectedSport
   const isBasketball = sport === 'basketball'
   const accent = isBasketball ? '#FF6B35' : '#00FF87'
   const themeVars = isBasketball
@@ -360,12 +365,12 @@ export default function App() {
         '--accent': '#00FF87',
         '--green': '#00FF87',
         '--green-dark': '#00C96B',
-        '--pitch': '#0a1f0f',
-        '--pitch-mid': '#0f2d18',
-        '--pitch-light': '#1a3d24',
+        '--pitch': '#08180d',
+        '--pitch-mid': '#0f2518',
+        '--pitch-light': '#1a3a24',
         '--card-bg': 'rgba(255,255,255,0.04)',
         '--card-border': 'rgba(255,255,255,0.08)',
-        '--muted': 'rgba(245,245,240,0.5)',
+        '--muted': 'rgba(230,240,232,0.45)',
       }
 
   function handleAuthSuccess(firebaseUser, status) {
@@ -434,37 +439,63 @@ export default function App() {
     }
   }
 
-  function handleStartSolo({ name, rounds, sport }) {
+  function recordMode(mode) {
+    if (!user?.uid) return
+    recordModePlayed(user.uid, mode).catch((error) => {
+      console.error('Failed to record mode count:', error)
+    })
+  }
+
+  function rememberModeReturnTab(returnTab = 'home') {
+    setModeReturnTab(returnTab || 'home')
+  }
+
+  function returnToMainTab(tab = modeReturnTab) {
+    setMainInitialTab(tab || 'home')
+    setScreen('home')
+  }
+
+  function handleStartSolo({ name, rounds, sport, returnTab = 'home' }) {
+    rememberModeReturnTab(returnTab)
+    recordMode('solo')
     launchGame({ mode: 'solo', players: [name], rounds, sport })
   }
 
-  function handleStartOnline({ sport, rounds }) {
+  function handleStartOnline({ sport, rounds, returnTab = 'home' }) {
     if (!user) { setShowAuth(true); return }
     if (!user.emailVerified) { setShowVerify(true); return }
+    rememberModeReturnTab(returnTab)
+    recordMode('online')
     setSelectedSport(sport)
     setGameConfig({ sport, rounds })
     setScreen('online')
   }
 
-  function handleStartTeam({ sport }) {
+  function handleStartTeam({ sport, returnTab = 'home' }) {
     if (!user) { setShowAuth(true); return }
     if (!user.emailVerified) { setShowVerify(true); return }
+    rememberModeReturnTab(returnTab)
+    recordMode('team')
     setSelectedSport(sport)
     setTeamConfig({ sport, rounds: TEAM_ROUNDS })
     setScreen('teamOnline')
   }
 
-  function handleStartLightning({ sport }) {
+  function handleStartLightning({ sport, returnTab = 'home' }) {
     if (!user) { setShowAuth(true); return }
     if (!user.emailVerified) { setShowVerify(true); return }
+    rememberModeReturnTab(returnTab)
+    recordMode('lightning')
     setSelectedSport(sport)
     setScreen('lightningModes')
   }
 
   // FIX: added async
-  function handleStartTournament() {
+  function handleStartTournament({ returnTab = 'home' } = {}) {
     if (!user) { setShowAuth(true); return }
     if (!user.emailVerified) { setShowVerify(true); return }
+    rememberModeReturnTab(returnTab)
+    recordMode('tournament')
     setScreen('tournament')
   }
 
@@ -518,6 +549,7 @@ export default function App() {
   async function handleStartLightningSolo({ sport }) {
     if (!user) { setShowAuth(true); return }
     if (!user.emailVerified) { setShowVerify(true); return }
+    recordMode('lightning_solo')
     setSelectedSport(sport)
     setLightningSoloConfig({ sport, mode: 'solo' })
     setLightningSoloHistory([])
@@ -538,6 +570,7 @@ export default function App() {
   async function handleStartLightningH2H({ sport, opponentPlayerId }) {
     if (!user) { setShowAuth(true); return }
     if (!user.emailVerified) { setShowVerify(true); return }
+    recordMode('lightning_h2h')
     setSelectedSport(sport)
     setLightningH2HConfig({ sport, mode: 'h2h', wager: LIGHTNING_H2H_WAGER })
     const targetPlayerId = opponentPlayerId.trim().toUpperCase()
@@ -614,9 +647,12 @@ export default function App() {
     questions,
     coinMultiplier = 1,
     entryFee = 0,
+    returnTab = 'home',
   }) {
     if (!user) { setShowAuth(true); return }
     if (!user.emailVerified) { setShowVerify(true); return }
+    rememberModeReturnTab(returnTab)
+    recordMode('seasonal')
 
     const eventQuestions = Array.isArray(questions) && questions.length > 0
       ? questions
@@ -718,6 +754,7 @@ export default function App() {
 
   async function handleAcceptLightningInvite(invite) {
     try {
+      recordMode('lightning_h2h')
       const sport = invite.sport
       const stake = await spendCoins({
         userId: user.uid,
@@ -785,6 +822,7 @@ export default function App() {
         sport: lightningSoloConfig.sport,
         playerId,
         displayName,
+        avatar: getPlayerAvatar(user, prof),
         score: scores[0],
         totalQuestions,
         totalTimeMs,
@@ -848,6 +886,7 @@ export default function App() {
         sport: lightningH2HConfig.sport,
         playerId,
         displayName,
+        avatar: getPlayerAvatar(user, prof),
         score: scores[0],
         totalQuestions,
         totalTimeMs,
@@ -888,9 +927,11 @@ export default function App() {
   }
 
   // FIX: was missing async
-  async function handleStartDaily({ sport }) {
+  async function handleStartDaily({ sport, returnTab = 'home' }) {
     if (!user) { setShowAuth(true); return }
     if (!user.emailVerified) { setShowVerify(true); return }
+    rememberModeReturnTab(returnTab)
+    recordMode('daily')
 
     let challenge
     try {
@@ -1004,6 +1045,7 @@ export default function App() {
         sport: gameConfig.sport,
         playerId: nextProfile.id,
         displayName: nextProfile.displayName,
+        avatar: getPlayerAvatar(user, nextProfile),
         score: finalScores[0],
         totalQuestions: totalQuestions ?? questions.length,
         totalTimeMs: totalTimeMs ?? 0,
@@ -1020,6 +1062,24 @@ export default function App() {
   function handleViewDailyLeaderboard(nextSport = selectedSport) {
     setSelectedSport(nextSport)
     setScreen('dailyLeaderboard')
+  }
+
+  async function handleAcceptOnlineInvite() {
+    if (!pendingOnlineInvite) return
+    const prof = loadProfile()
+    const inviteData = pendingOnlineInvite
+    setSelectedSport(inviteData.sport)
+    setGameConfig({ sport: inviteData.sport, rounds: inviteData.rounds })
+    await clearOnlineInvite(prof?.playerId)
+    setScreen('online')
+    setPendingOnlineInvite(null)
+    setIncomingInviteForAccept(inviteData)
+  }
+
+  async function handleDeclineOnlineInvite() {
+    const prof = loadProfile()
+    await clearOnlineInvite(prof?.playerId)
+    setPendingOnlineInvite(null)
   }
 
   function handleInviteAccepted({ roomCode, teamId, sport }) {
@@ -1073,8 +1133,8 @@ export default function App() {
         minHeight: '100vh',
         background: 'var(--pitch)',
         backgroundImage: isBasketball
-          ? 'radial-gradient(circle at top, rgba(255,107,53,0.18), transparent 38%), linear-gradient(180deg, var(--pitch-mid), var(--pitch))'
-          : 'repeating-linear-gradient(0deg, transparent, transparent 60px, rgba(255,255,255,0.015) 60px, rgba(255,255,255,0.015) 61px), repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(255,255,255,0.015) 60px, rgba(255,255,255,0.015) 61px)',
+          ? 'radial-gradient(circle at 50% 0%, rgba(255,107,53,0.18), transparent 36%), linear-gradient(180deg, var(--pitch-mid), var(--pitch) 42%)'
+          : 'radial-gradient(circle at 50% 0%, rgba(0,255,135,0.13), transparent 36%), linear-gradient(180deg, var(--pitch-mid), var(--pitch) 42%)',
         ...themeVars,
       }}
     >
@@ -1088,7 +1148,7 @@ export default function App() {
         </div>
       )}
 
-      {pendingInvites.length > 0 && !showInvites && (
+      {pendingInvites.length > 0 && !showInvites && screen !== 'home' && (
         <button
           onClick={() => setShowInvites(true)}
           style={{
@@ -1102,7 +1162,7 @@ export default function App() {
         </button>
       )}
 
-      {pendingOnlineInvite && (
+      {pendingOnlineInvite && screen !== 'home' && (
         <div style={{
           position: 'fixed', top: 60, left: '50%', transform: 'translateX(-50%)',
           background: '#0f2d18', border: '1px solid rgba(0,255,135,0.2)',
@@ -1153,7 +1213,7 @@ export default function App() {
         </div>
       )}
 
-      {pendingLightningInvite && (
+      {pendingLightningInvite && screen !== 'home' && (
         <div style={{
           position: 'fixed', top: 120, left: '50%', transform: 'translateX(-50%)',
           background: isBasketball ? 'rgba(255,107,53,0.95)' : '#0f2d18',
@@ -1197,41 +1257,67 @@ export default function App() {
       {screen === 'landing' && !showAuthCallback && <Landing onPlay={() => setShowAuth(true)} />}
 
       {screen === 'home' && (
-        <Home
+        <MainShell
+          initialTab={mainInitialTab}
           sport={selectedSport}
           onSportChange={setSelectedSport}
+          user={user}
+          profile={profileState || profile}
+          coinBalance={coinBalance}
+          dailyPlayed={dailyPlayed}
+          pendingOnlineInvite={pendingOnlineInvite}
+          pendingInvites={pendingInvites}
+          pendingLightningInvite={pendingLightningInvite}
+          streakNotice={streakNotice}
           onStartSolo={handleStartSolo}
           onStartOnline={handleStartOnline}
           onStartTeam={handleStartTeam}
           onStartDaily={handleStartDaily}
           onStartTournament={handleStartTournament}
           onStartLightning={handleStartLightning}
-          onViewDailyLeaderboard={handleViewDailyLeaderboard}
+          onStartLightningH2H={handleStartLightningH2H}
           onStartSeasonalEvent={handleStartSeasonalEvent}
-          profile={profileState || profile}
-          user={user}
-          onViewProfile={() => setScreen('profile')}
+          onAcceptOnlineInvite={handleAcceptOnlineInvite}
+          onDeclineOnlineInvite={handleDeclineOnlineInvite}
+          onAcceptTeamInvite={handleInviteAccepted}
+          onDeclineTeamInvite={() => {}}
+          onAcceptLightningInvite={() => pendingLightningInvite && handleAcceptLightningInvite(pendingLightningInvite)}
+          onDeclineLightningInvite={handleDeclineLightningInvite}
           onAdmin={() => setScreen('admin')}
-          dailyPlayed={dailyPlayed}
-          coinBalance={coinBalance}
+          onEditProfile={() => {
+            setMainInitialTab('profile')
+            setScreen('profile')
+          }}
+          onUsernameUpdated={(newName) => setUser({ ...user, displayName: newName })}
+          onProfileUpdated={handleProfileUpdated}
+          onLogout={handleLogout}
+          isAdmin={user?.uid === ADMIN_UID}
         />
       )}
 
       {screen === 'admin' && (
         <Admin
           user={user}
-          onBack={() => setScreen('home')}
+          onBack={() => {
+            setMainInitialTab('profile')
+            setScreen('home')
+          }}
         />
       )}
 
       {screen === 'profile' && user && (
         <Profile
           user={user}
-          onBack={() => setScreen('home')}
+          onBack={() => {
+            setMainInitialTab('profile')
+            setScreen('home')
+          }}
           onUsernameUpdated={(newName) => setUser({ ...user, displayName: newName })}
           onProfileUpdated={handleProfileUpdated}
           onLogout={handleLogout}
           coinBalance={coinBalance}
+          onAdmin={() => setScreen('admin')}
+          isAdmin={user?.uid === ADMIN_UID}
         />
       )}
 
@@ -1240,7 +1326,7 @@ export default function App() {
           key={user?.uid || 'guest'}
           sport={gameConfig?.sport || 'football'}
           rounds={gameConfig?.rounds || 5}
-          onBack={() => setScreen('home')}
+          onBack={() => returnToMainTab()}
           user={user}
           pendingInvite={incomingInviteForAccept}
           onInviteHandled={() => {
@@ -1260,7 +1346,7 @@ export default function App() {
           rounds={teamConfig?.rounds || TEAM_ROUNDS}
           initialJoinCode={teamConfig?.joinCode || null}
           initialJoinTeamId={teamConfig?.joinTeamId || null}
-          onBack={() => setScreen('home')}
+          onBack={() => returnToMainTab()}
           user={user}
           coinBalance={coinBalance}
         />
@@ -1270,14 +1356,14 @@ export default function App() {
         <DailyLeaderboard
           sport={selectedSport}
           highlightPlayerId={profile?.id}
-          onBack={() => setScreen('home')}
+          onBack={() => returnToMainTab()}
         />
       )}
 
       {screen === 'lightningModes' && (
         <LightningModes
           sport={selectedSport}
-          onBack={() => setScreen('home')}
+          onBack={() => returnToMainTab()}
           onStartSolo={handleStartLightningSolo}
           onStartH2H={handleStartLightningH2H}
           onViewLeaderboard={handleViewLightningLeaderboard}
@@ -1290,7 +1376,7 @@ export default function App() {
             user={user}
             onBack={() => {
               setActiveTournamentCode(null)
-              setScreen('home')
+              returnToMainTab()
             }}
             onPlayMatch={handleTournamentMatch}
             initialCode={activeTournamentCode}

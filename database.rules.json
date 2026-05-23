@@ -50,6 +50,13 @@
           }
         },
 
+        "modeCounts": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463')",
+          "$modeId": {
+            ".validate": "!newData.exists() || newData.hasChildren(['count', 'lastPlayedAt'])"
+          }
+        },
+
         "notifications": {
           ".write": "auth != null && (auth.uid === $uid || auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463')",
           "streakReminder": {

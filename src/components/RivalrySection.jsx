@@ -91,14 +91,15 @@ function RivalryCard({ rivalry, accent = '#00FF87' }) {
 
   return (
     <div style={{
-      background: 'var(--card-bg, rgba(255,255,255,0.04))',
+      background: 'rgba(255,255,255,0.035)',
       border: '1px solid var(--card-border, rgba(255,255,255,0.08))',
-      borderRadius: 12,
-      padding: '14px 16px',
+      borderRadius: 14,
+      padding: 13,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: 12,
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
     }}>
       {/* Left — name + record */}
       <div style={{ minWidth: 0 }}>
@@ -115,8 +116,8 @@ function RivalryCard({ rivalry, accent = '#00FF87' }) {
           )}
           <span style={{
             color: '#f5f5f0',
-            fontWeight: 700,
-            fontSize: 14,
+            fontWeight: 900,
+            fontSize: 15,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
@@ -126,7 +127,7 @@ function RivalryCard({ rivalry, accent = '#00FF87' }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* W - L record */}
-          <span style={{ fontSize: 13, fontWeight: 700 }}>
+          <span style={{ fontSize: 13, fontWeight: 900 }}>
             <span style={{ color: '#00FF87' }}>{wins}W</span>
             <span style={{ color: 'rgba(245,245,240,0.3)', margin: '0 3px' }}>–</span>
             <span style={{ color: '#FF5C5C' }}>{losses}L</span>
@@ -154,7 +155,7 @@ function RivalryCard({ rivalry, accent = '#00FF87' }) {
         borderRadius: 20,
         padding: '4px 10px',
         fontSize: 11,
-        fontWeight: 700,
+        fontWeight: 900,
         color: statusColor,
         whiteSpace: 'nowrap',
         flexShrink: 0,
@@ -175,18 +176,21 @@ export function RivalrySection({ rivalries = [], accent = '#00FF87' }) {
   if (!rivalries.length) {
     return (
       <section style={{
-        background: 'var(--card-bg, rgba(255,255,255,0.04))',
+        background: 'rgba(255,255,255,0.045)',
         border: '1px solid var(--card-border, rgba(255,255,255,0.08))',
         borderRadius: 16,
-        padding: '20px 20px',
-        marginBottom: 16,
+        padding: 16,
+        marginBottom: 18,
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+        backdropFilter: 'blur(18px)',
       }}>
         <h2 style={{
-          fontSize: 16,
-          fontWeight: 800,
-          color: '#f5f5f0',
+          fontSize: 11,
+          fontWeight: 900,
+          color: 'var(--muted, rgba(230,240,232,0.45))',
           marginBottom: 12,
-          letterSpacing: '-0.01em',
+          letterSpacing: '0.16em',
+          textTransform: 'uppercase',
         }}>
           ⚔️ Rivalries
         </h2>
@@ -203,18 +207,21 @@ export function RivalrySection({ rivalries = [], accent = '#00FF87' }) {
 
   return (
     <section style={{
-      background: 'var(--card-bg, rgba(255,255,255,0.04))',
+      background: 'rgba(255,255,255,0.045)',
       border: '1px solid var(--card-border, rgba(255,255,255,0.08))',
       borderRadius: 16,
-      padding: '20px 20px',
-      marginBottom: 16,
+      padding: 16,
+      marginBottom: 18,
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+      backdropFilter: 'blur(18px)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <h2 style={{
-          fontSize: 16,
-          fontWeight: 800,
-          color: '#f5f5f0',
-          letterSpacing: '-0.01em',
+          fontSize: 11,
+          fontWeight: 900,
+          color: 'var(--muted, rgba(230,240,232,0.45))',
+          letterSpacing: '0.16em',
+          textTransform: 'uppercase',
           margin: 0,
         }}>
           ⚔️ Rivalries

@@ -1,15 +1,20 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
+  --accent: #00FF87;
   --green: #00FF87;
   --green-dark: #00C96B;
-  --pitch: #0a1f0f;
-  --pitch-mid: #0f2d18;
-  --pitch-light: #1a3d24;
+  --pitch: #08180d;
+  --pitch-mid: #0f2518;
+  --pitch-light: #1a3a24;
   --white: #f5f5f0;
-  --muted: rgba(245,245,240,0.5);
+  --muted: rgba(230,240,232,0.45);
   --card-bg: rgba(255,255,255,0.04);
   --card-border: rgba(255,255,255,0.08);
+  --surface-1: rgba(255,255,255,0.03);
+  --surface-2: rgba(255,255,255,0.05);
+  --surface-accent: rgba(0,255,135,0.1);
+  --border-accent: rgba(0,255,135,0.28);
   --radius: 12px;
   --font-display: 'Bebas Neue', sans-serif;
   --font-body: 'DM Sans', sans-serif;
@@ -22,24 +27,14 @@ body {
   color: var(--white);
   font-family: var(--font-body);
   min-height: 100vh;
-  background-image:
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 60px,
-      rgba(255,255,255,0.015) 60px,
-      rgba(255,255,255,0.015) 61px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      transparent,
-      transparent 60px,
-      rgba(255,255,255,0.015) 60px,
-      rgba(255,255,255,0.015) 61px
-    );
 }
 
-button { font-family: var(--font-body); cursor: pointer; border: none; background: none; }
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+  border: none;
+  background: none;
+}
 input { font-family: var(--font-body); }
 
 /* Prevent tap highlight on mobile */

@@ -5,6 +5,7 @@ import {
   saveSeasonalLeaderboardEntry,
   listenToSeasonalLeaderboard,
 } from '../lib/seasonalEvents'
+import { getPlayerAvatar } from '../lib/avatars'
 
 function formatTime(totalTimeMs) {
   if (!totalTimeMs && totalTimeMs !== 0) return '--'
@@ -76,6 +77,7 @@ export default function SeasonalResults({
         eventId,
         playerId: user.uid,
         displayName: displayName.trim(),
+        avatar: getPlayerAvatar(user, profile),
         score: scores[0],
         totalQuestions,
         totalTimeMs,

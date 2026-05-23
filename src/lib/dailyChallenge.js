@@ -260,6 +260,8 @@ export async function saveDailyLeaderboardEntry({
   sport,
   playerId,
   displayName,
+  avatar = null,
+  photoURL = null,
   score,
   totalQuestions,
   totalTimeMs,
@@ -271,6 +273,8 @@ export async function saveDailyLeaderboardEntry({
   const nextEntry = {
     playerId,
     displayName,
+    avatar: avatar || photoURL || null,
+    photoURL: photoURL || avatar || null,
     score,
     totalQuestions,
     totalTimeMs,
@@ -288,7 +292,13 @@ export async function saveDailyLeaderboardEntry({
 
     finalEntry = isBetterScore || isBetterTime
       ? { ...current, ...nextEntry }
-      : { ...current, displayName, updatedAt: Date.now() }
+      : {
+          ...current,
+          displayName,
+          avatar: avatar || photoURL || current.avatar || current.photoURL || null,
+          photoURL: photoURL || avatar || current.photoURL || current.avatar || null,
+          updatedAt: Date.now(),
+        }
   }
 
   await set(entryRef, finalEntry)
@@ -301,6 +311,8 @@ export async function saveDailyLeaderboardEntry({
     sport,
     playerId,
     displayName,
+    avatar: avatar || photoURL || null,
+    photoURL: photoURL || avatar || null,
     score,
     totalQuestions,
     totalTimeMs,
@@ -326,6 +338,8 @@ export async function saveWeeklyLeaderboardEntry({
   sport,
   playerId,
   displayName,
+  avatar = null,
+  photoURL = null,
   score,
   totalQuestions,
   totalTimeMs,
@@ -343,6 +357,8 @@ export async function saveWeeklyLeaderboardEntry({
     await set(entryRef, {
       playerId,
       displayName,
+      avatar: avatar || photoURL || null,
+      photoURL: photoURL || avatar || null,
       score: safeScore,
       totalQuestions: safeTotalQuestions,
       totalTimeMs: safeTotalTimeMs,
@@ -361,6 +377,8 @@ export async function saveWeeklyLeaderboardEntry({
     await set(entryRef, {
       ...current,
       displayName,
+      avatar: avatar || photoURL || current.avatar || current.photoURL || null,
+      photoURL: photoURL || avatar || current.photoURL || current.avatar || null,
       score: newScore,
       totalQuestions: newTotalQuestions,
       totalTimeMs: newTotalTimeMs,

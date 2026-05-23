@@ -39,6 +39,8 @@ export function saveLightningScore({
   sport,
   playerId,
   displayName,
+  avatar = null,
+  photoURL = null,
   score,
   totalQuestions,
   totalTimeMs,
@@ -50,6 +52,8 @@ export function saveLightningScore({
 
   return set(ref(db, path), {
     displayName,
+    avatar: avatar || photoURL || null,
+    photoURL: photoURL || avatar || null,
     score,
     totalQuestions,
     totalTimeMs,

@@ -127,7 +127,7 @@ Trivela lets players test their sports knowledge in solo quizzes, daily challeng
 - Online 1v1 invite notifications
 - Lightning duel invite notifications
 - Team invite notifications
-- Device subscription repair flow for stale or broken push subscriptions
+- Device subscription repair flow for stale or broaken push subscriptions
 - Automatic cleanup of expired push subscriptions
 
 ### PWA Support

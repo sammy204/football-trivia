@@ -35,10 +35,22 @@ export function listenToLightningLeaderboard(
   return () => off(refs)
 }
 
-export function saveLightningScore({ sport, playerId, displayName, score, totalQuestions, totalTimeMs, correctAnswers }) {
+export function saveLightningScore({
+  sport,
+  playerId,
+  displayName,
+  avatar = null,
+  photoURL = null,
+  score,
+  totalQuestions,
+  totalTimeMs,
+  correctAnswers,
+}) {
   const path = `${LIGHTNING_LEADERBOARD_PATH}/${sport}/${playerId}`
   return set(ref(db, path), {
     displayName,
+    avatar: avatar || photoURL || null,
+    photoURL: photoURL || avatar || null,
     score,
     totalQuestions,
     totalTimeMs,
@@ -46,4 +58,3 @@ export function saveLightningScore({ sport, playerId, displayName, score, totalQ
     timestamp: Date.now(),
   })
 }
-

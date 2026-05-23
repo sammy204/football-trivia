@@ -1,5 +1,5 @@
 .wrap {
-  max-width: 520px;
+  width: min(100%, 430px);
   margin: 0 auto;
   padding: 2rem 1.25rem 4rem;
 }
@@ -407,6 +407,121 @@ button.avatarImg {
   gap: 10px;
 }
 
+.monthSelect {
+  width: 100%;
+  min-height: 42px;
+  margin-bottom: 10px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: rgba(255,255,255,0.045);
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 700;
+  outline: none;
+}
+
+.monthSelect:focus {
+  border-color: color-mix(in srgb, var(--green) 36%, transparent);
+}
+
+.monthSelect option {
+  background: var(--pitch-mid);
+  color: var(--white);
+}
+
+.calendarToggle {
+  width: 100%;
+  min-height: 38px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: rgba(255,255,255,0.035);
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.calendarWrap {
+  margin-bottom: 14px;
+}
+
+.calendarHeader,
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.calendarHeader {
+  margin-bottom: 6px;
+}
+
+.calendarHeader div {
+  padding: 4px 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.dayButton {
+  min-width: 0;
+  min-height: 30px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(245,245,240,0.3);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.dayButton.hasMatch {
+  border-color: color-mix(in srgb, var(--green) 28%, transparent);
+  background: color-mix(in srgb, var(--green) 11%, transparent);
+  color: var(--green);
+  cursor: pointer;
+}
+
+.dayButton.selectedDay {
+  border-color: var(--green);
+  background: var(--green);
+  color: var(--pitch);
+}
+
+.dayButton:disabled {
+  cursor: default;
+}
+
+.clearDayButton {
+  margin-top: 10px;
+  padding: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.emptyMatches {
+  padding: 14px 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.moreMatchesBtn {
+  width: 100%;
+  margin-top: 12px;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: rgba(255,255,255,0.04);
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .matchItem {
   padding: 12px;
   border-radius: 10px;
@@ -449,16 +564,41 @@ button.avatarImg {
   line-height: 1.6;
 }
 
-/* ── Logout Section ── */
+/* -- Logout Section -- */
 .logoutSection {
   margin-top: 2rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--card-border);
   display: flex;
+  flex-direction: column;
+  gap: 12px;
   justify-content: center;
 }
 
+.adminBtn {
+  width: 100%;
+  background: var(--green);
+  color: var(--pitch);
+  border: 1px solid var(--green);
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.1s;
+}
+
+.adminBtn:hover {
+  background: var(--green-dark);
+  border-color: var(--green-dark);
+}
+
+.adminBtn:active {
+  transform: scale(0.98);
+}
+
 .logoutBtn {
+  width: 100%;
   background: transparent;
   color: var(--muted);
   border: 1px solid var(--card-border);
@@ -486,7 +626,7 @@ button.avatarImg {
   }
 }
 
-/* ── Player ID Badge ── */
+/* -- Player ID Badge -- */
 .playerIdRow {
   display: inline-flex;
   align-items: center;
@@ -539,7 +679,7 @@ button.avatarImg {
 
 @media (min-width: 768px) {
   .wrap {
-    max-width: 600px;
+    width: min(100%, 430px);
     padding: 3rem 1.5rem 4rem;
   }
 

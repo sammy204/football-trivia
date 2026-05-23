@@ -269,6 +269,8 @@ export async function saveSeasonalLeaderboardEntry({
   eventId,
   playerId,
   displayName,
+  avatar = null,
+  photoURL = null,
   score,
   totalQuestions,
   totalTimeMs,
@@ -282,6 +284,8 @@ export async function saveSeasonalLeaderboardEntry({
     await set(entryRef, {
       playerId,
       displayName,
+      avatar: avatar || photoURL || null,
+      photoURL: photoURL || avatar || null,
       totalScore: score,
       bestScore: score,
       gamesPlayed: 1,
@@ -302,6 +306,8 @@ export async function saveSeasonalLeaderboardEntry({
     await set(entryRef, {
       ...current,
       displayName,
+      avatar: avatar || photoURL || current.avatar || current.photoURL || null,
+      photoURL: photoURL || avatar || current.photoURL || current.avatar || null,
       totalScore: newTotalScore,
       bestScore: newBestScore,
       gamesPlayed: newGamesPlayed,
