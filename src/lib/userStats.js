@@ -44,6 +44,8 @@ await update(ref(db, `users/${userId}/stats`), { winStreak })
     updatedAt: new Date().toISOString(),
   })
 
+  await syncPublicProfile(userId, username)
+
   return result
 }
 
@@ -91,7 +93,37 @@ export async function saveTeamMatchResult({ userId, username, sport, teamName, t
     updatedAt: new Date().toISOString(),
   })
 
+  await syncPublicProfile(userId, username)
+
   return result
+}
+
+export async function syncPublicProfile(userId, username = 'Player') {
+  if (!userId) return
+
+  const [playerIdSnap, statsSnap, matchesSnap, profileSnap] = await Promise.all([
+    get(ref(db, `users/${userId}/playerId`)),
+    get(ref(db, `users/${userId}/stats`)),
+    get(ref(db, `users/${userId}/matches`)),
+    get(ref(db, `users/${userId}/profile`)),
+  ])
+
+  const playerId = playerIdSnap.val()
+  if (!playerId) return
+
+  const stats = statsSnap.val() || {}
+  const matches = matchesSnap.val() ? Object.values(matchesSnap.val()) : []
+  const recentForm = buildFormBadge(matches, 5)
+    .map(result => (result === 'win' ? 'W' : result === 'loss' ? 'L' : 'D'))
+    .join('')
+
+  await update(ref(db, `publicProfiles/${playerId}`), {
+    playerId,
+    displayName: profileSnap.val()?.displayName || profileSnap.val()?.username || username || 'Player',
+    winStreak: Number(stats.winStreak) || calculateWinStreak(matches),
+    recentForm,
+    updatedAt: new Date().toISOString(),
+  })
 }
 
 export async function getUserStats(userId) {
@@ -150,14 +182,14 @@ export function getRivalries(matches, limit = 5) {
 }
  
 /**
- * getFormBadge
+ * buildFormBadge
  * Returns the last N results as an array of 'win' | 'loss' | 'draw' strings,
  * most recent first, for rendering as colored dots.
  *
- * Usage:  getFormBadge(matches, 5)
+ * Usage:  buildFormBadge(matches, 5)
  * Returns: ['win', 'loss', 'win', 'win', 'draw']
  */
-export function getFormBadge(matches, count = 5) {
+export function buildFormBadge(matches, count = 5) {
   if (!matches || matches.length === 0) return []
 
   return [...matches]
@@ -167,13 +199,15 @@ export function getFormBadge(matches, count = 5) {
     .map(m => m.result || 'draw')
 }
 
+export const getFormBadge = buildFormBadge
+
 export async function getOpponentForm(opponentUid, count = 5) {
   if (!opponentUid) return []
   try {
     const snap = await get(ref(db, `users/${opponentUid}/matches`))
     if (!snap.val()) return []
     const matches = Object.values(snap.val())
-    return getFormBadge(matches, count)
+    return buildFormBadge(matches, count)
   } catch {
     return []
   }

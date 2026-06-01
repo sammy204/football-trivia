@@ -10,8 +10,43 @@ import {
   recordMatchWinner,
   setMatchActive,
 } from "../lib/tournament";
+import styles from './LightningModes.module.css';
+import { recordGameplayActivity } from '../lib/streaks'
 
-export default function Tournament({ user, onBack, onPlayMatch, initialCode }) {
+const MIN_START_PLAYERS = 2
+
+const TOURNAMENT_FORMATS = {
+  standard: {
+    key: 'standard',
+    label: 'Standard Bracket',
+    eyebrow: 'Classic Tournament',
+    title: 'Bracket battle',
+    sub: 'Create, join, or browse a single-elimination tournament.',
+    icon: '🏆',
+    accent: 'var(--green)',
+  },
+  commonLink: {
+    key: 'commonLink',
+    label: 'Common Link Cup',
+    eyebrow: 'Puzzle Tournament',
+    title: 'Find the link',
+    sub: 'Turn Common Link into a competitive cup format.',
+    icon: '🔗',
+    accent: 'var(--green)',
+  },
+  lightning: {
+    key: 'lightning',
+    label: 'Lightning Cup',
+    eyebrow: 'Speed Tournament',
+    title: 'Fast and fierce',
+    sub: 'Build a rapid-fire bracket around lightning matches.',
+    icon: '⚡',
+    accent: 'var(--green)',
+  },
+}
+
+export default function Tournament({ user, sport: sportProp = "football", onSportChange, onBack, onPlayMatch, initialCode }) {
+  const [step, setStep] = useState(initialCode ? "live" : "sportSelect");
   const [view, setView] = useState(initialCode ? "bracket" : "hub");
   const [tournament, setTournament] = useState(null);
   const [tournamentCode, setTournamentCode] = useState(initialCode || "");
@@ -22,7 +57,8 @@ export default function Tournament({ user, onBack, onPlayMatch, initialCode }) {
 
   const [form, setForm] = useState({
     name: "",
-    sport: "football",
+    sport: sportProp,
+    format: "standard",
     visibility: "private",
     maxPlayers: 8,
     startDate: "",
@@ -31,11 +67,87 @@ export default function Tournament({ user, onBack, onPlayMatch, initialCode }) {
 
   const [joinCode, setJoinCode] = useState("");
 
+  const activeFormat = TOURNAMENT_FORMATS[form.format] || TOURNAMENT_FORMATS.standard
+  const sportLabel = form.sport === 'football' ? 'Football' : 'Basketball'
+
+  const heroMeta = (() => {
+    if (step === 'sportSelect') {
+      return {
+        eyebrow: 'Tournament Hub',
+        title: 'Pick a sport',
+        sub: 'Choose the theme before selecting your tournament style.',
+      }
+    }
+
+    if (step === 'formatSelect') {
+      return {
+        eyebrow: 'Tournament Type',
+        title: `${sportLabel} tournaments`,
+        sub: 'Choose the kind of competition you want to run.',
+      }
+    }
+
+    if (view === 'create') {
+      return {
+        eyebrow: activeFormat.eyebrow,
+        title: `Create ${activeFormat.label}`,
+        sub: activeFormat.sub,
+      }
+    }
+
+    if (view === 'join') {
+      return {
+        eyebrow: activeFormat.eyebrow,
+        title: `Join ${activeFormat.label}`,
+        sub: 'Use the 6-character code your host shared.',
+      }
+    }
+
+    if (view === 'browse') {
+      return {
+        eyebrow: activeFormat.eyebrow,
+        title: `${activeFormat.label} browser`,
+        sub: 'Browse live public tournaments that are still waiting for players.',
+      }
+    }
+
+    if (view === 'lobby' && tournament) {
+      return {
+        eyebrow: 'Lobby',
+        title: tournament.name || 'Tournament lobby',
+        sub: 'Share the code, fill the bracket, then start the matchups.',
+      }
+    }
+
+    if (view === 'bracket' && tournament) {
+      return {
+        eyebrow: tournament.status === 'complete' ? 'Final Result' : 'Live Bracket',
+        title: tournament.name || 'Tournament bracket',
+        sub: tournament.status === 'complete'
+          ? 'The champion is crowned below.'
+          : 'Tap your glowing match card when it is ready.',
+      }
+    }
+
+    return {
+      eyebrow: activeFormat.eyebrow,
+      title: activeFormat.title,
+      sub: activeFormat.sub,
+    }
+  })()
+
   const subscribeTo = useCallback((code) => {
     if (unsubRef.current) unsubRef.current();
     const unsub = subscribeTournament(code, (data) => {
       if (data) {
         setTournament(data);
+        if (data.sport) {
+          setForm((current) => (current.sport === data.sport ? current : { ...current, sport: data.sport }));
+          onSportChange?.(data.sport);
+        }
+        if (data.format) {
+          setForm((current) => (current.format === data.format ? current : { ...current, format: data.format }));
+        }
         setView((currentView) => {
           if (
             currentView !== "hub" &&
@@ -65,6 +177,32 @@ export default function Tournament({ user, onBack, onPlayMatch, initialCode }) {
     subscribeTo(initialCode);
   }, [initialCode, subscribeTo]);
 
+  useEffect(() => {
+    if (initialCode) return;
+    setForm((current) => (current.sport === sportProp ? current : { ...current, sport: sportProp }));
+  }, [initialCode, sportProp]);
+
+  useEffect(() => {
+    if (step !== 'live') return;
+    if (tournament?.sport && tournament.sport !== form.sport) {
+      setForm((current) => ({ ...current, sport: tournament.sport }));
+      onSportChange?.(tournament.sport);
+    }
+  }, [step, tournament?.sport]);
+
+  function selectSport(nextSport) {
+    setForm((current) => ({ ...current, sport: nextSport }));
+    onSportChange?.(nextSport);
+    setStep('formatSelect');
+    setView('hub');
+  }
+
+  function selectFormat(nextFormat) {
+    setForm((current) => ({ ...current, format: nextFormat }));
+    setStep('live');
+    setView('hub');
+  }
+
   async function handleCreate() {
     setError("");
     if (!form.name.trim()) return setError("Please enter a tournament name.");
@@ -80,6 +218,7 @@ export default function Tournament({ user, onBack, onPlayMatch, initialCode }) {
         hostName: user.displayName || "Host",
         name: form.name.trim(),
         sport: form.sport,
+        format: form.format,
         visibility: form.visibility,
         maxPlayers: Number(form.maxPlayers),
         startTime,
@@ -151,8 +290,18 @@ export default function Tournament({ user, onBack, onPlayMatch, initialCode }) {
   }
 
   function handleBack() {
-    if (view === "hub") {
+    if (step === 'sportSelect') {
       onBack();
+      return;
+    }
+
+    if (step === 'formatSelect') {
+      setStep('sportSelect');
+      return;
+    }
+
+    if (view === "hub") {
+      setStep('formatSelect');
     } else {
       setView("hub");
       setError("");
@@ -160,33 +309,49 @@ export default function Tournament({ user, onBack, onPlayMatch, initialCode }) {
   }
 
   return (
-    <div style={s.page}>
-      <style>{css}</style>
+    <div className={styles.wrap}>
 
-      {/* Header */}
-      <div style={s.header}>
-        <button style={s.backBtn} onClick={handleBack}>
-          Back
-        </button>
-        <div style={s.headerTitle}>
-          {view === "hub" && "Tournaments"}
-          {view === "create" && "Create"}
-          {view === "join" && "Join"}
-          {view === "browse" && "Browse"}
-          {view === "lobby" && (tournament?.name || "Lobby")}
-          {view === "bracket" && (tournament?.name || "Bracket")}
-        </div>
-        <div style={{ width: 60 }} />
+      {/* Back button — hidden on hub (HubView renders its own) */}
+      <div style={s.topBar}>
+        <button className={styles.backBtn} onClick={handleBack}>Back</button>
       </div>
 
-      {error && <div style={s.errorBanner}>⚠ {error}</div>}
+      {/* Error banner */}
+      {error && <p className={styles.error}>⚠ {error}</p>}
 
-      {view === "hub" && (
+      <div style={s.heroCard}>
+        <p className={styles.kicker} style={{ marginBottom: 8 }}>{heroMeta.eyebrow}</p>
+        <h1 className={styles.title} style={{ marginBottom: 10, fontSize: 'clamp(30px, 7vw, 52px)' }}>
+          {heroMeta.title}
+        </h1>
+        <p className={styles.sub} style={{ marginBottom: 12 }}>{heroMeta.sub}</p>
+      </div>
+
+      {step === "sportSelect" && (
+        <SportSelectView
+          sport={form.sport}
+          onSelect={selectSport}
+          loading={loading}
+        />
+      )}
+
+      {step === "formatSelect" && (
+        <FormatSelectView
+          sport={form.sport}
+          format={form.format}
+          onSelect={selectFormat}
+          onBack={handleBack}
+        />
+      )}
+
+      {step !== "sportSelect" && step !== "formatSelect" && view === "hub" && (
         <HubView
           onCreate={() => { setError(""); setView("create"); }}
           onJoin={() => { setError(""); setView("join"); }}
           onBrowse={handleBrowse}
           loading={loading}
+          sport={form.sport}
+          format={form.format}
         />
       )}
 
@@ -226,35 +391,85 @@ export default function Tournament({ user, onBack, onPlayMatch, initialCode }) {
 
 // ─── Hub ─────────────────────────────────────────────────────────────────────
 
-function HubView({ onCreate, onJoin, onBrowse, loading }) {
+function HubView({ onCreate, onJoin, onBrowse, loading, sport, format }) {
   return (
-    <div style={s.hubWrap}>
-      <div style={s.hubHero}>
-        <div style={s.hubTrophyWrap}>
-          <div style={s.hubTrophyGlow} />
-          <span style={s.hubTrophy}>🏆</span>
+    <>
+      <div style={s.modeBanner}>
+        <span style={s.modeBannerIcon}>{TOURNAMENT_FORMATS[format]?.icon || '🏆'}</span>
+        <div style={s.modeBannerText}>
+          <p style={s.modeBannerEyebrow}>{TOURNAMENT_FORMATS[format]?.label || 'Tournament'}</p>
+          <p style={s.modeBannerCopy}>{sport === 'basketball' ? 'Basketball' : 'Football'} theme active</p>
         </div>
-        <h1 style={s.hubHeading}>COMPETE &<br />CONQUER</h1>
-        <p style={s.hubSub}>
-          Single-elimination tournaments.<br />Real-time 1v1 matches. One champion.
-        </p>
       </div>
 
-      <div style={s.hubCards}>
+      <div style={s.hubGrid}>
+        <button style={s.hubCard} onClick={onCreate} disabled={loading}>
+          <span style={s.hubIcon}>🏆</span>
+          <span style={s.hubCardTitle}>Create</span>
+          <span style={s.hubCardCopy}>Host your own tournament and invite players.</span>
+        </button>
+
+        <button style={s.hubCard} onClick={onJoin} disabled={loading}>
+          <span style={s.hubIcon}>🔑</span>
+          <span style={s.hubCardTitle}>Join</span>
+          <span style={s.hubCardCopy}>Enter a 6-character code to join a tournament.</span>
+        </button>
+
+        <button style={s.hubCard} onClick={onBrowse} disabled={loading}>
+          <span style={s.hubIcon}>🌍</span>
+          <span style={s.hubCardTitle}>Browse</span>
+          <span style={s.hubCardCopy}>Find and join public tournaments.</span>
+        </button>
+      </div>
+    </>
+  );
+}
+
+function SportSelectView({ sport, onSelect, loading }) {
+  return (
+    <div style={s.selectionStack}>
+      <div style={s.selectionGrid}>
         {[
-          { key: "create", icon: "⚡", label: "CREATE", desc: "Host your own tournament", cls: "trn-hub-card--create", action: onCreate },
-          { key: "join", icon: "🔑", label: "JOIN", desc: "Enter a tournament code", cls: "trn-hub-card--join", action: onJoin },
-          { key: "browse", icon: "🌍", label: "BROWSE", desc: "Find public tournaments", cls: "trn-hub-card--browse", action: onBrowse },
-        ].map(({ key, icon, label, desc, cls, action }) => (
-          <button key={key} className={`trn-hub-card ${cls}`} onClick={action} disabled={loading}>
-            <span style={s.hubCardIcon}>{icon}</span>
-            <div style={s.hubCardText}>
-              <span style={s.hubCardLabel}>{label}</span>
-              <span style={s.hubCardDesc}>{desc}</span>
-            </div>
+          { key: 'football', icon: '⚽', title: 'Football', copy: 'Football tournaments and cups.' },
+          { key: 'basketball', icon: '🏀', title: 'Basketball', copy: 'Basketball tournaments and cups.' },
+        ].map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            disabled={loading}
+            onClick={() => onSelect(item.key)}
+            style={{ ...s.selectionCard, ...(sport === item.key ? s.selectionCardActive : {}) }}
+          >
+            <span style={s.selectionIcon}>{item.icon}</span>
+            <span style={s.selectionTitle}>{item.title}</span>
+            <span style={s.selectionCopy}>{item.copy}</span>
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+function FormatSelectView({ sport, format, onSelect }) {
+  return (
+    <div style={s.selectionStack}>
+      <div style={s.selectionGrid}>
+        {Object.values(TOURNAMENT_FORMATS).map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => onSelect(item.key)}
+            style={{ ...s.selectionCard, ...(format === item.key ? s.selectionCardActive : {}) }}
+          >
+            <span style={s.selectionIcon}>{item.icon}</span>
+            <span style={s.selectionTitle}>{item.label}</span>
+            <span style={s.selectionCopy}>{item.sub}</span>
+          </button>
+        ))}
+      </div>
+      <p className={styles.sub} style={{ textAlign: 'center', marginTop: 8 }}>
+        {sport === 'basketball' ? 'Basketball' : 'Football'} is ready — choose a tournament flavor to continue.
+      </p>
     </div>
   );
 }
@@ -265,80 +480,77 @@ function CreateView({ form, setForm, onSubmit, loading }) {
   function set(key, val) { setForm((f) => ({ ...f, [key]: val })); }
 
   return (
-    <div style={s.scrollWrap}>
-      <div style={s.formCard}>
+    <div style={s.formCard}>
+      <FormSection label="Tournament Name">
+        <input
+          className={styles.input}
+          placeholder="Tournament name"
+          value={form.name}
+          onChange={(e) => set("name", e.target.value)}
+          maxLength={40}
+        />
+      </FormSection>
 
-        <FormSection label="Tournament Name">
-          <input
-            style={s.input}
-            placeholder="e.g. Friday Night Cup"
-            value={form.name}
-            onChange={(e) => set("name", e.target.value)}
-            maxLength={40}
-          />
-        </FormSection>
-
-        <FormSection label="Sport">
-          <div style={s.segmented}>
-            {[
-              { val: "football", icon: "⚽", label: "Football" },
-              { val: "basketball", icon: "🏀", label: "Basketball" },
-            ].map(({ val, icon, label }) => (
-              <button
-                key={val}
-                style={{ ...s.segBtn, ...(form.sport === val ? s.segBtnActive : {}) }}
-                onClick={() => set("sport", val)}
-              >
-                {icon} {label}
-              </button>
-            ))}
-          </div>
-        </FormSection>
-
-        <FormSection label="Visibility">
-          <div style={s.segmented}>
-            {[
-              { val: "private", icon: "🔒", label: "Private" },
-              { val: "public", icon: "🌍", label: "Public" },
-            ].map(({ val, icon, label }) => (
-              <button
-                key={val}
-                style={{ ...s.segBtn, ...(form.visibility === val ? s.segBtnActive : {}) }}
-                onClick={() => set("visibility", val)}
-              >
-                {icon} {label}
-              </button>
-            ))}
-          </div>
-        </FormSection>
-
-        <FormSection label="Max Players">
-          <div style={s.segmented}>
-            {[4, 8, 16, 32].map((n) => (
-              <button
-                key={n}
-                style={{ ...s.segBtn, ...(form.maxPlayers === n ? s.segBtnActive : {}) }}
-                onClick={() => set("maxPlayers", n)}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-        </FormSection>
-
-        <div style={{ display: "flex", gap: "12px" }}>
-          <FormSection label="Start Date" style={{ flex: 1 }}>
-            <input style={s.input} type="date" value={form.startDate} onChange={(e) => set("startDate", e.target.value)} />
-          </FormSection>
-          <FormSection label="Start Time" style={{ flex: 1 }}>
-            <input style={s.input} type="time" value={form.startTime} onChange={(e) => set("startTime", e.target.value)} />
-          </FormSection>
+      <FormSection label="Sport">
+        <div style={s.segmented}>
+          {[
+            { val: "football", icon: "⚽", label: "Football" },
+            { val: "basketball", icon: "🏀", label: "Basketball" },
+          ].map(({ val, icon, label }) => (
+            <button
+              key={val}
+              style={{ ...s.segBtn, ...(form.sport === val ? s.segBtnActive : {}) }}
+              onClick={() => set("sport", val)}
+            >
+              {icon} {label}
+            </button>
+          ))}
         </div>
+      </FormSection>
 
-        <button style={{ ...s.primaryBtn, marginTop: "8px" }} onClick={onSubmit} disabled={loading}>
-          {loading ? "Creating…" : "Create Tournament ▶"}
-        </button>
+      <FormSection label="Visibility">
+        <div style={s.segmented}>
+          {[
+            { val: "private", icon: "🔒", label: "Private" },
+            { val: "public", icon: "🌍", label: "Public" },
+          ].map(({ val, icon, label }) => (
+            <button
+              key={val}
+              style={{ ...s.segBtn, ...(form.visibility === val ? s.segBtnActive : {}) }}
+              onClick={() => set("visibility", val)}
+            >
+              {icon} {label}
+            </button>
+          ))}
+        </div>
+      </FormSection>
+
+      <FormSection label="Max Players">
+        <div style={s.segmented}>
+          {[4, 8, 16, 32].map((n) => (
+            <button
+              key={n}
+              style={{ ...s.segBtn, ...(form.maxPlayers === n ? s.segBtnActive : {}) }}
+              onClick={() => set("maxPlayers", n)}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      </FormSection>
+
+      <div style={s.inlineRow}>
+        <FormSection label="Start Date" style={{ flex: 1 }}>
+          <input className={styles.input} type="date" value={form.startDate} onChange={(e) => set("startDate", e.target.value)} />
+        </FormSection>
+        <FormSection label="Start Time" style={{ flex: 1 }}>
+          <input className={styles.input} type="time" value={form.startTime} onChange={(e) => set("startTime", e.target.value)} />
+        </FormSection>
       </div>
+
+      <button className={styles.inviteBtn} style={s.primaryBtn} onClick={onSubmit} disabled={loading}>
+        {loading ? "Creating…" : "Create Tournament ▶"}
+      </button>
     </div>
   );
 }
@@ -347,26 +559,26 @@ function CreateView({ form, setForm, onSubmit, loading }) {
 
 function JoinView({ joinCode, setJoinCode, onJoin, loading }) {
   return (
-    <div style={s.centeredWrap}>
-      <div style={s.joinCard}>
-        <div style={s.joinIcon}>🔑</div>
-        <h2 style={s.joinTitle}>Enter Code</h2>
-        <p style={s.joinHint}>Get the 6-character code from your tournament host.</p>
-        <input
-          style={s.codeInput}
-          placeholder="ABC123"
-          value={joinCode}
-          onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-          maxLength={6}
-        />
-        <button
-          style={{ ...s.primaryBtn, marginTop: "8px" }}
-          onClick={onJoin}
-          disabled={loading || joinCode.length < 4}
-        >
-          {loading ? "Joining…" : "Join Tournament ▶"}
-        </button>
-      </div>
+    <div style={s.joinCard}>
+      <div style={{ fontSize: 40 }}>🔑</div>
+      <input
+        style={s.codeInput}
+        placeholder="ABC123"
+        value={joinCode}
+        onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+        maxLength={6}
+      />
+      <p className={styles.sub} style={{ textAlign: 'center', marginBottom: 0 }}>
+        Codes are always 6 characters long.
+      </p>
+      <button
+        className={styles.inviteBtn}
+        style={s.primaryBtn}
+        onClick={onJoin}
+        disabled={loading || joinCode.trim().length < 6}
+      >
+        {loading ? "Joining…" : "Join Tournament ▶"}
+      </button>
     </div>
   );
 }
@@ -374,30 +586,36 @@ function JoinView({ joinCode, setJoinCode, onJoin, loading }) {
 // ─── Browse ───────────────────────────────────────────────────────────────────
 
 function BrowseView({ list, onJoin, loading }) {
-  if (loading) return <div style={s.centeredMsg}>Loading tournaments…</div>;
+  if (loading) return (
+    <div style={s.centeredMsg}>
+      <p className={styles.sub}>Loading tournaments…</p>
+    </div>
+  );
+
   if (list.length === 0) return (
     <div style={s.centeredMsg}>
       <span style={{ fontSize: "36px", display: "block", marginBottom: "12px" }}>🔍</span>
-      No public tournaments right now.
+      <p className={styles.sub}>No public tournaments right now.</p>
     </div>
   );
 
   return (
-    <div style={s.scrollWrap}>
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        {list.map((t) => (
-          <div key={t.code} style={s.browseCard}>
-            <div style={s.browseCardLeft}>
-              <div style={s.browseCardName}>{t.name}</div>
-              <div style={s.browseCardMeta}>
-                {t.sport === "football" ? "⚽" : "🏀"} · {Object.keys(t.players || {}).length}/{t.maxPlayers} players ·{" "}
-                {new Date(t.startTime).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-              </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      <p className={styles.kicker}>Public Tournaments</p>
+      {list.map((t) => (
+        <div key={t.code} style={s.browseCard}>
+          <div style={s.browseCardLeft}>
+            <div style={s.browseCardName}>{t.name}</div>
+            <div style={s.browseCardMeta}>
+              {t.sport === "football" ? "⚽" : "🏀"} · {TOURNAMENT_FORMATS[t.format]?.label || 'Standard Bracket'} · {Object.keys(t.players || {}).length}/{t.maxPlayers} players ·{" "}
+              {new Date(t.startTime).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
             </div>
-            <button style={s.joinSmBtn} onClick={() => onJoin(t.code)} disabled={loading}>Join</button>
           </div>
-        ))}
-      </div>
+          <button className={styles.inviteBtn} style={s.joinSmBtn} onClick={() => onJoin(t.code)} disabled={loading}>
+            Join
+          </button>
+        </div>
+      ))}
     </div>
   );
 }
@@ -410,10 +628,10 @@ function LobbyView({ tournament, tournamentCode, currentUid, onStart, loading })
   const isHost = tournament.host === currentUid;
   const playerCount = playerList.length;
   const maxPlayers = tournament.maxPlayers;
-  const canStart = isHost && playerCount >= 4;
+  const canStart = isHost && playerCount >= MIN_START_PLAYERS;
 
   return (
-    <div style={s.scrollWrap}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Code banner */}
       <div style={s.codeBanner}>
         <div style={s.codeLabel}>TOURNAMENT CODE</div>
@@ -424,12 +642,13 @@ function LobbyView({ tournament, tournamentCode, currentUid, onStart, loading })
       {/* Info pills */}
       <div style={s.pillRow}>
         <Pill icon={tournament.sport === "football" ? "⚽" : "🏀"} text={tournament.sport} />
+        <Pill icon={TOURNAMENT_FORMATS[tournament.format]?.icon || '🏆'} text={TOURNAMENT_FORMATS[tournament.format]?.label || 'Standard Bracket'} />
         <Pill icon="👥" text={`${playerCount} / ${maxPlayers}`} />
         <Pill icon={tournament.visibility === "public" ? "🌍" : "🔒"} text={tournament.visibility} />
       </div>
 
       {/* Player list */}
-      <div style={s.sectionTitle}>PLAYERS ({playerCount}/{maxPlayers})</div>
+      <p className={styles.kicker}>Players ({playerCount}/{maxPlayers})</p>
       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
         {playerList.map(([uid, p]) => (
           <div key={uid} style={s.playerRow}>
@@ -449,15 +668,14 @@ function LobbyView({ tournament, tournamentCode, currentUid, onStart, loading })
 
       {/* Host controls / waiting */}
       {isHost ? (
-        <div style={{ marginTop: "auto", paddingTop: "20px" }}>
-          <button
-            style={{ ...s.primaryBtn, opacity: canStart ? 1 : 0.45 }}
-            onClick={onStart}
-            disabled={!canStart || loading}
-          >
-            {loading ? "Starting…" : canStart ? "Start Tournament ▶" : `Need at least 4 players (${playerCount}/4)`}
-          </button>
-        </div>
+        <button
+          className={styles.inviteBtn}
+          style={{ ...s.primaryBtn, opacity: canStart ? 1 : 0.45, marginTop: 8 }}
+          onClick={onStart}
+          disabled={!canStart || loading}
+        >
+          {loading ? "Starting…" : canStart ? "Start Tournament ▶" : `Need at least ${MIN_START_PLAYERS} players (${playerCount}/${MIN_START_PLAYERS})`}
+        </button>
       ) : (
         <div style={s.waitingRow}>
           <div className="trn-dots"><span /><span /><span /></div>
@@ -476,7 +694,7 @@ function BracketView({ tournament, tournamentCode, currentUid, onMatchClick }) {
   const myMatch = findPlayerMatch(tournament.bracket, currentUid);
 
   return (
-    <div style={s.bracketWrap}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Status bar */}
       <div style={s.statusBar}>
         <span style={s.statusSport}>
@@ -495,7 +713,7 @@ function BracketView({ tournament, tournamentCode, currentUid, onMatchClick }) {
       {/* Nudge */}
       {myMatch && !isComplete && (
         <div style={s.nudge}>
-          <span style={s.nudgeIcon}>▶</span>
+          <span style={{ fontSize: 14 }}>▶</span>
           Your match is ready — tap the glowing card to play!
         </div>
       )}
@@ -541,280 +759,249 @@ function Pill({ icon, text }) {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = {
-   page: {
-     minHeight: "100vh",
-     background: "var(--pitch)",
-     color: "var(--trn-text)",
-     fontFamily: "var(--font-body)",
-     display: "flex",
-     flexDirection: "column",
-     maxWidth: 760,
-     margin: "0 auto",
-     padding: "2rem 1.25rem 4rem",
-   },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "14px 20px",
-    borderBottom: "1px solid var(--trn-border)",
-    background: "rgba(0,0,0,0.15)",
-    backdropFilter: "blur(8px)",
-    position: "sticky",
-    top: 0,
-    zIndex: 10,
-  },
-  backBtn: {
-    background: "var(--accent)",
-    border: "none",
-    color: "var(--pitch)",
-    fontFamily: "var(--font-body)",
-    fontSize: "14px",
-    fontWeight: 700,
-    letterSpacing: "normal",
-    cursor: "pointer",
-    padding: "0.8rem 1.2rem",
-    borderRadius: "12px",
-    transition: "background 0.2s, transform 0.1s",
-    width: "auto",
-    textAlign: "center",
-  },
-  headerTitle: {
-    fontFamily: "var(--font-display)",
-    fontSize: "18px",
-    fontWeight: 800,
-    letterSpacing: "0.04em",
-    textTransform: "none",
-    color: "var(--trn-text)",
-  },
-  errorBanner: {
-    background: "rgba(255,79,79,0.1)",
-    border: "1px solid rgba(255,79,79,0.25)",
-    borderRadius: "8px",
-    margin: "12px 20px 0",
-    padding: "10px 14px",
-    fontSize: "13px",
-    color: "#ff7a7a",
-  },
-
-  // Hub
-  hubWrap: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    padding: "36px 20px 32px",
-    gap: "36px",
-  },
-  hubHero: {
-    textAlign: "center",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "14px",
-  },
-  hubTrophyWrap: {
-    position: "relative",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: 80,
-    height: 80,
-  },
-  hubTrophyGlow: {
-    position: "absolute",
-    inset: 0,
-    borderRadius: "50%",
-    background: "radial-gradient(circle, rgba(245,200,66,0.25) 0%, transparent 70%)",
-    filter: "blur(8px)",
-  },
-  hubTrophy: { fontSize: "56px", position: "relative" },
-  hubHeading: {
-    fontFamily: "var(--font-display)",
-    fontSize: "clamp(42px, 9vw, 64px)",
-    fontWeight: 800,
-    letterSpacing: "0.01em",
-    lineHeight: 1.05,
-    margin: 0,
-    background: "linear-gradient(135deg, #fff 40%, var(--accent))",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent",
-  },
-  hubSub: {
-    fontSize: "14px",
-    color: "var(--trn-muted)",
-    margin: 0,
-    lineHeight: 1.6,
-  },
-  hubCards: {
-    display: "flex",
-    flexDirection: "row",
-    gap: "12px",
-    width: "100%",
-    maxWidth: 760,
-    overflowX: "auto",
-    paddingBottom: "4px",
-    scrollbarWidth: "none",
-  },
-  hubCardIcon: { fontSize: "18px", flexShrink: 0 },
-  hubCardText: { display: "flex", flexDirection: "column", gap: "6px", flex: 1 },
-  hubCardLabel: {
-    fontFamily: "var(--font-body)",
-    fontSize: "16px",
-    fontWeight: 800,
-    letterSpacing: "0.02em",
-    color: "var(--trn-text)",
-  },
-  hubCardDesc: { fontSize: "13px", lineHeight: 1.45, color: "var(--trn-muted)" },
-
   // Forms
-  scrollWrap: {
-    flex: 1,
-    padding: "20px",
-    overflowY: "auto",
-    display: "flex",
-    flexDirection: "column",
-    gap: "16px",
-    maxWidth: 480,
-    margin: "0 auto",
-    width: "100%",
-    boxSizing: "border-box",
-  },
   formCard: {
     display: "flex",
     flexDirection: "column",
-    gap: "18px",
+    gap: "14px",
+    padding: "18px",
+    border: "1px solid var(--card-border)",
+    borderRadius: "16px",
+    background: "var(--pitch-mid)",
+    fontFamily: "var(--font-body)",
   },
-  fieldLabel: {
+  selectionStack: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "14px",
+  },
+  selectionGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: "10px",
+  },
+  selectionCard: {
+    border: "1px solid var(--card-border)",
+    background: "var(--card-bg)",
+    borderRadius: "14px",
+    padding: "14px",
+    textAlign: "left",
+    minHeight: "120px",
+    color: "inherit",
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+  },
+  selectionCardActive: {
+    border: "1px solid var(--green)",
+    background: "color-mix(in srgb, var(--green) 10%, var(--card-bg))",
+    boxShadow: "0 0 0 1px rgba(0,255,135,0.18) inset",
+  },
+  selectionIcon: {
+    fontSize: "22px",
+    lineHeight: 1,
+  },
+  selectionTitle: {
+    color: "var(--white)",
+    fontSize: "15px",
+    fontWeight: 800,
+    lineHeight: 1.1,
+  },
+  selectionCopy: {
+    color: "var(--muted)",
+    fontSize: "12px",
+    lineHeight: 1.45,
+  },
+  modeBanner: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "12px 14px",
+    marginBottom: "12px",
+    borderRadius: "14px",
+    border: "1px solid var(--card-border)",
+    background: "var(--card-bg)",
+  },
+  modeBannerIcon: {
+    fontSize: "24px",
+    flexShrink: 0,
+  },
+  modeBannerText: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px",
+    minWidth: 0,
+  },
+  modeBannerEyebrow: {
     fontFamily: "var(--font-body)",
     fontSize: "11px",
     fontWeight: 700,
-    letterSpacing: "0.14em",
+    letterSpacing: "0.12em",
     textTransform: "uppercase",
-    color: "var(--trn-muted)",
+    color: "var(--muted)",
+  },
+  modeBannerCopy: {
+    fontSize: "13px",
+    color: "var(--white)",
+    fontWeight: 700,
+  },
+  hubGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: "8px",
+  },
+  hubCard: {
+    border: "1px solid var(--card-border)",
+    background: "var(--card-bg)",
+    borderRadius: "14px",
+    padding: "10px 10px 11px",
+    textAlign: "left",
+    minWidth: 0,
+    minHeight: "112px",
+    color: "inherit",
+  },
+  hubIcon: {
+    fontSize: "16px",
+  },
+  hubCardTitle: {
+    display: "block",
+    marginTop: "6px",
+    color: "var(--white)",
+    fontSize: "14px",
+    fontWeight: 800,
+    lineHeight: 1.1,
+  },
+  hubCardCopy: {
+    display: "block",
+    marginTop: "6px",
+    color: "var(--muted)",
+    fontSize: "11px",
+    lineHeight: 1.35,
+  },
+  fieldLabel: {
+    fontFamily: "var(--font-body)",
+    fontSize: "12px",
+    fontWeight: 700,
+    letterSpacing: "0.08em",
+    color: "var(--muted)",
   },
   input: {
-    background: "var(--pitch-mid)",
-    border: "1px solid var(--trn-border)",
-    borderRadius: "10px",
-    padding: "11px 14px",
-    color: "var(--trn-text)",
+    background: "rgba(255,255,255,0.045)",
+    border: "1px solid var(--card-border)",
+    borderRadius: "12px",
+    padding: "12px 14px",
+    color: "var(--white)",
     fontFamily: "var(--font-body)",
-    fontSize: "15px",
+    fontSize: "14px",
+    fontWeight: 600,
     outline: "none",
     width: "100%",
     boxSizing: "border-box",
     colorScheme: "dark",
-    transition: "border-color 0.15s",
   },
   segmented: { display: "flex", gap: "8px", flexWrap: "wrap" },
   segBtn: {
     flex: "1 1 auto",
-    background: "var(--pitch-mid)",
-    border: "1px solid var(--trn-border)",
+    background: "var(--pitch)",
+    border: "1px solid var(--card-border)",
     borderRadius: "8px",
-    padding: "9px 12px",
-    color: "var(--trn-muted)",
+    padding: "10px 12px",
+    color: "var(--muted)",
     fontFamily: "var(--font-body)",
-    fontSize: "13px",
+    fontSize: "12px",
     fontWeight: 700,
-    letterSpacing: "0.05em",
+    letterSpacing: "0.03em",
     cursor: "pointer",
     transition: "all 0.15s",
     whiteSpace: "nowrap",
   },
   segBtnActive: {
     background: "rgba(0,255,135,0.1)",
-    border: "1px solid var(--accent)",
-    color: "var(--accent)",
+    border: "1px solid var(--green)",
+    color: "var(--green)",
   },
   primaryBtn: {
-    background: "var(--accent)",
-    color: "var(--pitch)",
-    border: "none",
-    borderRadius: "12px",
-    padding: "14px",
-    fontFamily: "var(--font-body)",
-    fontSize: "16px",
-    fontWeight: 800,
-    letterSpacing: "0.08em",
-    cursor: "pointer",
     width: "100%",
-    transition: "opacity 0.15s, transform 0.1s",
+    padding: "12px",
+    borderRadius: "8px",
+    fontSize: "14px",
+    fontWeight: 800,
+    letterSpacing: "0.04em",
+    border: "none",
+    cursor: "pointer",
+    fontFamily: "var(--font-body)",
+  },
+  topBar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    marginBottom: "14px",
+  },
+  heroCard: {
+    padding: "18px 18px 16px",
+    borderRadius: "18px",
+    border: "1px solid var(--card-border)",
+    background:
+      "radial-gradient(circle at top right, color-mix(in srgb, var(--green) 12%, transparent), transparent 40%), var(--card-bg)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
+    marginBottom: "18px",
+  },
+  chipRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px",
+  },
+  chip: {
+    display: "inline-flex",
+    alignItems: "center",
+    minHeight: "28px",
+    padding: "0 10px",
+    borderRadius: "999px",
+    border: "1px solid var(--card-border)",
+    background: "rgba(255,255,255,0.04)",
+    color: "var(--muted)",
+    fontSize: "12px",
+    fontWeight: 700,
   },
 
   // Join
-  centeredWrap: {
-    flex: 1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "24px 20px",
-  },
   joinCard: {
-    width: "100%",
-    maxWidth: 360,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: "14px",
-    background: "var(--pitch-mid)",
-    border: "1px solid var(--trn-border)",
-    borderRadius: "20px",
-    padding: "32px 24px",
+    gap: "12px",
   },
-  joinIcon: { fontSize: "40px" },
-  joinTitle: {
+  codeInput: {
+    background: "rgba(255,255,255,0.045)",
+    border: "1px solid var(--card-border)",
+    borderRadius: "14px",
+    padding: "14px 12px",
+    color: "var(--green)",
     fontFamily: "var(--font-body)",
     fontSize: "26px",
     fontWeight: 800,
-    letterSpacing: "0.06em",
-    margin: 0,
-    color: "var(--trn-text)",
-  },
-  joinHint: {
-    fontSize: "13px",
-    color: "var(--trn-muted)",
-    margin: 0,
-    textAlign: "center",
-    lineHeight: 1.5,
-  },
-  codeInput: {
-    background: "rgba(0,255,135,0.05)",
-    border: "2px solid var(--trn-border)",
-    borderRadius: "12px",
-    padding: "14px",
-    color: "var(--accent)",
-    fontFamily: "var(--font-body)",
-    fontSize: "28px",
-    fontWeight: 800,
-    letterSpacing: "0.3em",
+    letterSpacing: "0.24em",
     textAlign: "center",
     textTransform: "uppercase",
     outline: "none",
     width: "100%",
     boxSizing: "border-box",
     colorScheme: "dark",
-    transition: "border-color 0.15s",
   },
 
   // Browse
   centeredMsg: {
-    flex: 1,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    color: "var(--trn-muted)",
-    fontFamily: "var(--font-body)",
-    fontSize: "15px",
-    padding: "40px 20px",
+    padding: "40px 0",
     textAlign: "center",
   },
   browseCard: {
-    background: "var(--pitch-mid)",
-    border: "1px solid var(--trn-border)",
-    borderRadius: "12px",
+    background: "var(--card-bg)",
+    border: "1px solid var(--card-border)",
+    borderRadius: "14px",
     padding: "14px 16px",
     display: "flex",
     alignItems: "center",
@@ -826,41 +1013,36 @@ const s = {
     fontFamily: "var(--font-body)",
     fontSize: "16px",
     fontWeight: 700,
-    color: "var(--trn-text)",
+    color: "var(--white)",
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
   },
-  browseCardMeta: { fontSize: "12px", color: "var(--trn-muted)" },
+  browseCardMeta: { fontSize: "12px", color: "var(--muted)" },
   joinSmBtn: {
-    background: "var(--accent)",
-    color: "var(--pitch)",
-    border: "none",
-    borderRadius: "8px",
     padding: "8px 18px",
-    fontFamily: "var(--font-body)",
+    borderRadius: "8px",
     fontSize: "13px",
     fontWeight: 800,
-    letterSpacing: "0.06em",
+    border: "none",
     cursor: "pointer",
     flexShrink: 0,
   },
 
   // Lobby
   codeBanner: {
-    background: "linear-gradient(135deg, rgba(0,255,135,0.07), rgba(0,255,135,0.02))",
-    border: "1px solid rgba(0,255,135,0.2)",
-    borderRadius: "16px",
+    background: "var(--card-bg)",
+    border: "1px solid var(--card-border)",
+    borderRadius: "14px",
     padding: "22px",
     textAlign: "center",
   },
   codeLabel: {
-    fontFamily: "var(--font-body)",
     fontSize: "10px",
     fontWeight: 700,
     letterSpacing: "0.18em",
     textTransform: "uppercase",
-    color: "var(--trn-muted)",
+    color: "var(--muted)",
     marginBottom: "6px",
   },
   codeValue: {
@@ -868,18 +1050,18 @@ const s = {
     fontSize: "42px",
     fontWeight: 900,
     letterSpacing: "0.25em",
-    color: "var(--accent)",
+    color: "var(--green)",
     lineHeight: 1,
     marginBottom: "6px",
   },
-  codeHint: { fontSize: "12px", color: "var(--trn-muted)" },
+  codeHint: { fontSize: "12px", color: "var(--muted)" },
   pillRow: { display: "flex", gap: "8px", flexWrap: "wrap" },
   pill: {
     display: "flex",
     alignItems: "center",
     gap: "5px",
-    background: "var(--pitch-mid)",
-    border: "1px solid var(--trn-border)",
+    background: "var(--card-bg)",
+    border: "1px solid var(--card-border)",
     borderRadius: "20px",
     padding: "5px 12px",
     fontSize: "12px",
@@ -888,23 +1070,15 @@ const s = {
     fontFamily: "var(--font-body)",
     fontWeight: 600,
     letterSpacing: "0.04em",
-    color: "var(--trn-muted)",
+    color: "var(--muted)",
     textTransform: "capitalize",
-  },
-  sectionTitle: {
-    fontFamily: "var(--font-body)",
-    fontSize: "11px",
-    fontWeight: 700,
-    letterSpacing: "0.14em",
-    textTransform: "uppercase",
-    color: "var(--trn-muted)",
   },
   playerRow: {
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    background: "var(--pitch-mid)",
-    border: "1px solid var(--trn-border)",
+    background: "var(--card-bg)",
+    border: "1px solid var(--card-border)",
     borderRadius: "10px",
     padding: "10px 14px",
   },
@@ -919,18 +1093,17 @@ const s = {
     fontFamily: "var(--font-body)",
     fontWeight: 800,
     fontSize: "14px",
-    color: "var(--accent)",
+    color: "var(--green)",
     flexShrink: 0,
   },
   playerName: {
     fontFamily: "var(--font-body)",
     fontSize: "14px",
     fontWeight: 500,
-    color: "var(--trn-text)",
+    color: "var(--white)",
     flex: 1,
   },
   hostBadge: {
-    fontFamily: "var(--font-body)",
     fontSize: "10px",
     fontWeight: 800,
     letterSpacing: "0.1em",
@@ -941,11 +1114,10 @@ const s = {
     padding: "2px 7px",
   },
   youBadge: {
-    fontFamily: "var(--font-body)",
     fontSize: "10px",
     fontWeight: 800,
     letterSpacing: "0.1em",
-    color: "var(--accent)",
+    color: "var(--green)",
     background: "rgba(0,255,135,0.08)",
     border: "1px solid rgba(0,255,135,0.2)",
     borderRadius: "4px",
@@ -956,29 +1128,28 @@ const s = {
     alignItems: "center",
     gap: "12px",
     justifyContent: "center",
-    marginTop: "auto",
-    paddingTop: "24px",
+    paddingTop: "16px",
   },
   waitingText: {
     fontFamily: "var(--font-body)",
     fontSize: "14px",
     letterSpacing: "0.06em",
-    color: "var(--trn-muted)",
+    color: "var(--muted)",
+  },
+  startBlock: {
+    marginTop: "10px",
+  },
+  inlineRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: "10px",
   },
 
   // Bracket
-  bracketWrap: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px",
-    paddingTop: "16px",
-  },
   statusBar: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: "0 20px",
   },
   statusSport: {
     fontFamily: "var(--font-body)",
@@ -986,7 +1157,7 @@ const s = {
     fontWeight: 700,
     letterSpacing: "0.08em",
     textTransform: "uppercase",
-    color: "var(--trn-muted)",
+    color: "var(--muted)",
   },
   statusPill: {
     fontFamily: "var(--font-body)",
@@ -997,21 +1168,18 @@ const s = {
     borderRadius: "20px",
   },
   nudge: {
-    margin: "0 20px",
-    background: "rgba(0,255,135,0.07)",
-    border: "1px solid rgba(0,255,135,0.18)",
+    background: "var(--card-bg)",
+    border: "1px solid var(--card-border)",
     borderRadius: "10px",
     padding: "10px 14px",
     fontSize: "13px",
-    color: "var(--accent)",
+    color: "var(--green)",
     display: "flex",
     alignItems: "center",
     gap: "8px",
   },
-  nudgeIcon: { fontSize: "14px" },
   winnerBanner: {
-    margin: "0 20px",
-    background: "linear-gradient(135deg, rgba(245,200,66,0.1), rgba(245,200,66,0.03))",
+    background: "var(--card-bg)",
     border: "1px solid rgba(245,200,66,0.25)",
     borderRadius: "12px",
     padding: "14px 18px",
@@ -1023,77 +1191,3 @@ const s = {
     textAlign: "center",
   },
 };
-
-const css = `
-  :root {
-    --trn-border:  var(--pitch-light, #1a3d24);
-    --trn-text:    #e8eaf0;
-    --trn-muted:   var(--muted, rgba(245,245,240,0.5));
-    --trn-gold:    #f5c842;
-    --trn-subtext: #8b8fa8;
-  }
-
-  .trn-hub-card {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: 14px;
-    padding: 14px;
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
-    text-align: left;
-    color: var(--trn-text);
-    min-width: 210px;
-    flex: 0 0 210px;
-  }
-
-  .trn-hub-card:active { transform: scale(0.98); }
-
-  .trn-hub-card--create:hover {
-    border-color: var(--accent);
-    background: rgba(255,255,255,0.06);
-  }
-  .trn-hub-card--join:hover {
-    border-color: var(--accent);
-    background: rgba(255,255,255,0.06);
-  }
-  .trn-hub-card--browse:hover {
-    border-color: var(--accent);
-    background: rgba(255,255,255,0.06);
-  }
-
-  @media (max-width: 520px) {
-    .trn-hub-card {
-      min-width: 185px;
-      flex-basis: 185px;
-    }
-  }
-
-  .trn-dots { display: flex; gap: 5px; }
-  .trn-dots span {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--trn-muted);
-    animation: trn-bounce 1.4s ease-in-out infinite;
-  }
-  .trn-dots span:nth-child(2) { animation-delay: 0.2s; }
-  .trn-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-  @keyframes trn-bounce {
-    0%, 80%, 100% { transform: scale(0.7); opacity: 0.4; }
-    40%            { transform: scale(1);   opacity: 1; }
-  }
-
-  input[type="text"]:focus,
-  input[type="date"]:focus,
-  input[type="time"]:focus {
-    border-color: var(--accent) !important;
-    box-shadow: 0 0 0 2px rgba(0,255,135,0.12);
-  }
-
-  button[disabled] { opacity: 0.45; cursor: not-allowed; }
-`;
-
-

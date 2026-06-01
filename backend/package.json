@@ -5,7 +5,8 @@
   "main": "backend-push-server.cjs",
   "scripts": {
     "start": "node backend-push-server.cjs",
-    "dev": "nodemon backend-push-server.cjs"
+    "dev": "nodemon backend-push-server.cjs",
+    "backfill:public-profiles": "node backfill-public-profiles.cjs"
   },
   "dependencies": {
     "cors": "^2.8.5",

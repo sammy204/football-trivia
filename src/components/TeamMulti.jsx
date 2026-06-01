@@ -19,6 +19,7 @@ import { saveTeamMatchResult } from '../lib/userStats'
 import { awardCoins, spendCoins, TEAM_PLAYER_WAGER, TEAM_WAGER_OPTIONS } from '../lib/coins'
 import { getDefaultAvatar, getPlayerAvatar } from '../lib/avatars'
 import styles from './TeamMulti.module.css'
+import { recordGameplayActivity } from '../lib/streaks'
 
 const MEDALS = ['🥇', '🥈', '🥉', '🏅']
 
@@ -30,7 +31,7 @@ function getOrdinal(value) {
   return `${value}th`
 }
 
-export default function TeamMulti({ sport, onBack, user, initialJoinCode, initialJoinTeamId, coinBalance = 0 }) {
+export default function TeamMulti({ sport, onBack, user, initialJoinCode, initialJoinTeamId, initialInvitePlayerId = '', coinBalance = 0 }) {
   const [screen, setScreen] = useState(initialJoinCode && initialJoinTeamId ? 'waiting' : 'intro')
   const [step, setStep] = useState('mode')
   const [numTeams, setNumTeams] = useState(2)
@@ -42,7 +43,7 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
   const [room, setRoom] = useState(null)
   const [myTeamId, setMyTeamId] = useState(initialJoinTeamId || null)
   const [isCaptain, setIsCaptain] = useState(false)
-  const [invitePlayerId, setInvitePlayerId] = useState('')
+  const [invitePlayerId, setInvitePlayerId] = useState(String(initialInvitePlayerId || '').trim().toUpperCase())
   const [inviteSent, setInviteSent] = useState(null)
   const [selected, setSelected] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -84,6 +85,8 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
           resultsSavedRef.current = true
           const myTeam = data.teams[capturedTeamId]
           const myMember = myTeam.members?.[capturedPlayerId]
+
+
           if (myMember?.uid) {
             const rankings = getTeamRankings(data.teams)
             const teamRank = rankings.findIndex(t => t.teamId === capturedTeamId) + 1
@@ -98,6 +101,8 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
               memberScore: myMember.score || 0,
               questionsCount: myMember.questions?.length || TEAM_PLAYER_ROUNDS,
             }).catch(err => console.error('Failed to save team result:', err))
+
+            recordGameplayActivity({ userId: myMember.uid, source: 'team-multi' }).catch(() => {})
 
             if (teamRank === 1) {
               const winningMembers = Object.values(myTeam.members || {})
@@ -140,6 +145,10 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
     if (!initialJoinCode || !initialJoinTeamId) return
     attachToRoom(initialJoinCode.toUpperCase(), initialJoinTeamId, false)
   }, [initialJoinCode, initialJoinTeamId])
+
+  useEffect(() => {
+    setInvitePlayerId(String(initialInvitePlayerId || '').trim().toUpperCase())
+  }, [initialInvitePlayerId])
 
   const teams = room?.teams || {}
   const myTeam = myTeamId ? teams[myTeamId] : null
@@ -560,126 +569,171 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
           </button>
         </>
       )}
+{screen === 'waiting' && room && (() => {
+  const hasAnyPlayers = Object.values(teams).some(
+    t => Object.keys(t.members || {}).length > 0
+  )
+  const totalPlayers = Object.values(teams).reduce(
+    (sum, t) => sum + Object.keys(t.members || {}).length, 0
+  )
+  const isWaiting = totalPlayers <= 1
 
-      {screen === 'waiting' && room && (
-        <>
-          <button className={styles.backBtn} onClick={onBack}>Back</button>
-          <h2 className={styles.title}>Lobby</h2>
+  return isWaiting ? (
+    // ── State 1: empty lobby ──────────────────────────────────
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '80vh' }}>
+      <button
+        onClick={onBack}
+        style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 14, fontFamily: 'var(--font-body)', cursor: 'pointer', alignSelf: 'flex-start', marginBottom: 24, padding: 0 }}
+      >
+        ← Back
+      </button>
 
-          <div className={styles.codeBox}>
-            <p className={styles.codeLabel}>Room Code</p>
-            <p className={styles.code} style={{ color: accent }}>{roomCode}</p>
-            <p className={styles.codeSub}>Share this with the other captains</p>
-          </div>
-           <div style={{
-  display: 'flex', justifyContent: 'space-between',
-  background: 'var(--card-bg)', border: '1px solid var(--card-border)',
-  borderRadius: 10, padding: '10px 16px', marginBottom: 12,
-}}>
-  <div>
-    <p style={{ color: 'var(--muted)', fontSize: 12, margin: 0 }}>Entry fee per player</p>
-    <p style={{ color: accent, fontWeight: 800, fontSize: 15, margin: 0 }}>C {room?.wager?.amount || 0}</p>
-  </div>
-  <div style={{ textAlign: 'right' }}>
-    <p style={{ color: 'var(--muted)', fontSize: 12, margin: 0 }}>Prize pot so far</p>
-    <p style={{ color: accent, fontWeight: 800, fontSize: 15, margin: 0 }}>C {room?.wager?.pot || 0}</p>
-  </div>
-</div>
+      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(0,255,135,0.6)', marginBottom: 8 }}>
+        {sport === 'basketball' ? 'Basketball' : 'Football'} · Team match
+      </p>
 
-          <div className={styles.summaryCard}>
-            <p className={styles.summaryTitle}>Match format</p>
-            <p className={styles.summaryText}>
-              Each player answers {TEAM_PLAYER_ROUNDS} different questions. Team score is the sum of every player&apos;s correct answers.
-            </p>
-            <p className={styles.summaryText}>
-              Example: in a 2v2, the maximum team score is 20. In a 3v3, it is 30.
-            </p>
-          </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 8 }}>
+        <p style={{ fontFamily: 'var(--font-display)', fontSize: 36, color: 'var(--white)', letterSpacing: 1 }}>
+          Waiting for players
+        </p>
+        <p style={{ fontSize: 13, color: 'var(--muted)', maxWidth: 220, lineHeight: 1.6 }}>
+          Share the room code with the other captains
+        </p>
 
-          <div className={styles.teamsGrid}>
-            {Object.entries(teams).map(([teamId, team]) => {
-              const members = Object.values(team.members || {})
-              const isMyTeam = myTeamId === teamId
-              return (
-                <div key={teamId} className={`${styles.teamCard} ${isMyTeam ? styles.myTeam : ''}`}>
-                  <p className={styles.teamCardName} style={{ color: isMyTeam ? accent : 'var(--muted)' }}>
-                    {team.name}
-                    {isMyTeam && <span className={styles.youBadge}>You</span>}
-                  </p>
-                  <p className={styles.teamCardCount}>{members.length}/{teamSize} players</p>
-                   <div className={styles.memberList}>
-                     {members.map(member => (
-                       <span key={member.playerId} className={`${styles.memberChip} ${isMyTeam ? styles.myMemberChip : ''}`}>
-                        <img
-                          src={member.photoURL || getDefaultAvatar()}
-                          alt={`${member.displayName}'s avatar`}
-                          className={styles.avatarImg}
-                        />
-                         {member.displayName}
-                       </span>
-                     ))}
-                   </div>
-                  {!members.length && <p className={styles.noCaptain}>Waiting for players...</p>}
-                  {!team.captainUid && <p className={styles.noCaptain}>Waiting for captain...</p>}
-                </div>
-              )
-            })}
-          </div>
+        <div style={{ background: 'rgba(0,255,135,0.06)', border: '1px solid rgba(0,255,135,0.2)', borderRadius: 14, padding: '20px 32px', marginTop: 12, textAlign: 'center' }}>
+          <p style={{ fontFamily: 'var(--font-display)', fontSize: 42, color: accent, letterSpacing: '0.25em', lineHeight: 1 }}>
+            {roomCode}
+          </p>
+          <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>Room code</p>
+        </div>
 
-          {isCaptain && (
-            <div className={styles.inviteBox}>
-              <p className={styles.label}>Invite teammates to {room?.teams?.[myTeamId]?.name}</p>
-              <p className={styles.inviteHint}>Enter their Player ID to add them to your team</p>
-              <div className={styles.inviteRow}>
-                <input
-                  className={styles.input}
-                  placeholder="FTB-XX1234"
-                  value={invitePlayerId}
-                  onChange={event => setInvitePlayerId(event.target.value.toUpperCase())}
-                />
-                <button
-                  className={styles.inviteBtn}
-                  style={{ background: accent, color: accentText }}
-                  onClick={handleSendInvite}
-                >
-                  Invite
-                </button>
-              </div>
-              {inviteSent && <p className={styles.inviteSent}>Invite sent to {inviteSent}</p>}
-            </div>
-          )}
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: 280, marginTop: 16, padding: '10px 14px', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 10 }}>
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>Entry fee</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: accent }}>C {room?.wager?.amount || 0}</span>
+        </div>
+      </div>
 
-          {myTeam && (
-            <div className={styles.summaryCard}>
-              <p className={styles.summaryTitle}>{myTeam.name} score target</p>
-              <p className={styles.summaryText}>
-                With {myTeamMembers.length} player{myTeamMembers.length === 1 ? '' : 's'}, your team can score up to {myTeamMembers.length * TEAM_PLAYER_ROUNDS} points.
-              </p>
-            </div>
-          )}
-
-          {error && <p className={styles.error}>{error}</p>}
-
-          {room.hostUid === user?.uid && (
+      {isCaptain && (
+        <div style={{ marginTop: 'auto', paddingTop: 16 }}>
+          <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
+            Invite teammates to {room?.teams?.[myTeamId]?.name}
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              style={{ flex: 1, background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 10, padding: '11px 14px', color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: 14, outline: 'none' }}
+              placeholder="Player ID e.g. FTB-XX1234"
+              value={invitePlayerId}
+              onChange={e => setInvitePlayerId(e.target.value.toUpperCase())}
+            />
             <button
-              className={styles.btn}
-              style={roomReady ? { background: accent, color: accentText } : { background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.35)', cursor: 'not-allowed' }}
-              onClick={roomReady ? handleStart : undefined}
-              disabled={!roomReady}
+              onClick={handleSendInvite}
+              style={{ background: accent, color: '#0a1f0f', border: 'none', borderRadius: 10, padding: '11px 18px', fontFamily: 'var(--font-body)', fontWeight: 800, fontSize: 14, cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
-              {roomReady
-                ? `Start ${actualPlayersPerTeam}v${actualPlayersPerTeam} Match`
-                : 'Need balanced teams to start'}
+              Invite
             </button>
-          )}
-
-          {room.hostUid !== user?.uid && (
-            <p className={styles.waitingText}>
-              Waiting for the host to start after all teams are balanced.
-            </p>
-          )}
-        </>
+          </div>
+          {inviteSent && <p style={{ fontSize: 12, color: accent, marginTop: 6 }}>Invite sent to {inviteSent}</p>}
+          {error && <p style={{ fontSize: 12, color: '#FF5C5C', marginTop: 6 }}>{error}</p>}
+        </div>
       )}
+    </div>
+
+  ) : (
+    // ── State 2: players joining ──────────────────────────────
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* Compact header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button
+          onClick={onBack}
+          style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 14, fontFamily: 'var(--font-body)', cursor: 'pointer', padding: 0 }}
+        >
+          ← Back
+        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ background: 'rgba(0,255,135,0.08)', border: '1px solid rgba(0,255,135,0.2)', borderRadius: 99, padding: '4px 12px' }}>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: accent, letterSpacing: '0.2em' }}>{roomCode}</span>
+          </div>
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 99, padding: '4px 12px', fontSize: 12, color: 'var(--muted)' }}>
+            Pot <span style={{ color: accent, fontWeight: 700 }}>C {room?.wager?.pot || 0}</span>
+          </div>
+        </div>
+      </div>
+
+      {error && <p style={{ fontSize: 13, color: '#FF5C5C' }}>{error}</p>}
+
+      {/* Teams */}
+      {Object.entries(teams).map(([teamId, team]) => {
+        const members = Object.values(team.members || {})
+        const isMyTeam = myTeamId === teamId
+        const emptySlots = Math.max(0, teamSize - members.length)
+        return (
+          <div key={teamId}>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: isMyTeam ? accent : 'var(--muted)', marginBottom: 6 }}>
+              {team.name} — {members.length}/{teamSize}
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {members.map(member => (
+                <div key={member.playerId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: isMyTeam ? 'rgba(0,255,135,0.05)' : 'var(--card-bg)', border: `1px solid ${isMyTeam ? 'rgba(0,255,135,0.15)' : 'var(--card-border)'}`, borderRadius: 10 }}>
+                  <img src={member.photoURL || getDefaultAvatar()} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
+                  <span style={{ fontSize: 14, color: 'var(--white)', flex: 1 }}>{member.displayName}</span>
+                  {member.uid === room?.hostUid && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: accent, background: 'rgba(0,255,135,0.1)', borderRadius: 4, padding: '2px 6px' }}>Captain</span>
+                  )}
+                </div>
+              ))}
+              {Array.from({ length: emptySlots }).map((_, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.07)', borderRadius: 10 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
+                  <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.2)', fontStyle: 'italic' }}>Waiting...</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+
+      {/* Invite row — captains only */}
+      {isCaptain && (
+        <div>
+          <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>
+            Invite teammates to {room?.teams?.[myTeamId]?.name}
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              style={{ flex: 1, background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 10, padding: '11px 14px', color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: 14, outline: 'none' }}
+              placeholder="Player ID"
+              value={invitePlayerId}
+              onChange={e => setInvitePlayerId(e.target.value.toUpperCase())}
+            />
+            <button
+              onClick={handleSendInvite}
+              style={{ background: accent, color: '#0a1f0f', border: 'none', borderRadius: 10, padding: '11px 18px', fontFamily: 'var(--font-body)', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}
+            >
+              Invite
+            </button>
+          </div>
+          {inviteSent && <p style={{ fontSize: 12, color: accent, marginTop: 6 }}>Invite sent to {inviteSent}</p>}
+        </div>
+      )}
+
+      {/* Start / waiting */}
+      {room.hostUid === user?.uid ? (
+        <button
+          onClick={roomReady ? handleStart : undefined}
+          disabled={!roomReady}
+          style={{ width: '100%', background: roomReady ? accent : 'rgba(255,255,255,0.06)', color: roomReady ? '#0a1f0f' : 'rgba(255,255,255,0.25)', border: 'none', borderRadius: 12, padding: 14, fontFamily: 'var(--font-body)', fontWeight: 800, fontSize: 15, cursor: roomReady ? 'pointer' : 'not-allowed', marginTop: 4 }}
+        >
+          {roomReady ? `Start ${actualPlayersPerTeam}v${actualPlayersPerTeam} match` : 'Need balanced teams to start'}
+        </button>
+      ) : (
+        <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--muted)', padding: '8px 0' }}>
+          Waiting for the host to start...
+        </p>
+      )}
+    </div>
+  )
+})()}
 
       {screen === 'quiz' && room && (
         <>

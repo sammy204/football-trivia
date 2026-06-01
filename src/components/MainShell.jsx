@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ref, get, update } from 'firebase/database'
+import { ref, get, update, onValue } from 'firebase/database'
 import { updateProfile } from 'firebase/auth'
 import { db } from '../lib/firebase'
 import { getDailyChallengeInfo, getDateKey, getWeekKey, listenToDailyLeaderboard, listenToWeeklyLeaderboard } from '../lib/dailyChallenge'
@@ -11,6 +11,16 @@ import { listenToModeCounts, getHomeModeIds } from '../lib/modeStats'
 import { getUnlockedMilestones } from '../lib/streaks'
 import { respondToInvite } from '../lib/teamMultiplayer'
 import { spendCoins, TEAM_PLAYER_WAGER } from '../lib/coins'
+import { getFormBadge as buildFormBadge, syncPublicProfile } from '../lib/userStats'
+import { sendFriendRequestPushNotification } from '../lib/friendNotifications'
+import {
+  acceptFriendRequest,
+  declineFriendRequest,
+  listenToFriendRequests,
+  listenToFriends,
+  removeFriend,
+  sendFriendRequest,
+} from '../lib/friends'
 import Profile from './Profile'
 import styles from './MainTabs.module.css'
 
@@ -23,6 +33,7 @@ const MODE_DEFS = {
   tournament: { icon: '🏆', title: 'Tournament', copy: 'Bracket competition' },
   daily: { icon: '📅', title: 'Daily Challenge', copy: 'Today only' },
   seasonal: { icon: '🎉', title: 'Seasonal Event', copy: 'Limited-time challenge' },
+  commonLink: { icon: '🔗', title: 'Common Link', copy: 'Find the connecting player' },
 }
 
 const NAV_ITEMS = [
@@ -30,7 +41,7 @@ const NAV_ITEMS = [
   { id: 'board', label: 'Board', icon: '🏆' },
   { id: 'play', label: 'Play', icon: '🎮' },
   { id: 'alerts', label: 'Alerts', icon: '🔔' },
-  { id: 'profile', label: 'Profile', icon: '👤' },
+  { id: 'friends', label: 'Friends', icon: '👥' },
 ]
 
 function formatCountdown(ms) {
@@ -392,7 +403,14 @@ function HomeTab({ sport, onSportChange, user, profile, dailyPlayed, onStartDail
   )
 }
 
-function PlayTab({ sport, onSportChange, rounds, onRoundsChange, onSelectMode, onStartSeasonalEvent }) {
+function PlayTab({
+  sport,
+  onSportChange,
+  rounds,
+  onRoundsChange,
+  onSelectMode,
+  onStartSeasonalEvent,
+}) {
   const [seasonalEvents, setSeasonalEvents] = useState([])
 
   useEffect(() => {
@@ -407,7 +425,7 @@ function PlayTab({ sport, onSportChange, rounds, onRoundsChange, onSelectMode, o
     return unsubscribe
   }, [])
 
-  const modes = ['solo', 'online', 'team', 'lightning', 'lightning_h2h', 'tournament']
+ const modes = ['solo', 'online', 'team', 'lightning', 'lightning_h2h', 'tournament', 'commonLink']
 
   return (
     <div className={styles.page}>
@@ -686,6 +704,360 @@ function AlertsTab({
   )
 }
 
+function FriendsTab({ profile, user, sport, onStartOnline, onStartTeam, onStartLightningH2H, onFriendRequestHandled }) {
+  const [myPlayerId, setMyPlayerId] = useState(profile?.playerId || '')
+  const [targetPlayerId, setTargetPlayerId] = useState('')
+  const [requests, setRequests] = useState([])
+  const [friends, setFriends] = useState([])
+  const [publicFriendProfiles, setPublicFriendProfiles] = useState({})
+  const [mySummary, setMySummary] = useState({ streak: 0, recentForm: '' })
+  const [status, setStatus] = useState('')
+  const [error, setError] = useState('')
+  const [sending, setSending] = useState(false)
+  const [busyId, setBusyId] = useState(null)
+  const [activeFriend, setActiveFriend] = useState(null)
+  const [challengeSheetOpen, setChallengeSheetOpen] = useState(false)
+
+  useEffect(() => {
+    const localProfile = loadProfile()
+    setMyPlayerId(localProfile?.playerId || profile?.playerId || '')
+  }, [profile?.playerId])
+
+  useEffect(() => {
+    if (!myPlayerId) return
+    const unsubRequests = listenToFriendRequests(myPlayerId, setRequests)
+    const unsubFriends = listenToFriends(myPlayerId, setFriends)
+    return () => {
+      unsubRequests()
+      unsubFriends()
+    }
+  }, [myPlayerId])
+
+  useEffect(() => {
+    let active = true
+    if (!friends.length) {
+      setPublicFriendProfiles({})
+      return () => {}
+    }
+
+    const publicRef = ref(db, 'publicProfiles')
+    const unsubscribe = onValue(publicRef, (snap) => {
+      if (!active) return
+      const allPublicProfiles = snap.val() || {}
+      const nextProfiles = {}
+      friends.forEach((friend) => {
+        nextProfiles[friend.friendPlayerId] = allPublicProfiles[friend.friendPlayerId] || null
+      })
+      setPublicFriendProfiles(nextProfiles)
+    }, () => {
+      if (active) setPublicFriendProfiles({})
+    })
+
+    return () => {
+      active = false
+      unsubscribe()
+    }
+  }, [friends])
+
+  useEffect(() => {
+    if (!user?.uid) return
+    let active = true
+    async function loadMySummary() {
+      try {
+        const [statsSnap, matchesSnap] = await Promise.all([
+          get(ref(db, `users/${user.uid}/stats`)),
+          get(ref(db, `users/${user.uid}/matches`)),
+        ])
+        if (!active) return
+        const matches = matchesSnap.val() ? Object.values(matchesSnap.val()) : []
+        const form = buildFormBadge(matches, 5).map(result => (result === 'win' ? 'W' : result === 'loss' ? 'L' : 'D')).join('')
+        setMySummary({
+          streak: Number(statsSnap.val()?.winStreak) || 0,
+          recentForm: form,
+        })
+        await syncPublicProfile(user.uid, profile?.displayName || user.displayName || 'Player')
+      } catch {
+        if (active) setMySummary({ streak: 0, recentForm: '' })
+      }
+    }
+    loadMySummary()
+    return () => { active = false }
+  }, [user?.uid, profile?.displayName])
+
+  async function handleSendRequest() {
+    if (!myPlayerId) {
+      setError('Your Player ID is still loading.')
+      return
+    }
+    setSending(true)
+    setError('')
+    setStatus('')
+    try {
+      const requestResult = await sendFriendRequest({
+        fromPlayerId: myPlayerId,
+        toPlayerId: targetPlayerId,
+        fromDisplayName: profile?.displayName || 'Player',
+        fromStreak: mySummary.streak,
+        fromRecentForm: mySummary.recentForm,
+      })
+      if (requestResult?.toUserId) {
+        sendFriendRequestPushNotification({
+          toUserId: requestResult.toUserId,
+          fromName: profile?.displayName || 'Player',
+        }).catch(() => {})
+      }
+      setStatus(requestResult?.mutual ? 'You are now friends.' : 'Friend request sent.')
+      setTargetPlayerId('')
+    } catch (requestError) {
+      setError(requestError.message || 'Could not send friend request.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  async function handleRequestAction(fromPlayerId, accept) {
+    if (!myPlayerId) return
+    setBusyId(fromPlayerId)
+    setError('')
+    setStatus('')
+    try {
+      if (accept) {
+        await acceptFriendRequest({
+          myPlayerId,
+          fromPlayerId,
+          myDisplayName: profile?.displayName || 'Player',
+          myStreak: mySummary.streak,
+          myRecentForm: mySummary.recentForm,
+        })
+        setStatus(`You are now friends with ${fromPlayerId}.`)
+      } else {
+        await declineFriendRequest({ myPlayerId, fromPlayerId })
+      }
+      setRequests((prev) => prev.filter((request) => request.fromPlayerId !== fromPlayerId))
+      onFriendRequestHandled?.(fromPlayerId)
+    } catch (requestError) {
+      setError(requestError.message || 'Could not update friend request.')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function handleUnfriend() {
+    if (!myPlayerId || !activeFriend?.friendPlayerId) return
+    const confirmed = window.confirm(`Remove ${activeFriend.displayName} from your friends list?`)
+    if (!confirmed) return
+    try {
+      await removeFriend({ myPlayerId, friendPlayerId: activeFriend.friendPlayerId })
+      setStatus('Friend removed.')
+      setActiveFriend(null)
+    } catch (requestError) {
+      setError(requestError.message || 'Could not remove friend.')
+    }
+  }
+
+  function openFriendProfile(friend) {
+    setActiveFriend(friend)
+    setChallengeSheetOpen(false)
+  }
+
+  function openChallengeSheet() {
+    setChallengeSheetOpen(true)
+  }
+
+  function closeChallengeSheet() {
+    setChallengeSheetOpen(false)
+  }
+
+  function launchChallenge(mode) {
+    if (!activeFriend?.friendPlayerId) return
+    const opponentPlayerId = activeFriend.friendPlayerId
+
+    if (mode === 'online') {
+      onStartOnline({ sport, rounds: 10, returnTab: 'friends', opponentPlayerId })
+    } else if (mode === 'team') {
+      onStartTeam({ sport, returnTab: 'friends', opponentPlayerId })
+    } else {
+      onStartLightningH2H({ sport, opponentPlayerId })
+    }
+
+    setActiveFriend(null)
+    setChallengeSheetOpen(false)
+  }
+
+  return (
+    <div className={styles.page}>
+      <p className={styles.kicker}>Friends</p>
+      <h1 className={styles.heroTitle}>Friends</h1>
+      <p className={styles.muted}>Add by Player ID, accept requests, and challenge your circle faster.</p>
+
+      <div className={`${styles.section} ${styles.friendsSectionCard}`}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Add by Player ID</h2>
+        </div>
+        <div className={styles.friendsAddRow}>
+          <input
+            type="text"
+            value={targetPlayerId}
+            onChange={(event) => setTargetPlayerId(event.target.value.toUpperCase())}
+            placeholder="FTB-XXXX"
+            className={styles.friendsInput}
+          />
+          <button
+            type="button"
+            className={styles.dailyBtn}
+            onClick={handleSendRequest}
+            disabled={sending || !targetPlayerId.trim()}
+            style={{ minWidth: 90 }}
+          >
+            {sending ? 'Sending' : 'Add'}
+          </button>
+        </div>
+      </div>
+
+      {error && <p className={styles.muted} style={{ color: '#FF5C5C', marginTop: 10 }}>{error}</p>}
+      {status && <p className={styles.muted} style={{ color: 'var(--green)', marginTop: 10 }}>{status}</p>}
+
+      <div className={`${styles.section} ${styles.friendsSectionCard}`}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Friend Requests</h2>
+        </div>
+        {!requests.length && <p className={styles.emptyState}>No pending requests.</p>}
+        {!!requests.length && requests.map((request) => (
+          <div key={request.fromPlayerId} className={`${styles.alertRow} ${styles.friendsRow}`}>
+            <span className={styles.alertIcon}>👤</span>
+            <div className={styles.alertBody}>
+              <div className={styles.alertTitle}>{request.fromDisplayName}</div>
+              <div className={styles.alertCopy}>{request.fromPlayerId}</div>
+              <div className={styles.alertActions}>
+                <button
+                  type="button"
+                  className={styles.dailyBtn}
+                  onClick={() => handleRequestAction(request.fromPlayerId, true)}
+                  disabled={busyId === request.fromPlayerId}
+                >
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  className={styles.ghostButton}
+                  onClick={() => handleRequestAction(request.fromPlayerId, false)}
+                  disabled={busyId === request.fromPlayerId}
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className={`${styles.section} ${styles.friendsSectionCard}`}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Friends</h2>
+        </div>
+        {!friends.length && <p className={styles.emptyState}>No friends yet. Add one by Player ID.</p>}
+        {!!friends.length && friends.map((friend) => (
+          <button
+            key={friend.friendPlayerId}
+            type="button"
+            className={`${styles.alertRow} ${styles.friendsRow} ${styles.friendCardButton}`}
+            onClick={() => openFriendProfile(friend)}
+          >
+            <span className={styles.alertIcon}>👥</span>
+          <div className={styles.alertBody}>
+              <div className={styles.alertTitle}>{friend.displayName}</div>
+              <div className={styles.alertCopy}>{friend.friendPlayerId} · Friend</div>
+              <div className={styles.friendMetaLine}>
+                <span className={styles.friendStreak}>{(publicFriendProfiles[friend.friendPlayerId]?.winStreak ?? friend.streak ?? 0)} win streak</span>
+                <span className={styles.friendForm}>
+                  {((publicFriendProfiles[friend.friendPlayerId]?.recentForm || friend.recentForm || '.....')).split('').slice(0, 5).map((item, index) => (
+                    <span
+                      key={`${friend.friendPlayerId}-${index}`}
+                      className={`${styles.friendFormDot} ${item === 'W' ? styles.friendFormWin : item === 'L' ? styles.friendFormLoss : item === 'D' ? styles.friendFormDraw : styles.friendFormNeutral}`}
+                    />
+                  ))}
+                </span>
+              </div>
+            </div>
+            <span className={styles.rowChevron}>›</span>
+          </button>
+        ))}
+      </div>
+
+      {activeFriend && !challengeSheetOpen && (
+        <div className={styles.friendModalBackdrop} onClick={() => setActiveFriend(null)}>
+          <div className={styles.friendModal} onClick={(event) => event.stopPropagation()}>
+            <div className={styles.friendModalHeader}>
+              <div className={styles.friendAvatarBadge}>
+                {(activeFriend.displayName || 'F').charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div className={styles.alertTitle}>{activeFriend.displayName}</div>
+                <div className={styles.alertCopy}>{activeFriend.friendPlayerId}</div>
+                <div className={styles.alertCopy}>Added {new Date(activeFriend.addedAt || Date.now()).toLocaleDateString()}</div>
+                <div className={styles.friendMetaLine} style={{ marginTop: 8 }}>
+                  <span className={styles.friendStreak}>{(publicFriendProfiles[activeFriend.friendPlayerId]?.winStreak ?? activeFriend.streak ?? 0)} win streak</span>
+                  <span className={styles.friendForm}>
+                    {((publicFriendProfiles[activeFriend.friendPlayerId]?.recentForm || activeFriend.recentForm || '.....')).split('').slice(0, 5).map((item, index) => (
+                      <span
+                        key={`${activeFriend.friendPlayerId}-modal-${index}`}
+                        className={`${styles.friendFormDot} ${item === 'W' ? styles.friendFormWin : item === 'L' ? styles.friendFormLoss : item === 'D' ? styles.friendFormDraw : styles.friendFormNeutral}`}
+                      />
+                    ))}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.friendsActionRow}>
+              <button
+                type="button"
+                className={styles.dailyBtn}
+                onClick={openChallengeSheet}
+              >
+                Challenge
+              </button>
+              <button type="button" className={styles.ghostButton} onClick={handleUnfriend}>
+                Unfriend
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeFriend && challengeSheetOpen && (
+        <div className={styles.friendModalBackdrop} onClick={closeChallengeSheet}>
+          <div className={`${styles.friendModal} ${styles.challengeSheet}`} onClick={(event) => event.stopPropagation()}>
+            <div className={styles.challengeSheetHeader}>
+              <div>
+                <div className={styles.alertTitle}>Challenge {activeFriend.displayName}</div>
+                <div className={styles.alertCopy}>{activeFriend.friendPlayerId}</div>
+              </div>
+              <button type="button" className={styles.challengeCloseBtn} onClick={closeChallengeSheet}>
+                Close
+              </button>
+            </div>
+            <div className={styles.challengeSheetGrid}>
+              <button type="button" className={styles.challengeModeBtn} onClick={() => launchChallenge('online')}>
+                <span className={styles.challengeModeTitle}>Online 1v1</span>
+                <span className={styles.challengeModeCopy}>Choose 5, 10, or 15 questions</span>
+              </button>
+              <button type="button" className={styles.challengeModeBtn} onClick={() => launchChallenge('team')}>
+                <span className={styles.challengeModeTitle}>Team Battle</span>
+                <span className={styles.challengeModeCopy}>Open team setup with this friend</span>
+              </button>
+              <button type="button" className={`${styles.challengeModeBtn} ${styles.challengeModePrimary}`} onClick={() => launchChallenge('lightning')}>
+                <span className={styles.challengeModeTitle}>Lightning Duel</span>
+                <span className={styles.challengeModeCopy}>Fast head-to-head duel</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ProfileTab({ user, profile, coinBalance, onAdmin, onEditProfile, onProfileUpdated, isAdmin, onLogout }) {
   const [playerId, setPlayerId] = useState(profile?.playerId || null)
   const [stats, setStats] = useState(null)
@@ -878,6 +1250,7 @@ export default function MainShell({
   onStartLightning,
   onStartLightningH2H,
   onStartSeasonalEvent,
+  onStartCommonLink,
   onAcceptOnlineInvite,
   onDeclineOnlineInvite,
   onAcceptTeamInvite,
@@ -890,15 +1263,28 @@ export default function MainShell({
   onProfileUpdated,
   onLogout,
   isAdmin,
+  
 }) {
   const [activeTab, setActiveTab] = useState(initialTab)
   const [rounds, setRounds] = useState(5)
   const [teamInviteLoading, setTeamInviteLoading] = useState(null)
   const [teamInviteError, setTeamInviteError] = useState('')
+  const [friendRequests, setFriendRequests] = useState([])
+  const hasIncomingChallenge = Boolean(pendingOnlineInvite || pendingLightningInvite)
 
   useEffect(() => {
     setActiveTab(initialTab || 'home')
   }, [initialTab])
+
+  useEffect(() => {
+    const localProfile = loadProfile()
+    const myPlayerId = localProfile?.playerId || profile?.playerId
+    if (!myPlayerId) {
+      setFriendRequests([])
+      return
+    }
+    return listenToFriendRequests(myPlayerId, setFriendRequests)
+  }, [profile?.playerId])
 
   function handleSelectMode(modeId) {
     if (modeId === 'playTab') {
@@ -928,6 +1314,10 @@ export default function MainShell({
     if (modeId === 'tournament') {
       onStartTournament({ returnTab: activeTab })
       return
+    }
+      if (modeId === 'commonLink') {
+    onStartCommonLink({ sport, returnTab: activeTab })
+    return
     }
     if (modeId === 'daily') {
       onStartDaily({ sport, returnTab: activeTab })
@@ -981,6 +1371,28 @@ export default function MainShell({
 
   return (
     <div className={styles.shell}>
+      {friendRequests.length > 0 && activeTab !== 'friends' && (
+        <button
+          type="button"
+          className={styles.friendRequestToast}
+          onClick={() => setActiveTab('friends')}
+        >
+          <span>👥</span>
+          <span>{friendRequests.length} friend request{friendRequests.length > 1 ? 's' : ''}</span>
+          <span className={styles.friendRequestToastLink}>Open</span>
+        </button>
+      )}
+      {hasIncomingChallenge && activeTab !== 'alerts' && (
+        <button
+          type="button"
+          className={`${styles.friendRequestToast} ${styles.challengeToast}`}
+          onClick={() => setActiveTab('alerts')}
+        >
+          <span>⚔️</span>
+          <span>{pendingLightningInvite ? 'Lightning challenge received' : 'Online challenge received'}</span>
+          <span className={styles.friendRequestToastLink}>Open</span>
+        </button>
+      )}
       {activeTab === 'home' && (
         <HomeTab
           sport={sport}
@@ -1020,6 +1432,18 @@ export default function MainShell({
           onDeclineTeam={(invite) => handleTeamInvite(invite, false)}
           onAcceptLightning={onAcceptLightningInvite}
           onDeclineLightning={onDeclineLightningInvite}
+        />
+      )}
+      {activeTab === 'friends' && (
+        <FriendsTab
+          profile={profile}
+          sport={sport}
+          onStartOnline={onStartOnline}
+          onStartTeam={onStartTeam}
+          onStartLightningH2H={onStartLightningH2H}
+          onFriendRequestHandled={(fromPlayerId) => {
+            setFriendRequests((prev) => prev.filter((request) => request.fromPlayerId !== fromPlayerId))
+          }}
         />
       )}
      {activeTab === 'profile' && (

@@ -1,5 +1,14 @@
 import {db} from './firebase'
-import {ref, set, get, update, onValue, off, push, serverTimestamp} from 'firebase/database'
+import {ref, set, get, update, onValue, off, push, remove, serverTimestamp} from 'firebase/database'
+
+const PUBLIC_TOURNAMENT_TTL_MS = 24 * 60 * 60 * 1000
+
+function getTournamentExpiry(tournament) {
+  if (!tournament) return null;
+  if (typeof tournament.expiresAt === "number") return tournament.expiresAt;
+  if (typeof tournament.createdAt === "number") return tournament.createdAt + PUBLIC_TOURNAMENT_TTL_MS;
+  return null;
+}
 
 function generateCode(length = 6) {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -72,6 +81,7 @@ function nextPow2(n) {
  * @param {string} opts.hostName
  * @param {string} opts.name         Tournament display name
  * @param {"football"|"basketball"} opts.sport
+ * @param {"standard"|"commonLink"|"lightning"} opts.format
  * @param {"public"|"private"} opts.visibility
  * @param {number} opts.maxPlayers   Must be 4, 8, 16, or 32
  * @param {number} opts.startTime    Unix ms timestamp
@@ -83,6 +93,7 @@ export async function createTournament({
   hostName,
   name,
   sport,
+  format = "standard",
   visibility,
   maxPlayers,
   startTime,
@@ -96,9 +107,11 @@ export async function createTournament({
     hostName,
     name,
     sport,
+    format,
     visibility,
     maxPlayers,
     startTime,
+    expiresAt: visibility === "public" ? Date.now() + PUBLIC_TOURNAMENT_TTL_MS : null,
     status: "waiting", // waiting | active | complete
     createdAt: serverTimestamp(),
     players: {
@@ -126,6 +139,12 @@ export async function joinTournament(code, uid, displayName) {
   if (!snap.exists()) return { success: false, error: "Tournament not found." };
  
   const t = snap.val();
+
+  const expiresAt = getTournamentExpiry(t);
+  if (t.visibility === "public" && expiresAt && Date.now() > expiresAt) {
+    await remove(tournamentRef);
+    return { success: false, error: "Tournament has expired." };
+  }
  
   if (t.status !== "waiting")
     return { success: false, error: "Tournament has already started." };
@@ -177,9 +196,28 @@ export async function getPublicTournaments() {
   if (!snap.exists()) return [];
  
   const all = snap.val();
-  return Object.values(all).filter(
-    (t) => t.visibility === "public" && t.status === "waiting"
-  );
+  const now = Date.now();
+  const publicTournaments = [];
+  const removals = [];
+
+  for (const [code, tournament] of Object.entries(all)) {
+    if (tournament.visibility !== "public" || tournament.status !== "waiting") continue;
+
+    const expiresAt = getTournamentExpiry(tournament);
+    const isExpired = expiresAt && now > expiresAt;
+    if (isExpired) {
+      removals.push(remove(ref(db, `tournaments/${code}`)));
+      continue;
+    }
+
+    publicTournaments.push(tournament);
+  }
+
+  if (removals.length > 0) {
+    await Promise.all(removals);
+  }
+
+  return publicTournaments;
 }
  
 // ─── Tournament Start ─────────────────────────────────────────────────────────

@@ -63,6 +63,7 @@ function canAwardReason({ uid, targetUserId, reason, amount }) {
 
   const selfAwardCaps = {
     quiz_reward: 40,
+    commonlink_reward: 40,
     daily_reward: 80,
     seasonal_reward: 150,
     lightning_solo_reward: 100,
@@ -730,6 +731,29 @@ app.post('/api/notify/invite', async (req, res) => {
   } catch (error) {
     console.error('Error sending invite notification:', error)
     res.status(500).json({ error: 'Failed to send invite notification' })
+  }
+})
+
+// POST /api/notify/friend-request - Send friend request push notification
+app.post('/api/notify/friend-request', async (req, res) => {
+  const { toUserId, fromName } = req.body || {}
+
+  if (!toUserId || !fromName) {
+    return res.status(400).json({ error: 'Missing toUserId or fromName' })
+  }
+
+  try {
+    const result = await sendNotificationToUser({
+      userId: toUserId,
+      title: 'Friend request',
+      body: `${fromName} sent you a friend request. Open the app to accept.`,
+      type: 'friendRequest',
+      dateKey: getNigeriaDateKey(),
+    })
+    res.json({ success: true, ...result })
+  } catch (error) {
+    console.error('Error sending friend request notification:', error)
+    res.status(500).json({ error: 'Failed to send friend request notification' })
   }
 })
 

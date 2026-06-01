@@ -156,6 +156,27 @@
   line-height: 1.5;
 }
 
+.backBtn {
+  background: var(--green);
+  color: var(--pitch);
+  padding: 0.8rem 1.2rem;
+  border-radius: 12px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  margin-bottom: 1rem;
+  display: inline-block;
+}
+
+.backBtn:hover {
+  background: var(--green-dark);
+}
+
+.backBtn:active {
+  transform: scale(0.98);
+}
+
 .section {
   margin-top: 22px;
   gap: 10px;
@@ -761,6 +782,259 @@
   margin-top: 12px;
 }
 
+.friendsSectionCard {
+  padding: 14px;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--card-bg) 92%, transparent);
+}
+
+.friendsAddRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 130px;
+  gap: 8px;
+}
+
+.friendsInput {
+  width: 100%;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 11px 12px;
+  color: var(--white);
+  font-size: 14px;
+  font-family: var(--font-body);
+  outline: none;
+}
+
+.friendsInput:focus {
+  border-color: color-mix(in srgb, var(--green) 50%, var(--card-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--green) 18%, transparent);
+}
+
+.challengeTargetChip {
+  margin-top: 10px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--green) 30%, transparent);
+  background: color-mix(in srgb, var(--green) 10%, transparent);
+  color: var(--white);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.challengeTargetClear {
+  border: 1px solid var(--card-border);
+  background: rgba(255,255,255,0.04);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.friendsRow {
+  margin-top: 8px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.02);
+}
+
+.friendCardButton {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--card-border);
+  cursor: pointer;
+}
+
+.friendMetaLine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.friendStreak {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.friendForm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.friendFormDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  background: rgba(255,255,255,0.25);
+}
+
+.friendFormWin {
+  background: #6ef59a;
+}
+
+.friendFormLoss {
+  background: #ff6d6d;
+}
+
+.friendFormDraw {
+  background: #ffd36b;
+}
+
+.friendFormNeutral {
+  background: rgba(255,255,255,0.16);
+}
+
+.friendsActionRow {
+  width: 100%;
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.friendsActionRow > button {
+  flex: 1 1 120px;
+  min-height: 40px;
+}
+
+.friendRequestToast {
+  position: fixed;
+  top: 14px;
+  right: 12px;
+  z-index: 120;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--green) 34%, transparent);
+  background: color-mix(in srgb, var(--pitch-mid) 78%, black);
+  color: var(--white);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.06);
+  backdrop-filter: blur(10px);
+}
+
+.friendRequestToastLink {
+  color: var(--green);
+}
+
+.challengeToast {
+  top: 56px;
+}
+
+.friendModalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 150;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 14px;
+}
+
+.friendModal {
+  width: min(100%, 430px);
+  background: color-mix(in srgb, var(--pitch-mid) 92%, black);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.4);
+}
+
+.friendModalHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.friendAvatarBadge {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  color: var(--green);
+  border: 2px solid color-mix(in srgb, var(--green) 34%, transparent);
+  background: color-mix(in srgb, var(--green) 14%, transparent);
+}
+
+.challengeSheet {
+  width: min(100%, 430px);
+  border-radius: 18px 18px 0 0;
+  padding: 16px;
+  margin-top: auto;
+}
+
+.challengeSheetHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.challengeCloseBtn {
+  border: 1px solid var(--card-border);
+  background: rgba(255,255,255,0.04);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.challengeSheetGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.challengeModeBtn {
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--card-border);
+  background: rgba(255,255,255,0.04);
+  color: var(--white);
+  text-align: left;
+}
+
+.challengeModePrimary {
+  background: color-mix(in srgb, var(--green) 14%, transparent);
+  border-color: color-mix(in srgb, var(--green) 30%, transparent);
+}
+
+.challengeModeTitle {
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.challengeModeCopy {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .unreadDot {
   width: 8px;
   height: 8px;
@@ -931,7 +1205,7 @@
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 0;
-  padding: 7px 8px calc(8px + env(safe-area-inset-bottom));
+  padding: 6px 6px calc(7px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--card-border);
   background: color-mix(in srgb, var(--pitch-mid) 86%, black);
   box-shadow: 0 -18px 42px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04);
@@ -953,10 +1227,10 @@
   position: relative;
   display: grid;
   justify-items: center;
-  gap: 3px;
-  min-height: 48px;
+  gap: 2px;
+  min-height: 46px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   border-radius: 10px;
   transition: color 180ms ease, transform 180ms ease, background 180ms ease;
@@ -978,9 +1252,9 @@
 .navIcon {
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
-  font-size: 18px;
+  width: 22px;
+  height: 22px;
+  font-size: 16px;
   line-height: 1;
 }
 
@@ -1031,6 +1305,10 @@
 
   .bottomNav {
     width: 100%;
+  }
+
+  .friendsAddRow {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1098,10 +1376,10 @@
   }
 
   .navItem {
-    font-size: 9px;
+    font-size: 8px;
   }
 
   .navIcon {
-    font-size: 16px;
+    font-size: 14px;
   }
 }

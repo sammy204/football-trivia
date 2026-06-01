@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import styles from './Leaderboard.module.css'
 import { getDateKey, getWeekKey, listenToDailyLeaderboard, listenToWeeklyLeaderboard } from '../lib/dailyChallenge'
+import { getDefaultAvatar } from '../lib/avatars'
+import { getEquippedFrame } from '../lib/frames'
+import AvatarFrame from './AvatarFrame'
 
 function formatTime(totalTimeMs) {
   if (!totalTimeMs && totalTimeMs !== 0) return '--'
@@ -13,6 +16,7 @@ export default function DailyLeaderboard({ sport, onBack, highlightPlayerId }) {
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [myFrame, setMyFrame] = useState(null)
   const dateKey = useMemo(() => getDateKey(), [])
   const weekKey = useMemo(() => getWeekKey(), [])
   const isBasketball = sport === 'basketball'
@@ -48,6 +52,21 @@ export default function DailyLeaderboard({ sport, onBack, highlightPlayerId }) {
 
     return () => unsubscribe()
   }, [dateKey, weekKey, sport, activeTab])
+
+  useEffect(() => {
+    if (!highlightPlayerId) {
+      setMyFrame(null)
+      return
+    }
+
+    const highlightedEntry = entries.find(entry => entry.playerId === highlightPlayerId)
+    if (!highlightedEntry?.uid) {
+      setMyFrame(null)
+      return
+    }
+
+    getEquippedFrame(highlightedEntry.uid).then(setMyFrame)
+  }, [entries, highlightPlayerId])
 
   const tabActiveStyle = { background: 'var(--green)', color: 'var(--pitch)' }
   const tabInactiveStyle = { background: 'rgba(255,255,255,0.03)', color: 'var(--muted)' }
@@ -106,6 +125,11 @@ export default function DailyLeaderboard({ sport, onBack, highlightPlayerId }) {
               className={`${styles.row} ${entry.rank <= 3 ? styles.topThree : ''} ${entry.playerId === highlightPlayerId ? styles.highlight : ''}`}
             >
               <div className={styles.rank}>{entry.rank}</div>
+              {entry.playerId === highlightPlayerId && (
+                <AvatarFrame frameId={myFrame} size={32}>
+                  <img src={getDefaultAvatar()} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </AvatarFrame>
+              )}
               <div className={styles.info}>
                 <div className={styles.name}>{entry.displayName}</div>
                 <div className={styles.meta}>

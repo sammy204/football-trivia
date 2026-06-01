@@ -14,16 +14,19 @@ import { recordMatchWinner } from '../lib/tournament'
 import { sendInvitePushNotification } from '../lib/inviteNotifications'
 import { awardCoins, ONLINE_1V1_WAGER, spendCoins } from '../lib/coins'
 import { getDefaultAvatar, getPlayerAvatar } from '../lib/avatars'
+import { getEquippedFrame } from '../lib/frames'
 import { loadProfile } from '../lib/profile'
 import styles from './OnlineMulti.module.css'
-import { getFormBadge, getOpponentForm } from '../lib/userStats'
+import { getFormBadge as buildFormBadge, getOpponentForm } from '../lib/userStats'
 import { LobbyFormRow } from './RivalrySection'
+import AvatarFrame from './AvatarFrame'
 
 export default function OnlineMulti({
   sport,
   rounds,
   onBack,
   user,
+  initialOpponentPlayerId = '',
   pendingInvite,
   onInviteHandled,
   tournamentMatchMeta,
@@ -32,7 +35,7 @@ export default function OnlineMulti({
 }) {
   const [screen, setScreen] = useState('intro')
   const [name, setName] = useState(user?.displayName || '')
-  const [opponentPlayerId, setOpponentPlayerId] = useState('')
+  const [opponentPlayerId, setOpponentPlayerId] = useState(String(initialOpponentPlayerId || '').trim().toUpperCase())
   const [roomCode, setRoomCode] = useState('')
   const [role, setRole] = useState(null)
   const [room, setRoom] = useState(null)
@@ -47,6 +50,8 @@ export default function OnlineMulti({
   const advancedQuestionRef = useRef(-1)
   const advanceTimerRef = useRef(null)
   const acceptHandledRef = useRef(false)
+  const [hostFrame, setHostFrame] = useState(null)
+  const [guestFrame, setGuestFrame] = useState(null)
 
   const accent = sport === 'basketball' ? '#FF6B35' : '#00FF87'
   const accentText = sport === 'basketball' ? '#fff' : '#0a1f0f'
@@ -64,6 +69,10 @@ export default function OnlineMulti({
   const result = myScore > opponentScore ? 'win' : myScore < opponentScore ? 'loss' : 'draw'
   const [myForm, setMyForm] = useState([])
   const [opponentForm, setOpponentForm] = useState([])
+
+  useEffect(() => {
+    setOpponentPlayerId(String(initialOpponentPlayerId || '').trim().toUpperCase())
+  }, [initialOpponentPlayerId])
 
   // Tournament match — auto join/create room using the pre-set room code
   useEffect(() => {
@@ -135,7 +144,7 @@ export default function OnlineMulti({
           const snap = await get(ref(db, `users/${user.uid}/matches`))
           if (snap.val()) {
             const allMatches = Object.values(snap.val())
-            setMyForm(getFormBadge(allMatches, 5))
+            setMyForm(buildFormBadge(allMatches, 5))
           }
         } catch { /* silent */ }
       }
@@ -445,6 +454,19 @@ await set(ref(db, `rooms/${roomCode}`), null)
   }, [screen])
 
   useEffect(() => {
+    if (screen !== 'results') return
+
+    const hostUid = room?.players?.host?.uid
+    const guestUid = room?.players?.guest?.uid
+
+    if (hostUid) getEquippedFrame(hostUid).then(setHostFrame)
+    else setHostFrame(null)
+
+    if (guestUid) getEquippedFrame(guestUid).then(setGuestFrame)
+    else setGuestFrame(null)
+  }, [screen, room?.players?.host?.uid, room?.players?.guest?.uid])
+
+  useEffect(() => {
     setSelected(null)
     setAnswered(false)
   }, [room?.currentQuestion])
@@ -676,21 +698,27 @@ await set(ref(db, `rooms/${roomCode}`), null)
           <div className={styles.scores}>
            <div className={styles.scoreBox}>
              <p className={styles.scoreName}>{hostName}</p>
-             <img
-              src={hostPhotoURL || getDefaultAvatar()}
-               alt={`${hostName}'s avatar`}
-               className={styles.avatarImg}
-             />
+             <AvatarFrame frameId={hostFrame} size={56}>
+               <img
+                 src={hostPhotoURL || getDefaultAvatar()}
+                 alt={`${hostName}'s avatar`}
+                 className={styles.avatarImg}
+                 style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+               />
+             </AvatarFrame>
              <p className={styles.scoreNum} style={{ color: accent }}>{hostScore}</p>
            </div>
             <p className={styles.vs}>VS</p>
              <div className={styles.scoreBox}>
                <p className={styles.scoreName}>{guestName}</p>
-               <img
-                src={guestPhotoURL || getDefaultAvatar()}
-                 alt={`${guestName}'s avatar`}
-                 className={styles.avatarImg}
-               />
+               <AvatarFrame frameId={guestFrame} size={56}>
+                 <img
+                   src={guestPhotoURL || getDefaultAvatar()}
+                   alt={`${guestName}'s avatar`}
+                   className={styles.avatarImg}
+                   style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                 />
+               </AvatarFrame>
                <p className={styles.scoreNum}>{guestScore}</p>
              </div>
           </div>

@@ -27,7 +27,6 @@ export default function LightningRound({ questions, onFinish, sport }) {
   const isBasketball = sport === 'basketball'
   const accent = isBasketball ? '#FF6B35' : '#00FF87'
 
-  // Reset per-question state
   useEffect(() => {
     setSelected(null)
     setAnswered(false)
@@ -35,7 +34,6 @@ export default function LightningRound({ questions, onFinish, sport }) {
     startedAtRef.current = Date.now()
   }, [qIndex])
 
-  // Timer countdown (runs continuously; not tied to question changes)
   useEffect(() => {
     timerRef.current = setInterval(() => {
       setTimeLeft((current) => {
@@ -96,7 +94,6 @@ export default function LightningRound({ questions, onFinish, sport }) {
 
     setTimeout(() => {
       if (qIndex + 1 >= questions.length) {
-        // Exhausted all questions — finish now
         if (!finishedRef.current) {
           finishedRef.current = true
           onFinish({
@@ -117,14 +114,14 @@ export default function LightningRound({ questions, onFinish, sport }) {
   return (
     <div className={styles.wrap}>
       <div className={styles.topBar}>
-        <div className={styles.pill}>⚡ Lightning Round</div>
+        <div className={styles.pill}>Lightning Round</div>
         <div className={styles.timerDisplay}>
           <span className={styles.timeLeft}>{timeLeft}s</span>
         </div>
       </div>
 
       <div className={styles.progressBar}>
-        <div className={styles.progressFill} style={{ width: `${progressPct}%` }} />
+        <div className={styles.progressFill} style={{ width: `${progressPct}%`, background: accent }} />
       </div>
 
       <div className={styles.statsRow}>

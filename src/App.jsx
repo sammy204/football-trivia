@@ -24,6 +24,7 @@ import AuthCallback from './components/AuthCallback'
 import Tournament from './components/Tournament'
 import SeasonalQuiz from './components/SeasonalQuiz'
 import SeasonalResults from './components/SeasonalResults'
+import CommonLink from './components/CommonLink'
 import { generateQuestions } from './lib/question'
 import { getPlayerByPlayerId } from './lib/multiplayer'
 import {
@@ -39,6 +40,7 @@ import { loadProfile, saveProfile, fetchAndCachePlayerId } from './lib/profile'
 import { saveLightningScore } from './lib/lightningDaily'
 import { logOut } from './lib/auth'
 import { recordDailyChallengeActivity, recordGameplayActivity, resetBrokenDailyStreak, isStreakInDanger, getStreakStatus, isPast10PM } from './lib/streaks'
+import { syncPublicProfile } from './lib/userStats'
 import { listenToInvites } from './lib/teamMultiplayer'
 import { auth } from './lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
@@ -69,6 +71,7 @@ import {
 } from './lib/coins'
 import { recordModePlayed } from './lib/modeStats'
 import { getPlayerAvatar } from './lib/avatars'
+
 
 const TEAM_ROUNDS = 10
 const INSTALL_INTEREST_KEY = 'trivela-install-interest'
@@ -127,6 +130,7 @@ export default function App() {
   const [pendingOnlineInvite, setPendingOnlineInvite] = useState(null)
   const [pendingLightningInvite, setPendingLightningInvite] = useState(null)
   const [incomingInviteForAccept, setIncomingInviteForAccept] = useState(null)
+  const [onlineTargetPlayerId, setOnlineTargetPlayerId] = useState('')
   const [tournamentMatchMeta, setTournamentMatchMeta] = useState(null)
   const [activeTournamentCode, setActiveTournamentCode] = useState(null)
   const [coinBalance, setCoinBalance] = useState(0)
@@ -341,6 +345,12 @@ export default function App() {
   }, [user?.uid, selectedSport])
 
   useEffect(() => {
+    if (!user?.uid) return
+    const displayName = profile?.displayName || user.displayName || 'Player'
+    syncPublicProfile(user.uid, displayName).catch(() => {})
+  }, [user?.uid, profile?.displayName, user?.displayName])
+
+  useEffect(() => {
     if (!streakNotice) return
     const timeout = window.setTimeout(() => setStreakNotice(null), 5000)
     return () => window.clearTimeout(timeout)
@@ -461,23 +471,28 @@ export default function App() {
     launchGame({ mode: 'solo', players: [name], rounds, sport })
   }
 
-  function handleStartOnline({ sport, rounds, returnTab = 'home' }) {
+  function handleStartOnline({ sport, rounds, returnTab = 'home', opponentPlayerId = '' }) {
     if (!user) { setShowAuth(true); return }
     if (!user.emailVerified) { setShowVerify(true); return }
     rememberModeReturnTab(returnTab)
     recordMode('online')
     setSelectedSport(sport)
+    setOnlineTargetPlayerId(String(opponentPlayerId || '').trim().toUpperCase())
     setGameConfig({ sport, rounds })
     setScreen('online')
   }
 
-  function handleStartTeam({ sport, returnTab = 'home' }) {
+  function handleStartTeam({ sport, returnTab = 'home', opponentPlayerId = '' }) {
     if (!user) { setShowAuth(true); return }
     if (!user.emailVerified) { setShowVerify(true); return }
     rememberModeReturnTab(returnTab)
     recordMode('team')
     setSelectedSport(sport)
-    setTeamConfig({ sport, rounds: TEAM_ROUNDS })
+    setTeamConfig({
+      sport,
+      rounds: TEAM_ROUNDS,
+      prefillInvitePlayerId: String(opponentPlayerId || '').trim().toUpperCase(),
+    })
     setScreen('teamOnline')
   }
 
@@ -498,7 +513,14 @@ export default function App() {
     recordMode('tournament')
     setScreen('tournament')
   }
-
+function handleStartCommonLink({ sport, returnTab = 'home' }) {
+  if (!user) { setShowAuth(true); return }
+  if (!user.emailVerified) { setShowVerify(true); return }
+  rememberModeReturnTab(returnTab)
+  recordMode('commonLink')
+  setSelectedSport(sport)
+  setScreen('commonLink')
+}
   async function awardUserCoins({ amount, reason, sourceId, metadata, label, detail }) {
     if (!user?.uid) {
       return {
@@ -1277,6 +1299,7 @@ export default function App() {
           onStartLightning={handleStartLightning}
           onStartLightningH2H={handleStartLightningH2H}
           onStartSeasonalEvent={handleStartSeasonalEvent}
+          onStartCommonLink={handleStartCommonLink}
           onAcceptOnlineInvite={handleAcceptOnlineInvite}
           onDeclineOnlineInvite={handleDeclineOnlineInvite}
           onAcceptTeamInvite={handleInviteAccepted}
@@ -1326,6 +1349,7 @@ export default function App() {
           key={user?.uid || 'guest'}
           sport={gameConfig?.sport || 'football'}
           rounds={gameConfig?.rounds || 5}
+          initialOpponentPlayerId={onlineTargetPlayerId}
           onBack={() => returnToMainTab()}
           user={user}
           pendingInvite={incomingInviteForAccept}
@@ -1346,6 +1370,7 @@ export default function App() {
           rounds={teamConfig?.rounds || TEAM_ROUNDS}
           initialJoinCode={teamConfig?.joinCode || null}
           initialJoinTeamId={teamConfig?.joinTeamId || null}
+          initialInvitePlayerId={teamConfig?.prefillInvitePlayerId || ''}
           onBack={() => returnToMainTab()}
           user={user}
           coinBalance={coinBalance}
@@ -1374,6 +1399,8 @@ export default function App() {
         <ErrorBoundary>
           <Tournament
             user={user}
+            sport={selectedSport}
+            onSportChange={setSelectedSport}
             onBack={() => {
               setActiveTournamentCode(null)
               returnToMainTab()
@@ -1429,6 +1456,7 @@ export default function App() {
           roomCode={lightningH2HRoomCode}
           role={lightningH2HRole}
           sport={lightningH2HConfig?.sport || selectedSport}
+          userId={user?.uid}
           onFinish={handleFinishLightningH2H}
         />
       )}
@@ -1502,7 +1530,40 @@ export default function App() {
           coinBalance={coinBalance}
         />
       )}
-
+      {screen === 'commonLink' && (
+  <CommonLink
+    user={user}
+    profile={profileState || profile}
+    sport={selectedSport}
+    onSportChange={setSelectedSport}
+    coinReward={coinReward}
+    coinBalance={coinBalance}
+    onExit={() => returnToMainTab()}
+    onGameFinish={async ({ score, totalQuestions, sport }) => {
+  if (user?.uid) {
+    recordGameplayActivity({
+      userId: user.uid,
+      dateKey: getDateKey(),
+      source: 'commonLink',
+    }).catch((error) => console.error('Failed to record gameplay activity:', error))
+  }
+  const rewardAmount = calculateQuizCoinReward({
+    mode: 'commonLink',
+    score,
+    totalQuestions,
+  })
+  const reward = await awardUserCoins({
+    amount: rewardAmount,
+    reason: 'commonlink_reward',
+    sourceId: `commonlink:${sport}:${score}:${Date.now()}:${user?.uid}`,
+    metadata: { sport, score, totalQuestions },
+    label: 'Common Link coins earned',
+    detail: `${score}/${totalQuestions} correct`,
+  })
+  setCoinReward(reward)
+}}
+  />
+)}
       {screen === 'lightningLeaderboard' && (
         <LightningLeaderboard
           sport={selectedSport}

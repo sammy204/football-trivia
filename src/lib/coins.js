@@ -33,6 +33,11 @@ function getCoinBackendUrl(path) {
   return `${base}/api/coins/${path}`
 }
 
+function isLocalBrowser() {
+  if (typeof window === 'undefined') return false
+  return ['localhost', '127.0.0.1'].includes(window.location.hostname)
+}
+
 async function callCoinBackend(path, payload) {
   const currentUser = auth.currentUser
   if (!currentUser) throw new Error('Not signed in.')
@@ -181,10 +186,11 @@ export async function spendCoins({
   reason,
   sourceId,
   metadata = {},
+  preferLocal = false,
 }) {
   if (!userId) return { ok: false, balance: 0, amount: 0 }
 
-  if (auth.currentUser) {
+  if (auth.currentUser && !(preferLocal && isLocalBrowser())) {
     return callCoinBackend('spend', {
       userId,
       amount,

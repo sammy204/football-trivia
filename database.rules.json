@@ -73,17 +73,35 @@
             ".validate": "!newData.exists() || newData.hasChildren(['endpoint', 'keys', 'createdAt'])"
           }
         },
-        "wallet": {
-  ".write": "auth != null && auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463'",
-  ".validate": "newData.hasChildren(['balance', 'updatedAt'])"
-},
 
-"coinLedger": {
-  ".write": "auth != null && auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463'",
-  "$entryId": {
-    ".validate": "newData.hasChildren(['type', 'amount', 'reason', 'createdAt'])"
-  }
-}
+        "streakShield": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463')",
+          ".validate": "!newData.exists() || (newData.hasChildren(['active', 'purchasedAt']) && newData.child('active').isBoolean() && newData.child('active').val() === true)"
+        },
+
+        "ownedFrames": {
+          "$frameId": {
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463')",
+            ".validate": "!newData.exists() || (newData.hasChildren(['purchasedAt']) && ($frameId === 'silver' || $frameId === 'gold' || $frameId === 'legendary'))"
+          }
+        },
+
+        "equippedFrame": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463')",
+          ".validate": "!newData.exists() || newData.val() === 'silver' || newData.val() === 'gold' || newData.val() === 'legendary'"
+        },
+
+        "wallet": {
+          ".write": "auth != null && (auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463' || (auth.uid === $uid && data.exists() && newData.child('balance').isNumber() && newData.child('balance').val() >= 0 && newData.child('balance').val() <= data.child('balance').val()))",
+          ".validate": "newData.hasChildren(['balance', 'updatedAt'])"
+        },
+
+        "coinLedger": {
+          "$entryId": {
+            ".write": "auth != null && (auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463' || auth.uid === $uid)",
+            ".validate": "newData.hasChildren(['type', 'amount', 'reason', 'createdAt']) && (auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463' || newData.child('type').val() === 'spend')"
+          }
+        }
       }
     },
 
@@ -143,6 +161,26 @@
       ".write": "auth != null"
     },
 
+    "friendRequests": {
+      "$toPlayerId": {
+        ".read": "auth != null",
+        "$fromPlayerId": {
+          ".write": "auth != null",
+          ".validate": "!newData.exists() || (newData.hasChildren(['fromPlayerId', 'fromDisplayName', 'createdAt']) && newData.child('fromPlayerId').val() === $fromPlayerId)"
+        }
+      }
+    },
+
+    "friends": {
+      "$playerId": {
+        ".read": "auth != null",
+        "$friendPlayerId": {
+          ".write": "auth != null",
+          ".validate": "!newData.exists() || (newData.hasChildren(['playerId', 'displayName', 'addedAt']) && newData.child('playerId').val() === $friendPlayerId)"
+        }
+      }
+    },
+
     "dailyLeaderboards": {
       ".read": true,
 
@@ -178,6 +216,34 @@
     "adminQuestions": {
       ".read": "auth != null",
       ".write": "auth != null && auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463'"
+    },
+
+    "commonLinkQuestions": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.uid === 'K4qCnBhAVDMTkvK70SMVfbbsw463'",
+
+      "$sport": {
+        "bank": {
+          "$questionId": {
+            ".validate": "!newData.exists() || (newData.hasChildren(['players', 'options', 'answer', 'sport', 'createdAt', 'updatedAt']) && (newData.child('answer').val() === 'a' || newData.child('answer').val() === 'b' || newData.child('answer').val() === 'c' || newData.child('answer').val() === 'd'))"
+          }
+        }
+      }
+    },
+
+    "commonLinkLeaderboard": {
+      ".read": true,
+      "$dateKey": {
+        "$sport": {
+          "entries": {
+            ".write": "auth != null",
+
+            "$playerId": {
+              ".validate": "newData.hasChildren(['playerId', 'displayName', 'score', 'totalQuestions', 'accuracyPct', 'completedAt', 'dateKey']) && newData.child('playerId').val() === $playerId && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('totalQuestions').isNumber() && newData.child('totalQuestions').val() > 0 && newData.child('accuracyPct').isNumber() && newData.child('accuracyPct').val() >= 0 && newData.child('accuracyPct').val() <= 100 && newData.child('completedAt').isNumber()"
+            }
+          }
+        }
+      }
     },
 
     "seasonalEvents": {
@@ -244,6 +310,15 @@
     "playerIds": {
       ".read": "auth != null",
       ".write": "auth != null"
+    },
+
+    "publicProfiles": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+
+      "$playerId": {
+        ".validate": "!newData.exists() || newData.hasChildren(['playerId', 'displayName', 'winStreak', 'recentForm', 'updatedAt']) && newData.child('playerId').val() === $playerId"
+      }
     },
 
     "notifications": {

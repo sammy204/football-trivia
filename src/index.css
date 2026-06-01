@@ -50,3 +50,8 @@ input, select, textarea { font-size: max(16px, 1em); }
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--pitch-light); border-radius: 4px; }
+
+ @keyframes spin-frame {
+  from { filter: hue-rotate(0deg); }
+  to   { filter: hue-rotate(360deg); }
+}

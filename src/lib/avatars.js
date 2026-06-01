@@ -164,3 +164,27 @@ export function getPlayerAvatar(user, profile) {
   if (isImageAvatar(user?.photoURL)) return user.photoURL
   return getDefaultAvatar()
 }
+export const AVATAR_FRAMES = [
+  {
+    id: 'silver',
+    name: 'Silver Frame',
+    price: 100,
+    description: 'A clean silver border',
+  },
+  {
+    id: 'gold',
+    name: 'Gold Frame',
+    price: 300,
+    description: 'A bold gold border with warm glow',
+  },
+  {
+    id: 'legendary',
+    name: 'Legendary Frame',
+    price: 800,
+    description: 'An animated gradient border',
+  },
+]
+
+export function getFrameById(id) {
+  return AVATAR_FRAMES.find(f => f.id === id) || null
+}

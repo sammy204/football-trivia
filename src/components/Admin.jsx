@@ -18,6 +18,7 @@ const SECTIONS = [
   { id: 'seasonal', label: 'Seasonal', icon: '🎯' },
   { id: 'notifications', label: 'Notifications', icon: '🔔' },
   { id: 'analytics', label: 'Analytics', icon: '📊' },
+  { id: 'commonlink', label: 'Common Link', icon: '🔗' },
 ]
 
 const emptyForm = {
@@ -701,6 +702,7 @@ export default function Admin({ user, onBack }) {
       case 'seasonal': return <SeasonalEvents />
       case 'notifications': return <Notifications user={user} />
       case 'analytics': return <Analytics />
+      case 'commonlink': return <CommonLinkManager />
       default: return <Overview />
     }
   }
@@ -745,6 +747,213 @@ export default function Admin({ user, onBack }) {
           {renderSection()}
         </div>
       </main>
+    </div>
+  )
+}
+function CommonLinkManager() {
+  const [sport, setSport] = useState('football')
+  const [questions, setQuestions] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [editId, setEditId] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [toast, setToast] = useState(null)
+  const [form, setForm] = useState({ players: ['', '', ''], options: { a: '', b: '', c: '', d: '' }, answer: 'a' })
+
+  const dbPath = `commonLinkQuestions/${sport}/bank`
+
+  useEffect(() => {
+    setLoading(true)
+    const r = ref(db, dbPath)
+    const unsub = onValue(r, snap => {
+      const data = snap.val()
+      setQuestions(data ? Object.entries(data).map(([id, val]) => ({ id, ...val })) : [])
+      setLoading(false)
+    })
+    return () => unsub()
+  }, [sport])
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  function openAdd() {
+    setForm({ players: ['', '', ''], options: { a: '', b: '', c: '', d: '' }, answer: 'a' })
+    setEditId(null)
+    setShowForm(true)
+  }
+
+  function openEdit(q) {
+    setForm({
+      players: q.players || ['', '', ''],
+      options: q.options || { a: '', b: '', c: '', d: '' },
+      answer: q.answer || 'a',
+    })
+    setEditId(q.id)
+    setShowForm(true)
+  }
+
+  function closeForm() {
+    setShowForm(false)
+    setEditId(null)
+  }
+
+  async function handleSave() {
+    if (form.players.some(p => !p.trim()) || Object.values(form.options).some(o => !o.trim())) {
+      showToast('Fill in all fields.', 'error')
+      return
+    }
+    setSaving(true)
+    const payload = {
+      players: form.players.map(p => p.trim()),
+      options: { a: form.options.a.trim(), b: form.options.b.trim(), c: form.options.c.trim(), d: form.options.d.trim() },
+      answer: form.answer,
+      sport,
+      updatedAt: Date.now(),
+    }
+    try {
+      if (editId) {
+        await update(ref(db, `${dbPath}/${editId}`), payload)
+        showToast('Question updated!')
+      } else {
+        payload.createdAt = Date.now()
+        await push(ref(db, dbPath), payload)
+        showToast('Question added!')
+      }
+      closeForm()
+    } catch (e) {
+      showToast('Save failed: ' + e.message, 'error')
+    }
+    setSaving(false)
+  }
+
+  async function handleDelete(id) {
+    try {
+      await remove(ref(db, `${dbPath}/${id}`))
+      showToast('Question deleted.')
+      setDeleteConfirm(null)
+    } catch (e) {
+      showToast('Delete failed: ' + e.message, 'error')
+    }
+  }
+
+  return (
+    <div className={styles.qmWrap}>
+      {toast && <div className={`${styles.toast} ${styles[toast.type]}`}>{toast.msg}</div>}
+
+      <div className={styles.sportTabs}>
+        {SPORTS.map(s => (
+          <button key={s} className={`${styles.sportTab} ${sport === s ? styles.sportTabActive : ''}`} onClick={() => setSport(s)}>
+            {s === 'football' ? '⚽' : '🏀'} {s.charAt(0).toUpperCase() + s.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      <div className={styles.qmToolbar}>
+        <button className={styles.addBtn} onClick={openAdd}>+ Add Question</button>
+      </div>
+
+      <p className={styles.qmCount}>{loading ? 'Loading…' : `${questions.length} question${questions.length !== 1 ? 's' : ''}`}</p>
+
+      {loading ? (
+        <div className={styles.loadingRow}>Loading…</div>
+      ) : questions.length === 0 ? (
+        <div className={styles.emptyState}><span>🔗</span><p>No common link questions yet.</p></div>
+      ) : (
+        <div className={styles.questionList}>
+          {questions.map((q, i) => (
+            <div key={q.id} className={styles.questionRow}>
+              <div className={styles.questionMeta}>
+                <span className={styles.qIndex}>#{i + 1}</span>
+              </div>
+              <div className={styles.questionBody}>
+                <p className={styles.questionText}>Players: {(q.players || []).join(' · ')}</p>
+                <div className={styles.optionsGrid}>
+                  {['a', 'b', 'c', 'd'].map(opt => (
+                    <span key={opt} className={`${styles.optionChip} ${q.answer === opt ? styles.correctChip : ''}`}>
+                      <strong>{opt.toUpperCase()}.</strong> {q.options?.[opt] ?? '—'}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className={styles.questionActions}>
+                <button className={styles.editBtn} onClick={() => openEdit(q)}>Edit</button>
+                <button className={styles.deleteBtn} onClick={() => setDeleteConfirm(q.id)}>Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showForm && (
+        <div className={styles.modalOverlay} onClick={closeForm}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>{editId ? 'Edit Question' : 'Add Question'}</h3>
+
+            <label className={styles.formLabel}>3 Players (the clues)</label>
+            {[0, 1, 2].map(i => (
+              <input
+                key={i}
+                className={styles.formInput}
+                style={{ marginBottom: 8 }}
+                placeholder={`Player ${i + 1}`}
+                value={form.players[i]}
+                onChange={e => {
+                  const next = [...form.players]
+                  next[i] = e.target.value
+                  setForm(f => ({ ...f, players: next }))
+                }}
+              />
+            ))}
+
+            <label className={styles.formLabel} style={{ marginTop: 8 }}>Answer Options</label>
+            <div className={styles.optionsFormGrid}>
+              {['a', 'b', 'c', 'd'].map(opt => (
+                <div key={opt} className={styles.optionField}>
+                  <label className={styles.optLabel}>{opt.toUpperCase()}</label>
+                  <input
+                    className={styles.formInput}
+                    value={form.options[opt]}
+                    onChange={e => setForm(f => ({ ...f, options: { ...f.options, [opt]: e.target.value } }))}
+                    placeholder={`Option ${opt.toUpperCase()}`}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className={styles.formGroup} style={{ marginTop: 8 }}>
+              <label className={styles.formLabel}>Correct Answer</label>
+              <select className={styles.formSelect} value={form.answer} onChange={e => setForm(f => ({ ...f, answer: e.target.value }))}>
+                {['a', 'b', 'c', 'd'].map(opt => (
+                  <option key={opt} value={opt}>{opt.toUpperCase()} — {form.options[opt] || '...'}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.modalActions}>
+              <button className={styles.cancelBtn} onClick={closeForm}>Cancel</button>
+              <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving…' : editId ? 'Save Changes' : 'Add Question'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirm && (
+        <div className={styles.modalOverlay} onClick={() => setDeleteConfirm(null)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Delete Question?</h3>
+            <p className={styles.confirmText}>This cannot be undone.</p>
+            <div className={styles.modalActions}>
+              <button className={styles.cancelBtn} onClick={() => setDeleteConfirm(null)}>Cancel</button>
+              <button className={styles.deleteConfirmBtn} onClick={() => handleDelete(deleteConfirm)}>Yes, Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -3,10 +3,11 @@ import { ref, onValue, off, update } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { LIGHTNING_H2H_WAGER } from '../lib/coins'
 import styles from './LightningH2H.module.css'
+import { recordGameplayActivity } from '../lib/streaks'
 
 const TIMER_SECS = 60
 
-export default function LightningH2H({ questionsHost, questionsGuest, roomCode, role, onFinish, sport }) {
+export default function LightningH2H({ questionsHost, questionsGuest, roomCode, role, onFinish, sport, userId }) {
   const [qIndex, setQIndex] = useState(0)
   const [selected, setSelected] = useState(null)
   const [answered, setAnswered] = useState(false)
@@ -100,6 +101,10 @@ export default function LightningH2H({ questionsHost, questionsGuest, roomCode, 
     const isWin = myFinalScore > oppFinalScore
     const isDraw = myFinalScore === oppFinalScore
 
+    if (userId) {
+      recordGameplayActivity({ userId, source: 'lightning-h2h' }).catch(() => {})
+    }
+
     onFinish({
       scores: [myFinalScore, oppFinalScore],
       history: historyRef.current,
@@ -109,7 +114,7 @@ export default function LightningH2H({ questionsHost, questionsGuest, roomCode, 
       isDraw,
       opponentName,
     })
-  }, [myFinished, opponentFinished, opponentScore, opponentName, questions.length, onFinish])
+  }, [myFinished, opponentFinished, opponentScore, opponentName, questions.length, onFinish, userId])
 
   function buildEntry(choice, isCorrect, elapsedMs) {
     const currentQ = questions[qIndex]

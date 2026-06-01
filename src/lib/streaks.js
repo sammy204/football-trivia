@@ -1,4 +1,4 @@
-import { get, ref, runTransaction } from 'firebase/database'
+import { get, ref, runTransaction, set } from 'firebase/database'
 import { db } from './firebase'
 
 const NIGERIA_UTC_OFFSET_HOURS = 1
@@ -194,19 +194,29 @@ export async function resetBrokenDailyStreak({ userId, todayDateKey }) {
     return { lost: false, streak }
   }
 
-  const previousCount = streak.current
-  const updated = {
-    ...streak,
-    current: 0,
-    lastBrokenOnDateKey: todayDateKey,
-    updatedAt: new Date().toISOString(),
+  // Check for active shield before resetting
+  const shieldSnap = await get(ref(db, `users/${userId}/streakShield`))
+  const shield = shieldSnap.val()
+
+  if (shield?.active) {
+    // Consume shield, preserve streak
+    await set(ref(db, `users/${userId}/streakShield`), null)
+    // Update lastPlayedDateKey to yesterday so streak continues normally
+    const preserved = {
+      ...streak,
+      lastPlayedDateKey: todayDateKey,
+      updatedAt: new Date().toISOString(),
+    }
+    await runTransaction(streakRef, () => preserved)
+    return { lost: false, shieldUsed: true, streak: preserved }
   }
+
+  const previousCount = streak.current
 
   await runTransaction(streakRef, (current) => {
     if (!current?.lastPlayedDateKey || !current?.current) return current
     const latestDiff = getDayDifference(current.lastPlayedDateKey, todayDateKey)
     if (latestDiff <= 1) return current
-
     return {
       ...current,
       current: 0,
@@ -218,6 +228,22 @@ export async function resetBrokenDailyStreak({ userId, todayDateKey }) {
   return {
     lost: true,
     previousCount,
-    streak: updated,
+    streak: { ...streak, current: 0, lastBrokenOnDateKey: todayDateKey },
   }
+}
+export async function getStreakShield(userId) {
+  if (!userId) return null
+  const snap = await get(ref(db, `users/${userId}/streakShield`))
+  return snap.val() || null
+}
+
+export async function consumeStreakShield(userId) {
+  await set(ref(db, `users/${userId}/streakShield`), null)
+}
+
+export async function purchaseStreakShield(userId) {
+  await set(ref(db, `users/${userId}/streakShield`), {
+    active: true,
+    purchasedAt: new Date().toISOString(),
+  })
 }

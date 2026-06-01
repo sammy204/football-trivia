@@ -1,5 +1,6 @@
 import { ref, onValue, off, set, push, update, remove } from 'firebase/database'
 import { db } from './firebase'
+import { getDateKey } from './dailyChallenge'
 
 const LIGHTNING_DAILY_PATH = 'lightningDaily'
 
@@ -46,7 +47,7 @@ export function saveLightningScore({
   totalTimeMs,
   correctAnswers,
 }) {
-  const dateKey = new Date().toISOString().split('T')[0]
+  const dateKey = getDateKey()
   const path = `${LIGHTNING_DAILY_PATH}/${sport}/${dateKey}/${playerId}`
   const accuracyPct = Math.round((correctAnswers / totalQuestions) * 100)
 

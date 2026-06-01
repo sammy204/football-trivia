@@ -152,6 +152,19 @@ Trivela lets players test their sports knowledge in solo quizzes, daily challeng
 - Sent notification log with dismiss controls
 - Analytics dashboard for app activity, game data, seasonal activity, and notification logs
 
+## Roadmap
+
+These are the main follow-up items we're keeping on deck:
+
+- Common Link multiplayer
+- Common Link coin-award backend deploy verification
+- Tournament type-specific flows for Standard, Common Link, and Lightning cups
+- Tournament UI polish after the new sport/type hub
+- Clan / party system for persistent groups
+- Reward tuning and balance pass for newer modes
+- Any remaining public tournament cleanup checks
+- Match history / rematch card improvements
+
 ## Tech
 
 Trivela is built with React, Vite, Firebase Authentication, Firebase Realtime Database, Firebase Admin, Express, Web Push, and a production service worker.
