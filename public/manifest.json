@@ -1,6 +1,6 @@
 {
-  "name": "Football Trivia",
-  "short_name": "Football Trivia",
+  "name": "Trivela",
+  "short_name": "Trivela",
   "description": "Play daily football and basketball trivia challenges",
   "start_url": "/",
   "scope": "/",
