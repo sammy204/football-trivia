@@ -788,7 +788,7 @@ app.post('/send-welcome-email', async (req, res) => {
 
   try {
     await resend.emails.send({
-      from: 'onboarding@resend.dev',
+      from:'Trivela <hello@trivela.online>',
       to: email,
       subject:'WELCOME TO TRIVELA 🎉',
       html: `
@@ -810,7 +810,7 @@ app.post('/send-welcome-email', async (req, res) => {
                   <table cellpadding="0" cellspacing="0">
                     <tr>
                       <td style="vertical-align:middle;">
-                        <img src="https://trivela-delta.vercel.app/logo-mark.svg" alt="Trivela" width="44" height="44" style="display:block;border-radius:50%;" />
+                        <img src="https://trivela.online/logo-mark.svg" alt="Trivela" width="44" height="44" style="display:block;border-radius:50%;" />
                       </td>
                       <td style="padding-left:12px;vertical-align:middle;">
                         <p style="margin:0;font-size:22px;font-weight:900;color:#ffffff;text-transform:uppercase;letter-spacing:2px;">Trivela</p>
@@ -907,7 +907,7 @@ app.post('/send-welcome-email', async (req, res) => {
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td align="center">
-                        <a href="https://trivela-delta.vercel.app" style="display:inline-block;background:#4ade80;color:#0a1a0a;text-decoration:none;font-size:14px;font-weight:900;padding:16px 48px;border-radius:50px;text-transform:uppercase;letter-spacing:2px;">Start Playing →</a>
+                        <a href="https://trivela.online" style="display:inline-block;background:#4ade80;color:#0a1a0a;text-decoration:none;font-size:14px;font-weight:900;padding:16px 48px;border-radius:50px;text-transform:uppercase;letter-spacing:2px;">Start Playing →</a>
                       </td>
                     </tr>
                   </table>
