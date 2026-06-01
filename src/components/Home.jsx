@@ -9,6 +9,8 @@ const ROUNDS = [5, 10, 15]
 const ADMIN_UID = 'K4qCnBhAVDMTkvK70SMVfbbsw463'
 const NOTIFICATION_REPAIR_KEY = 'trivela-notification-repair-needed'
 const NOTIFICATION_REPAIR_DISMISSED_KEY = 'trivela-notification-repair-dismissed'
+const NOTIFICATION_MODAL_DISMISSED_KEY = 'trivela-notification-modal-dismissed'
+
 
 function formatCountdown(ms) {
   if (ms <= 0) return '00:00:00'
@@ -69,6 +71,7 @@ export default function Home({
   const [notificationRepairDismissed, setNotificationRepairDismissed] = useState(() => (
     typeof window !== 'undefined' && window.localStorage.getItem(NOTIFICATION_REPAIR_DISMISSED_KEY) === 'true'
   ))
+  const [showNotificationModal, setShowNotificationModal] = useState(false)
   const [dailyChallenge, setDailyChallenge] = useState(null)
 
   useEffect(() => {
@@ -195,6 +198,21 @@ export default function Home({
     return () => window.clearTimeout(timeout)
   }, [dailyAvailable, dailyChallenge?.nextRelease, notificationPermission, sportLabel])
 
+  useEffect(() => {
+    if (!user?.uid) return
+    if (typeof window === 'undefined' || !('Notification' in window)) return
+    if (Notification.permission === 'granted') return
+    if (Notification.permission === 'denied') return
+    const dismissed = window.localStorage.getItem(NOTIFICATION_MODAL_DISMISSED_KEY)
+    if (dismissed) return
+
+    const timer = window.setTimeout(() => {
+      setShowNotificationModal(true)
+    }, 5000)
+
+    return () => window.clearTimeout(timer)
+  }, [user?.uid])
+
   function handleSolo() {
     if (!isSignedInPlayer && !soloName.trim()) {
       setSoloError('Input name to proceed.')
@@ -261,6 +279,17 @@ export default function Home({
     } finally {
       setNotificationBusy(false)
     }
+  }
+
+  async function handleModalNotificationRequest() {
+    setShowNotificationModal(false)
+    window.localStorage.setItem(NOTIFICATION_MODAL_DISMISSED_KEY, 'true')
+    await requestNotificationPermission()
+  }
+
+  function handleModalDismiss() {
+    setShowNotificationModal(false)
+    window.localStorage.setItem(NOTIFICATION_MODAL_DISMISSED_KEY, 'true')
   }
 
   const chipActiveStyle = { borderColor: accent, color: accent, background: accentBg }
@@ -672,6 +701,51 @@ export default function Home({
           >
             Enter tournament lobby {'>'}
           </button>
+        </div>
+      )}
+
+      {showNotificationModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          padding: '0 0 32px',
+        }}>
+          <div style={{
+            background: '#0f2d18', border: '1px solid rgba(0,255,135,0.2)',
+            borderRadius: 20, padding: '28px 24px', maxWidth: 400, width: '100%',
+            margin: '0 16px', boxShadow: '0 -4px 40px rgba(0,255,135,0.1)',
+          }}>
+            <div style={{ fontSize: 36, marginBottom: 12, textAlign: 'center' }}>🔔</div>
+            <h2 style={{ color: '#fff', fontSize: 18, fontWeight: 800, marginBottom: 8, textAlign: 'center' }}>
+              Stay in the game
+            </h2>
+            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, lineHeight: 1.6, textAlign: 'center', marginBottom: 24 }}>
+              Get notified for daily challenges, streaks, match invites, and lightning duels so you never miss a play.
+            </p>
+            <button
+              onClick={handleModalNotificationRequest}
+              style={{
+                width: '100%', padding: '14px', borderRadius: 12,
+                background: '#00FF87', color: '#0a1f0f',
+                fontWeight: 800, fontSize: 15, border: 'none',
+                cursor: 'pointer', marginBottom: 10,
+              }}
+            >
+              Enable notifications
+            </button>
+            <button
+              onClick={handleModalDismiss}
+              style={{
+                width: '100%', padding: '12px', borderRadius: 12,
+                background: 'transparent', color: 'rgba(255,255,255,0.4)',
+                fontWeight: 700, fontSize: 14, border: '1px solid rgba(255,255,255,0.1)',
+                cursor: 'pointer',
+              }}
+            >
+              Not now
+            </button>
+          </div>
         </div>
       )}
     </div>

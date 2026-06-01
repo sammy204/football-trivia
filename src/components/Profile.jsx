@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react'
-import { ref, get, update } from 'firebase/database'
+import { ref, get, update, onValue } from 'firebase/database'
 import { db } from '../lib/firebase'
 import { updateProfile } from 'firebase/auth'
 import { loadProfile, saveProfile } from '../lib/profile'
 import { getDefaultAvatar, isImageAvatar } from '../lib/avatars'
 import AvatarGrid from './AvatarGrid'
+import AvatarFrame from './AvatarFrame'
 import { calculateWinStreak } from '../lib/streaks'
-import { getRivalries, getFormBadge } from '../lib/userStats'
+import { getRivalries, getFormBadge as buildFormBadge } from '../lib/userStats'
 import { RivalrySection, FormBadge } from './RivalrySection'
 import styles from './MainTabs.module.css'
+import { getStreakShield, purchaseStreakShield } from '../lib/streaks'
+import { spendCoins } from '../lib/coins'
+import { getOwnedFrames, getEquippedFrame, purchaseFrame, equipFrame, unequipFrame } from '../lib/frames'
+import { requestPushNotificationPermission, subscribeUserToPush, refreshPushSubscription } from '../lib/pushNotifications'
+
 
 const MILESTONES = [
   { id: 'wins10',    icon: '🏆', title: '10 Wins',      check: s => s.wins >= 10 },
@@ -58,6 +64,22 @@ export default function Profile({
   const [visibleMatchesCount, setVisibleMatchesCount] = useState(5)
   const [rivalries, setRivalries] = useState([])
   const [myForm, setMyForm] = useState([])
+  const [streakShield, setStreakShield] = useState(null)
+  const [buyingShield, setBuyingShield] = useState(false)
+  const [shieldMsg, setShieldMsg] = useState(null)
+  const [ownedFrames, setOwnedFrames] = useState([])
+  const [equippedFrame, setEquippedFrame] = useState(null)
+  const [frameMsg, setFrameMsg] = useState(null)
+  const [notifPermission, setNotifPermission] = useState(
+    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
+  )
+  const [notifBusy, setNotifBusy] = useState(false)
+  const [notifMsg, setNotifMsg] = useState(null)
+  const shieldStatusText = streakShield?.active
+    ? 'Shield active'
+    : streak?.current > 0
+      ? 'Shield consumed'
+      : 'Buy another for 50C'
 
   useEffect(() => {
     if (!user?.uid) { setError('Not signed in'); setLoading(false); return }
@@ -75,6 +97,9 @@ export default function Profile({
         const streakSnap = await get(ref(db, `users/${user.uid}/dailyStreak`))
         setStreak(streakSnap.val() || null)
 
+        const shield = await getStreakShield(user.uid)
+        setStreakShield(shield)
+
         const statsSnap = await get(ref(db, `users/${user.uid}/stats`))
         const statsData = statsSnap.val() || { wins: 0, losses: 0, totalGames: 0, draws: 0 }
 
@@ -87,13 +112,18 @@ export default function Profile({
           : getDefaultAvatar()
         )
 
+        const owned = await getOwnedFrames(user.uid)
+        const equipped = await getEquippedFrame(user.uid)
+        setOwnedFrames(owned)
+        setEquippedFrame(equipped)
+
         const matchesSnap = await get(ref(db, `users/${user.uid}/matches`))
         let allMatches = []
         if (matchesSnap.val()) {
           allMatches = Object.values(matchesSnap.val()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
           setMatches(allMatches.slice(0, 50))
           setRivalries(getRivalries(allMatches))
-          setMyForm(getFormBadge(allMatches, 5))
+          setMyForm(buildFormBadge(allMatches, 5))
         }
 
         const totalGames = allMatches.length
@@ -115,6 +145,26 @@ export default function Profile({
 
     loadUserData()
   }, [user])
+
+  useEffect(() => {
+    if (!user?.uid) return
+
+    const shieldRef = ref(db, `users/${user.uid}/streakShield`)
+    const streakRef = ref(db, `users/${user.uid}/dailyStreak`)
+
+    const unsubscribeShield = onValue(shieldRef, (snapshot) => {
+      setStreakShield(snapshot.val() || null)
+    })
+
+    const unsubscribeStreak = onValue(streakRef, (snapshot) => {
+      setStreak(snapshot.val() || null)
+    })
+
+    return () => {
+      unsubscribeShield()
+      unsubscribeStreak()
+    }
+  }, [user?.uid])
 
   function handleCopyId() {
     if (!playerId) return
@@ -158,6 +208,117 @@ export default function Profile({
     setSavingAvatar(false)
   }
 
+  async function handleBuyShield() {
+  if (!user || buyingShield) return
+  setBuyingShield(true)
+  setShieldMsg(null)
+  const result = await spendCoins({
+    userId: user.uid,
+    amount: 50,
+    reason: 'streak-shield',
+    sourceId: `shield-${Date.now()}`,
+  })
+  if (result.ok) {
+    await purchaseStreakShield(user.uid)
+    setStreakShield({ active: true, purchasedAt: new Date().toISOString() })
+    setShieldMsg('🛡️ Shield activated!')
+  } else {
+    setShieldMsg('Not enough coins.')
+  }
+  setBuyingShield(false)
+  setTimeout(() => setShieldMsg(null), 3000)
+}
+
+  async function handleBuyFrame(frame) {
+    if (!user) return
+    setFrameMsg(null)
+
+    if (ownedFrames.includes(frame.id)) {
+      setFrameMsg('Frame already unlocked.')
+      setTimeout(() => setFrameMsg(null), 3000)
+      return
+    }
+
+    try {
+      const result = await spendCoins({
+        userId: user.uid,
+        amount: frame.price,
+        reason: 'avatar-frame',
+        sourceId: `frame-${frame.id}-${user.uid}`,
+        metadata: { frameId: frame.id, frameName: frame.name },
+        preferLocal: true,
+      })
+
+      if (result.ok) {
+        await purchaseFrame(user.uid, frame.id)
+        await equipFrame(user.uid, frame.id)
+        setOwnedFrames(prev => prev.includes(frame.id) ? prev : [...prev, frame.id])
+        setEquippedFrame(frame.id)
+        setFrameMsg(`${frame.name} unlocked and equipped!`)
+      } else {
+        const balanceText = Number.isFinite(Number(result.balance))
+          ? ` Wallet balance: ${result.balance}C.`
+          : ''
+        setFrameMsg(`Not enough coins.${balanceText}`)
+      }
+    } catch (err) {
+      console.error('Failed to buy frame:', err)
+      setFrameMsg('Could not buy frame. Please try again.')
+    }
+
+    setTimeout(() => setFrameMsg(null), 3000)
+  }
+
+  async function handleEquipFrame(frameId) {
+    if (!user) return
+    if (frameId) {
+      await equipFrame(user.uid, frameId)
+    } else {
+      await unequipFrame(user.uid)
+    }
+    setEquippedFrame(frameId)
+  }
+
+  async function handleUnequipFrame() {
+    if (!user) return
+    await unequipFrame(user.uid)
+    setEquippedFrame(null)
+  }
+
+  async function handleEnableNotifications() {
+    setNotifBusy(true)
+    setNotifMsg(null)
+    try {
+      const permission = await requestPushNotificationPermission()
+      setNotifPermission(permission ? 'granted' : 'denied')
+      if (permission) {
+        const sub = await subscribeUserToPush(user)
+        setNotifMsg(sub ? '✅ Notifications enabled!' : '⚠️ Enabled but setup failed. Try refresh.')
+      } else {
+        setNotifMsg('❌ Permission denied. Enable in your browser/phone settings.')
+      }
+    } catch {
+      setNotifMsg('Something went wrong.')
+    }
+    setNotifBusy(false)
+    setTimeout(() => setNotifMsg(null), 4000)
+  }
+
+  async function handleRefreshNotifications() {
+    setNotifBusy(true)
+    setNotifMsg(null)
+    try {
+      const sub = await refreshPushSubscription(user)
+      setNotifMsg(sub ? '✅ Notifications refreshed!' : '⚠️ Refresh failed. Try again.')
+    } catch {
+      setNotifMsg('Something went wrong.')
+    }
+    setNotifBusy(false)
+    setTimeout(() => setNotifMsg(null), 4000)
+  }
+
+if (!user) return null  // <-- this was already here
+
   if (!user) return null
 
   const unlockedMilestones = stats ? MILESTONES.filter(m => m.check(stats)) : []
@@ -199,14 +360,17 @@ export default function Profile({
       {/* Avatar + Name */}
       <div className={styles.profileHeader}>
         <div
-          className={styles.profileAvatar}
           onClick={() => { setEditingAvatar(true); setTempAvatar(avatar || getDefaultAvatar()) }}
           style={{ cursor: 'pointer' }}
         >
-          {isImageAvatar(editingAvatar ? tempAvatar || avatar : avatar)
-            ? <img className={styles.avatarImg} src={editingAvatar ? tempAvatar || avatar : avatar} alt="" />
-            : <span className={styles.avatarInitial}>{name.charAt(0).toUpperCase()}</span>
-          }
+          <AvatarFrame frameId={equippedFrame} size={72}>
+            <div className={styles.profileAvatar} style={{ width: '100%', height: '100%' }}>
+              {isImageAvatar(editingAvatar ? tempAvatar || avatar : avatar)
+                ? <img className={styles.avatarImg} src={editingAvatar ? tempAvatar || avatar : avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <span className={styles.avatarInitial}>{name.charAt(0).toUpperCase()}</span>
+              }
+            </div>
+          </AvatarFrame>
         </div>
         <div style={{ minWidth: 0 }}>
           {editingUsername ? (
@@ -229,7 +393,7 @@ export default function Profile({
             ID: {playerId || 'Loading...'} {copied ? '· Copied' : ''}
           </button>
           <div className={styles.badgeRow}>
-            <span className={styles.badgePill}>🔥 {streak?.current || 0}-day streak</span>
+           <span className={styles.badgePill}>🔥 {streak?.current || 0}-day streak{streakShield?.active ? ' 🛡️' : ''}</span>
             <span className={styles.badgePill}>🏅 {stats?.wins || 0} Wins</span>
           </div>
         </div>
@@ -247,7 +411,21 @@ export default function Profile({
               </button>
             </div>
           </div>
-          <AvatarGrid value={tempAvatar} onChange={setTempAvatar} />
+          <AvatarGrid
+            value={tempAvatar}
+            onChange={setTempAvatar}
+            ownedFrames={ownedFrames}
+            equippedFrame={equippedFrame}
+            coinBalance={coinBalance}
+            onBuyFrame={handleBuyFrame}
+            onEquipFrame={handleEquipFrame}
+            onUnequipFrame={handleUnequipFrame}
+          />
+          {frameMsg && (
+            <p style={{ marginTop: 8, fontSize: 13, color: frameMsg.includes('enough') ? '#FF5C5C' : '#00FF87', fontWeight: 700 }}>
+              {frameMsg}
+            </p>
+          )}
         </div>
       )}
 
@@ -274,30 +452,99 @@ export default function Profile({
 
       {!loading && !error && (
         <>
-          {/* Streak */}
-          {streak && (
+          {typeof window !== 'undefined' && 'Notification' in window && (
             <div className={styles.section}>
               <div className={styles.dailyCard}>
-                <div className={styles.dailyBadge}>Daily Streak</div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginTop: 8 }}>
-                  <div>
-                    <div className={styles.dailyTitle}>{streak.current || 0} Days</div>
-                    <p className={styles.muted} style={{ marginTop: 6 }}>
-                      {streak.current > 0
-                        ? 'Keep your streak alive by playing the daily challenge again tomorrow.'
-                        : 'Play the daily challenge to start your streak!'}
-                    </p>
-                  </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <p className={styles.muted} style={{ fontSize: 12 }}>Best: {streak.best || 0}</p>
-                    {streak.lastPlayedDateKey && (
-                      <p className={styles.muted} style={{ fontSize: 12 }}>Last played {formatDate(streak.lastPlayedDateKey)}</p>
-                    )}
-                  </div>
-                </div>
+                <div className={styles.dailyBadge}>Notifications</div>
+                <p className={styles.muted} style={{ marginTop: 6, marginBottom: 14, fontSize: 13 }}>
+                  {notifPermission === 'granted'
+                    ? 'Notifications are enabled on this device.'
+                    : notifPermission === 'denied'
+                    ? 'Notifications are blocked. Enable them in your device settings, then tap refresh.'
+                    : 'Enable notifications for daily challenges, streaks, and match invites.'}
+                </p>
+                {notifPermission !== 'denied' && (
+                  <button
+                    className={styles.primaryButton}
+                    type="button"
+                    style={{ width: '100%' }}
+                    onClick={notifPermission === 'granted' ? handleRefreshNotifications : handleEnableNotifications}
+                    disabled={notifBusy}
+                  >
+                    {notifBusy ? '...' : notifPermission === 'granted' ? 'Refresh notifications' : 'Enable notifications'}
+                  </button>
+                )}
+                {notifPermission === 'denied' && (
+                  <p style={{ fontSize: 12, color: '#FF5C5C', fontWeight: 700 }}>
+                    Go to your phone Settings → Safari/Chrome → Notifications → allow Trivela
+                  </p>
+                )}
+                {notifMsg && (
+                  <p style={{ marginTop: 10, fontSize: 13, fontWeight: 700, color: notifMsg.includes('✅') ? '#00FF87' : '#FF5C5C' }}>
+                    {notifMsg}
+                  </p>
+                )}
               </div>
             </div>
           )}
+
+          {/* Streak */}
+      {streak && (
+  <div className={styles.section}>
+    <div className={styles.dailyCard}>
+      <div className={styles.dailyBadge}>Daily Streak</div>
+      <div style={{ marginTop: 8, marginBottom: 2, fontSize: 12, fontWeight: 800, letterSpacing: '0.04em', color: streakShield?.active ? '#00FF87' : 'var(--muted)' }}>
+        {shieldStatusText}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginTop: 8 }}>
+        <div>
+          <div className={styles.dailyTitle}>
+            {streak.current || 0} Days
+            {streakShield?.active && (
+              <span style={{ marginLeft: 10, fontSize: 18 }} title="Streak Shield active">🛡️</span>
+            )}
+          </div>
+          
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <p className={styles.muted} style={{ fontSize: 12 }}>Best: {streak.best || 0}</p>
+          {streak.lastPlayedDateKey && (
+            <p className={styles.muted} style={{ fontSize: 12 }}>Last played {formatDate(streak.lastPlayedDateKey)}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Shield purchase */}
+      <div style={{ marginTop: 14, borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 14 }}>
+        {streakShield?.active ? (
+          <p style={{ fontSize: 13, color: '#00FF87', fontWeight: 700 }}>
+            🛡️ Streak Shield active — one missed day is covered
+          </p>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <p className={styles.muted} style={{ fontSize: 13 }}>
+              🛡️ Streak Shield — {shieldStatusText}
+            </p>
+            <button
+              className={styles.primaryButton}
+              type="button"
+              onClick={handleBuyShield}
+              disabled={buyingShield || coinBalance < 50}
+              style={{ flexShrink: 0, fontSize: 13, padding: '8px 14px' }}
+            >
+              {buyingShield ? '...' : '50C'}
+            </button>
+          </div>
+        )}
+        {shieldMsg && (
+          <p style={{ marginTop: 8, fontSize: 13, color: shieldMsg.includes('enough') ? '#FF5C5C' : '#00FF87', fontWeight: 700 }}>
+            {shieldMsg}
+          </p>
+        )}
+      </div>
+    </div>
+  </div>
+)}
 
           {/* Stats */}
           <div className={styles.section}>
@@ -429,10 +676,10 @@ export default function Profile({
                           {match.coinsLost > 0 && <span style={{ color: '#FF5C5C', marginLeft: 8 }}>-{match.coinsLost}C</span>}
                         </div>
                       </div>
-                      <div className={styles.score}>
-                        {match.result === 'win' ? 'WON' : match.result === 'draw' ? 'DRAW' : 'LOST'}
-                      </div>
+                      <div className={styles.score} style={{ color: match.result === 'win' ? '#00FF87' : match.result === 'draw' ? '#FFD700' : '#FF5C5C' }}>
+                      {match.result === 'win' ? 'WON' : match.result === 'draw' ? 'DRAW' : 'LOST'}
                     </div>
+                      </div>
                   ))
                 }
               </div>
