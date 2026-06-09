@@ -31,6 +31,7 @@ export default function OnlineMulti({
   onInviteHandled,
   tournamentMatchMeta,
   onTournamentMatchComplete,
+  onMatchResult,
   coinBalance = 0,
 }) {
   const [screen, setScreen] = useState('intro')
@@ -410,6 +411,9 @@ await set(ref(db, `rooms/${roomCode}`), null)
         
         await recordGameplayActivity({ userId: user.uid, source: 'online' })
         setMatchSaved(true)
+        if (!tournamentMatchMeta && onMatchResult) {
+        onMatchResult({ result })
+        }
 
         if (!tournamentMatchMeta) {
           const roomPot = room?.wager?.pot || ONLINE_1V1_WAGER * 2

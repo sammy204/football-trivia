@@ -145,7 +145,7 @@ export function listenToRoom(code, callback) {
   return () => off(roomRef)
 }
 
-export async function sendOnlineInvite({ fromName, fromUserId, toPlayerId, roomCode, sport, rounds }) {
+export async function sendOnlineInvite({ fromName, fromUserId, toPlayerId, roomCode, sport, rounds, isBestOfThree = false }) {
   const inviteRef = ref(db, `onlineInvites/${toPlayerId}`)
   await set(inviteRef, {
     fromName,
@@ -153,6 +153,7 @@ export async function sendOnlineInvite({ fromName, fromUserId, toPlayerId, roomC
     roomCode,
     sport,
     rounds,
+    isBestOfThree,
     sentAt: Date.now(),
   })
 }

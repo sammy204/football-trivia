@@ -1,7 +1,7 @@
 import { get, off, onValue, ref, runTransaction } from 'firebase/database'
 import { db } from './firebase'
 
-export const DEFAULT_HOME_MODES = ['solo', 'online', 'lightning_h2h', 'tournament']
+export const DEFAULT_HOME_MODES = ['solo', 'online', 'bestOfThree', 'lightning_h2h', 'tournament']
 
 export async function recordModePlayed(userId, mode) {
   if (!userId || !mode) return
@@ -37,7 +37,7 @@ export async function getModeCounts(userId) {
   return snapshot.val() || {}
 }
 
-export function getHomeModeIds(modeCounts, limit = 4) {
+export function getHomeModeIds(modeCounts, limit = 5) {
   const ranked = Object.entries(modeCounts || {})
     .map(([id, value]) => ({
       id,

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ref, get, update, onValue } from 'firebase/database'
 import { updateProfile } from 'firebase/auth'
-import { db } from '../lib/firebase'
+import { db, auth } from '../lib/firebase'
 import { getDailyChallengeInfo, getDateKey, getWeekKey, listenToDailyLeaderboard, listenToWeeklyLeaderboard } from '../lib/dailyChallenge'
 import { listenToLightningLeaderboard } from '../lib/lightningDaily'
 import { getActiveSeasonalEvents, listenToAllSeasonalEvents } from '../lib/seasonalEvents'
@@ -10,6 +10,7 @@ import { loadProfile, saveProfile } from '../lib/profile'
 import { listenToModeCounts, getHomeModeIds } from '../lib/modeStats'
 import { getUnlockedMilestones } from '../lib/streaks'
 import { respondToInvite } from '../lib/teamMultiplayer'
+import { getOrCreateWeeklyMissions, claimWeeklyReward } from '../lib/missions'
 import { spendCoins, TEAM_PLAYER_WAGER } from '../lib/coins'
 import { getFormBadge as buildFormBadge, syncPublicProfile } from '../lib/userStats'
 import { sendFriendRequestPushNotification } from '../lib/friendNotifications'
@@ -34,13 +35,14 @@ const MODE_DEFS = {
   daily: { icon: '📅', title: 'Daily Challenge', copy: 'Today only' },
   seasonal: { icon: '🎉', title: 'Seasonal Event', copy: 'Limited-time challenge' },
   commonLink: { icon: '🔗', title: 'Common Link', copy: 'Find the connecting player' },
+  bestOfThree: { icon: '🥊', title: 'Best of 3', copy: 'First to win 2 rounds' },
 }
 
 const NAV_ITEMS = [
    { id: 'home', label: 'Home', icon: '🏠' },
   { id: 'board', label: 'Board', icon: '🏆' },
   { id: 'play', label: 'Play', icon: '🎮' },
-  { id: 'alerts', label: 'Alerts', icon: '🔔' },
+ { id: 'hub', label: 'Hub', icon: '⭐' },
   { id: 'friends', label: 'Friends', icon: '👥' },
 ]
 
@@ -79,17 +81,25 @@ function filterVisibleSeasonalEvents(events) {
 }
 
 function SportPicker({ sport, onSportChange }) {
+  const footballColor = '#00FF87'
+  const basketballColor = '#FF8C42'
+
   return (
     <div className={styles.sportGrid}>
       {[
-        { id: 'football', label: 'Football', icon: '⚽' },
-        { id: 'basketball', label: 'Basketball', icon: '🏀' },
+        { id: 'football', label: 'Football', icon: '⚽', color: footballColor },
+        { id: 'basketball', label: 'Basketball', icon: '🏀', color: basketballColor },
       ].map((item) => (
         <button
           key={item.id}
           type="button"
           className={`${styles.sportButton} ${sport === item.id ? styles.active : ''}`}
           onClick={() => onSportChange(item.id)}
+          style={sport === item.id ? {
+            borderColor: item.color,
+            color: item.color,
+            background: `${item.color}18`,
+          } : {}}
         >
           {item.icon} {item.label}
         </button>
@@ -203,7 +213,7 @@ function DailyCard({ sport, user, profile, dailyPlayed, onStartDaily, onOpenBoar
   )
 }
 
-function HomeTab({ sport, onSportChange, user, profile, dailyPlayed, onStartDaily, onStartSeasonalEvent, onSelectMode, onOpenBoard, onOpenProfile }) {
+function HomeTab({ sport, onSportChange, user, profile, dailyPlayed, onStartDaily, onStartSeasonalEvent, onSelectMode, onOpenBoard, onOpenProfile, onOpenSidebar }) {
   const [modeCounts, setModeCounts] = useState({})
   const [streak, setStreak] = useState(null)
   const [greeting, setGreeting] = useState(() => getGreeting())
@@ -266,15 +276,11 @@ function HomeTab({ sport, onSportChange, user, profile, dailyPlayed, onStartDail
 
   return (
     <div className={styles.page}>
-      <div className={styles.topBar}>
-        <div className={styles.brandMark}>
-          <img src="/logo-mark.svg" alt="Trivela" />
-        </div>
-        <div className={styles.actions}>
-          <button className={styles.avatarPill} type="button" onClick={onOpenProfile} aria-label="Open profile">
-            {avatar ? <img className={styles.avatarImg} src={avatar} alt="" /> : <span className={styles.avatarInitial}>{avatarInitial(name)}</span>}
-          </button>
-        </div>
+     <div className={styles.topBar}>
+        <button className={styles.avatarPill} type="button" onClick={onOpenSidebar} aria-label="Open menu">
+          {avatar ? <img className={styles.avatarImg} src={avatar} alt="" /> : <span className={styles.avatarInitial}>{avatarInitial(name)}</span>}
+        </button>
+        <div style={{ width: 44 }} />
       </div>
 
       <h1 className={styles.heroTitle}>
@@ -425,7 +431,7 @@ function PlayTab({
     return unsubscribe
   }, [])
 
- const modes = ['solo', 'online', 'team', 'lightning', 'lightning_h2h', 'tournament', 'commonLink']
+ const modes = ['solo', 'online', 'bestOfThree', 'team', 'lightning', 'lightning_h2h', 'tournament', 'commonLink']
 
   return (
     <div className={styles.page}>
@@ -692,6 +698,479 @@ function AlertsTab({
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Earlier</h2>
+        <div className={styles.alertRow}>
+          <span className={styles.alertIcon}>🎯</span>
+          <div className={styles.alertBody}>
+            <div className={styles.alertTitle}>Daily Challenge is live</div>
+            <div className={styles.alertCopy}>Open Home when the noon window starts.</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  )
+}
+function SettingsSidebarScreen({ user, profile, onBack, onProfileUpdated, onUsernameUpdated }) {
+  const [notifPermission, setNotifPermission] = useState(
+    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
+  )
+  const [notifBusy, setNotifBusy] = useState(false)
+  const [notifMsg, setNotifMsg] = useState(null)
+  const [editingName, setEditingName] = useState(false)
+  const [draftName, setDraftName] = useState(user?.displayName || profile?.displayName || '')
+  const [savingName, setSavingName] = useState(false)
+  const [nameMsg, setNameMsg] = useState(null)
+
+  async function handleEnableNotifications() {
+    setNotifBusy(true)
+    setNotifMsg(null)
+    try {
+      const { requestPushNotificationPermission, subscribeUserToPush } = await import('../lib/pushNotifications')
+      const permission = await requestPushNotificationPermission()
+      setNotifPermission(permission ? 'granted' : 'denied')
+      if (permission) {
+        const sub = await subscribeUserToPush(user)
+        setNotifMsg(sub ? '✅ Notifications enabled!' : '⚠️ Enabled but setup failed.')
+      } else {
+        setNotifMsg('❌ Permission denied. Enable in your device settings.')
+      }
+    } catch {
+      setNotifMsg('Something went wrong.')
+    }
+    setNotifBusy(false)
+    setTimeout(() => setNotifMsg(null), 4000)
+  }
+
+  async function handleRefreshNotifications() {
+    setNotifBusy(true)
+    setNotifMsg(null)
+    try {
+      const { refreshPushSubscription } = await import('../lib/pushNotifications')
+      const sub = await refreshPushSubscription(user)
+      setNotifMsg(sub ? '✅ Notifications refreshed!' : '⚠️ Refresh failed.')
+    } catch {
+      setNotifMsg('Something went wrong.')
+    }
+    setNotifBusy(false)
+    setTimeout(() => setNotifMsg(null), 4000)
+  }
+
+  async function handleSaveName() {
+    const nextName = draftName.trim()
+    if (!nextName || !user) return
+    setSavingName(true)
+    try {
+      await updateProfile(auth.currentUser, { displayName: nextName })
+      await update(ref(db, `users/${user.uid}/profile`), {
+        displayName: nextName,
+        updatedAt: new Date().toISOString(),
+      })
+      const { loadProfile, saveProfile } = await import('../lib/profile')
+      const cached = loadProfile()
+      const nextProfile = saveProfile({ ...cached, displayName: nextName })
+      onUsernameUpdated?.(nextName)
+      onProfileUpdated?.(nextProfile)
+      setEditingName(false)
+      setNameMsg('✅ Name updated!')
+    } catch {
+      setNameMsg('Failed to update name.')
+    }
+    setSavingName(false)
+    setTimeout(() => setNameMsg(null), 3000)
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <button
+          onClick={onBack}
+          style={{ background: 'transparent', border: 'none', color: 'rgba(230,240,232,0.45)', fontSize: 20, cursor: 'pointer', padding: 0, lineHeight: 1 }}
+        >
+          ←
+        </button>
+        <h2 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 22, color: '#f5f5f0', margin: 0, letterSpacing: '0.05em' }}>SETTINGS</h2>
+      </div>
+
+      <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+        {/* Display name */}
+        <div>
+          <p style={{ color: 'rgba(230,240,232,0.45)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>Display Name</p>
+          {editingName ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <input
+                value={draftName}
+                onChange={e => setDraftName(e.target.value)}
+                placeholder="Display name"
+                style={{
+                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: 10, padding: '10px 14px', color: '#f5f5f0', fontSize: 14,
+                  fontFamily: 'DM Sans, sans-serif', outline: 'none', width: '100%',
+                }}
+              />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={handleSaveName}
+                  disabled={savingName || !draftName.trim()}
+                  style={{
+                    flex: 1, padding: '10px', borderRadius: 10, border: 'none',
+                    background: '#00FF87', color: '#08180d', fontWeight: 800,
+                    fontSize: 13, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif',
+                  }}
+                >
+                  {savingName ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  onClick={() => { setEditingName(false); setDraftName(user?.displayName || '') }}
+                  style={{
+                    flex: 1, padding: '10px', borderRadius: 10,
+                    border: '1px solid rgba(255,255,255,0.1)', background: 'transparent',
+                    color: 'rgba(230,240,232,0.6)', fontSize: 13, cursor: 'pointer',
+                    fontFamily: 'DM Sans, sans-serif',
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10 }}>
+              <span style={{ color: '#f5f5f0', fontSize: 14, fontWeight: 600 }}>{user?.displayName || profile?.displayName || 'Player'}</span>
+              <button
+                onClick={() => { setEditingName(true); setDraftName(user?.displayName || profile?.displayName || '') }}
+                style={{ background: 'transparent', border: 'none', color: '#00FF87', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}
+              >
+                Edit
+              </button>
+            </div>
+          )}
+          {nameMsg && <p style={{ color: nameMsg.includes('✅') ? '#00FF87' : '#FF5C5C', fontSize: 12, fontWeight: 700, margin: '6px 0 0' }}>{nameMsg}</p>}
+        </div>
+
+        {/* Notifications */}
+        {typeof window !== 'undefined' && 'Notification' in window && (
+          <div>
+            <p style={{ color: 'rgba(230,240,232,0.45)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>Notifications</p>
+            <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <p style={{ color: 'rgba(230,240,232,0.55)', fontSize: 12, margin: 0, lineHeight: 1.5 }}>
+                {notifPermission === 'granted'
+                  ? 'Notifications are enabled on this device.'
+                  : notifPermission === 'denied'
+                  ? 'Notifications are blocked. Enable in your device settings.'
+                  : 'Enable notifications for daily challenges, streaks, and match invites.'}
+              </p>
+              {notifPermission !== 'denied' && (
+                <button
+                  onClick={notifPermission === 'granted' ? handleRefreshNotifications : handleEnableNotifications}
+                  disabled={notifBusy}
+                  style={{
+                    padding: '10px', borderRadius: 10, border: 'none',
+                    background: '#00FF87', color: '#08180d', fontWeight: 800,
+                    fontSize: 13, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif',
+                  }}
+                >
+                  {notifBusy ? '...' : notifPermission === 'granted' ? 'Refresh notifications' : 'Enable notifications'}
+                </button>
+              )}
+              {notifMsg && <p style={{ color: notifMsg.includes('✅') ? '#00FF87' : '#FF5C5C', fontSize: 12, fontWeight: 700, margin: 0 }}>{notifMsg}</p>}
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  )
+}
+function HubTab({
+  user,
+  coinBalance,
+  pendingOnlineInvite,
+  pendingInvites,
+  pendingLightningInvite,
+  streakNotice,
+  teamInviteLoading,
+  teamInviteError,
+  onAcceptOnline,
+  onDeclineOnline,
+  onAcceptTeam,
+  onDeclineTeam,
+  onAcceptLightning,
+  onDeclineLightning,
+  onCoinsUpdated,
+}) {
+  const [loginReward, setLoginReward] = useState(null)
+  const [claiming, setClaiming] = useState(false)
+  const [claimMsg, setClaimMsg] = useState(null)
+  const [missions, setMissions] = useState([])
+  const [missionsClaimed, setMissionsClaimed] = useState(false)
+  const [missionsLoading, setMissionsLoading] = useState(true)
+  const [missionClaiming, setMissionClaiming] = useState(false)
+  const [missionClaimSuccess, setMissionClaimSuccess] = useState(false)
+
+  const DAILY_REWARD_AMOUNT = 10
+  const WEEKLY_REWARD = 100
+  const todayKey = getDateKey()
+
+  useEffect(() => {
+    if (!user?.uid) return
+    get(ref(db, `users/${user.uid}/dailyLoginReward`)).then(snap => {
+      setLoginReward(snap.val() || null)
+    }).catch(() => {})
+  }, [user?.uid])
+
+  useEffect(() => {
+    if (!user?.uid) return
+    getOrCreateWeeklyMissions(user.uid)
+      .then(({ missions: m, claimed: c }) => {
+        setMissions(m)
+        setMissionsClaimed(c)
+        setMissionsLoading(false)
+      })
+      .catch(() => setMissionsLoading(false))
+  }, [user?.uid])
+
+  const alreadyClaimedToday = loginReward?.lastClaimedDate === todayKey
+  const loginStreak = loginReward?.streak || 0
+  const dayIndex = alreadyClaimedToday ? ((loginStreak - 1) % 7) : (loginStreak % 7)
+
+  async function handleClaimDaily() {
+    if (!user?.uid || claiming || alreadyClaimedToday) return
+    setClaiming(true)
+    setClaimMsg(null)
+    try {
+      const newStreak = (loginReward?.streak || 0) + 1
+      await update(ref(db, `users/${user.uid}/dailyLoginReward`), {
+        lastClaimedDate: todayKey,
+        streak: newStreak,
+        totalClaimed: (loginReward?.totalClaimed || 0) + DAILY_REWARD_AMOUNT,
+        updatedAt: Date.now(),
+      })
+      const { awardCoins } = await import('../lib/coins')
+      const result = await awardCoins({
+        userId: user.uid,
+        amount: DAILY_REWARD_AMOUNT,
+        reason: 'daily_login_reward',
+        sourceId: `daily-login:${user.uid}:${todayKey}`,
+        metadata: { dateKey: todayKey },
+      })
+      if (result.ok) {
+        setLoginReward(prev => ({ ...prev, lastClaimedDate: todayKey, streak: newStreak }))
+        setClaimMsg(`+${DAILY_REWARD_AMOUNT} coins claimed!`)
+        onCoinsUpdated?.()
+      }
+    } catch (e) {
+      console.error('Daily login reward failed:', e)
+      setClaimMsg('Something went wrong.')
+    }
+    setClaiming(false)
+    setTimeout(() => setClaimMsg(null), 3000)
+  }
+
+  async function handleClaimWeekly() {
+    const allComplete = missions.length > 0 && missions.every(m => m.completed)
+    if (!allComplete || missionsClaimed || missionClaiming) return
+    setMissionClaiming(true)
+    try {
+      const result = await claimWeeklyReward(user.uid)
+      if (result.ok) {
+        const { awardCoins } = await import('../lib/coins')
+        await awardCoins({
+          userId: user.uid,
+          amount: WEEKLY_REWARD,
+          reason: 'weekly_missions_reward',
+          sourceId: `weekly-missions:${user.uid}:${Date.now()}`,
+          metadata: { weeklyReward: true },
+        })
+        setMissionsClaimed(true)
+        setMissionClaimSuccess(true)
+        onCoinsUpdated?.()
+      }
+    } catch (e) {
+      console.error('Failed to claim weekly reward:', e)
+    }
+    setMissionClaiming(false)
+  }
+
+  const allMissionsComplete = missions.length > 0 && missions.every(m => m.completed)
+  const completedCount = missions.filter(m => m.completed).length
+  const teamInvites = pendingInvites || []
+  const hasNew = pendingOnlineInvite || pendingLightningInvite || teamInvites.length > 0 || streakNotice
+
+  return (
+    <div className={styles.page}>
+      <div className={styles.sectionHeader}>
+        <h1 className={styles.heroTitle}>HUB</h1>
+      </div>
+
+      {/* Daily Login Reward */}
+      <section className={styles.section}>
+        <div className={styles.dailyCard}>
+          <span className={styles.dailyBadge}>Daily Reward</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, marginBottom: 14 }}>
+            <p className={styles.muted} style={{ fontSize: 13, margin: 0 }}>Log in every day to earn coins</p>
+            <span style={{ color: '#00FF87', fontWeight: 800, fontSize: 14 }}>+{DAILY_REWARD_AMOUNT} coins</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            {Array.from({ length: 7 }).map((_, i) => {
+              const filled = alreadyClaimedToday ? i <= dayIndex : i < dayIndex
+              const isToday = i === dayIndex
+              return (
+                <div
+                  key={i}
+                  style={{
+                    width: 36, height: 36, borderRadius: '50%',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 13, fontWeight: 800,
+                    background: filled ? '#00FF87' : isToday && !alreadyClaimedToday ? 'rgba(0,255,135,0.15)' : 'rgba(255,255,255,0.06)',
+                    border: isToday && !alreadyClaimedToday ? '2px solid #00FF87' : filled ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                    color: filled ? '#08180d' : isToday ? '#00FF87' : 'rgba(230,240,232,0.35)',
+                  }}
+                >
+                  {i + 1}
+                </div>
+              )
+            })}
+          </div>
+          {claimMsg && (
+            <p style={{ color: claimMsg.includes('wrong') ? '#FF5C5C' : '#00FF87', fontSize: 13, fontWeight: 700, marginBottom: 10 }}>
+              {claimMsg}
+            </p>
+          )}
+          <button
+            className={styles.dailyBtn}
+            type="button"
+            style={{ width: '100%' }}
+            disabled={alreadyClaimedToday || claiming}
+            onClick={handleClaimDaily}
+          >
+            {alreadyClaimedToday ? '✓ Claimed today' : claiming ? 'Claiming...' : 'Claim daily reward'}
+          </button>
+        </div>
+      </section>
+
+      {/* Weekly Missions */}
+      <section className={styles.section}>
+        <div className={styles.dailyCard}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span className={styles.dailyBadge}>Weekly Missions</span>
+            <span style={{ color: allMissionsComplete ? '#00FF87' : 'rgba(230,240,232,0.45)', fontSize: 12, fontWeight: 700 }}>
+              {missionsLoading ? '...' : `${completedCount}/4 done`}
+            </span>
+          </div>
+          {!missionsLoading && (
+            <>
+              <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 999, overflow: 'hidden', marginBottom: 14 }}>
+                <div style={{ height: '100%', width: `${(completedCount / 4) * 100}%`, background: '#00FF87', borderRadius: 999, transition: 'width 0.4s ease' }} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+                {missions.map(mission => (
+                  <div
+                    key={mission.id}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                      padding: '12px 14px', borderRadius: 12,
+                      background: mission.completed ? 'rgba(0,255,135,0.06)' : 'rgba(255,255,255,0.04)',
+                      border: mission.completed ? '1px solid rgba(0,255,135,0.2)' : '1px solid rgba(255,255,255,0.07)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+                      <span style={{ fontSize: 16, flexShrink: 0 }}>{mission.completed ? '✅' : '🎯'}</span>
+                      <div>
+                        <p style={{ color: '#f5f5f0', fontSize: 13, fontWeight: 700, margin: 0 }}>{mission.label}</p>
+                        <p style={{ color: 'rgba(230,240,232,0.45)', fontSize: 11, margin: '2px 0 0' }}>{mission.description}</p>
+                      </div>
+                    </div>
+                    <div style={{ flexShrink: 0, textAlign: 'right' }}>
+                      <p style={{ color: mission.completed ? '#00FF87' : 'rgba(230,240,232,0.45)', fontSize: 12, fontWeight: 700, margin: '0 0 4px' }}>
+                        {mission.progress}/{mission.target}
+                      </p>
+                      <div style={{ width: 52, height: 3, background: 'rgba(255,255,255,0.08)', borderRadius: 999, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${Math.min((mission.progress / mission.target) * 100, 100)}%`, background: '#00FF87', borderRadius: 999 }} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {missionClaimSuccess && (
+                <div style={{ background: 'rgba(0,255,135,0.1)', border: '1px solid rgba(0,255,135,0.25)', borderRadius: 10, padding: '10px 14px', color: '#00FF87', fontWeight: 700, fontSize: 13, textAlign: 'center', marginBottom: 10 }}>
+                  🎉 100 coins claimed!
+                </div>
+              )}
+              <button
+                className={styles.dailyBtn}
+                type="button"
+                style={{
+                  width: '100%',
+                  ...(!allMissionsComplete || missionsClaimed ? { background: 'rgba(255,255,255,0.05)', color: 'rgba(230,240,232,0.4)', cursor: 'not-allowed' } : {})
+                }}
+                disabled={!allMissionsComplete || missionsClaimed || missionClaiming}
+                onClick={handleClaimWeekly}
+              >
+                {missionClaiming ? 'Claiming...' : missionsClaimed ? '✅ Reward Claimed' : allMissionsComplete ? '🏆 Claim 100 Coins' : 'Complete all missions to claim'}
+              </button>
+            </>
+          )}
+        </div>
+      </section>
+
+      {/* Alerts */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>ALERTS</h2>
+        {!hasNew && <p className={styles.emptyState}>No new alerts right now.</p>}
+        {pendingOnlineInvite && (
+          <div className={styles.alertRow}>
+            <span className={styles.alertIcon}>⚔️</span>
+            <div className={styles.alertBody}>
+              <div className={styles.alertTitle}>{pendingOnlineInvite.fromName} challenged you to 1v1!</div>
+              <div className={styles.alertCopy}>{sportLabel(pendingOnlineInvite.sport)} · {pendingOnlineInvite.rounds} questions</div>
+              <div className={styles.alertActions}>
+                <button className={styles.primaryButton} onClick={onAcceptOnline}>Accept</button>
+                <button className={styles.dangerButton} onClick={onDeclineOnline}>Decline</button>
+              </div>
+            </div>
+            <span className={styles.unreadDot} />
+          </div>
+        )}
+        {pendingLightningInvite && (
+          <div className={styles.alertRow}>
+            <span className={styles.alertIcon}>⚡</span>
+            <div className={styles.alertBody}>
+              <div className={styles.alertTitle}>{pendingLightningInvite.fromName} challenged you to Lightning!</div>
+              <div className={styles.alertCopy}>{sportLabel(pendingLightningInvite.sport)} · 60 seconds · coin stake</div>
+              <div className={styles.alertActions}>
+                <button className={styles.primaryButton} onClick={onAcceptLightning}>Accept</button>
+                <button className={styles.dangerButton} onClick={onDeclineLightning}>Decline</button>
+              </div>
+            </div>
+            <span className={styles.unreadDot} />
+          </div>
+        )}
+        {teamInvites.map((invite) => (
+          <div key={invite.id || invite.roomCode} className={styles.alertRow}>
+            <span className={styles.alertIcon}>👥</span>
+            <div className={styles.alertBody}>
+              <div className={styles.alertTitle}>{invite.fromName || 'A player'} invited you to Team Battle</div>
+              <div className={styles.alertCopy}>{sportLabel(invite.sport)} · Room {invite.roomCode}</div>
+              {teamInviteError && <div className={styles.alertCopy} style={{ color: '#ff5c5c' }}>{teamInviteError}</div>}
+              <div className={styles.alertActions}>
+                <button className={styles.primaryButton} disabled={teamInviteLoading === invite.id} onClick={() => onAcceptTeam(invite)}>
+                  {teamInviteLoading === invite.id ? '...' : 'Accept'}
+                </button>
+                <button className={styles.dangerButton} disabled={teamInviteLoading === invite.id} onClick={() => onDeclineTeam(invite)}>Decline</button>
+              </div>
+            </div>
+            <span className={styles.unreadDot} />
+          </div>
+        ))}
+        {streakNotice && (
+          <div className={styles.alertRow}>
+            <span className={styles.alertIcon}>🔥</span>
+            <div className={styles.alertBody}>
+              <div className={styles.alertTitle}>Streak update</div>
+              <div className={styles.alertCopy}>{streakNotice}</div>
+            </div>
+            <span className={styles.unreadDot} />
+          </div>
+        )}
         <div className={styles.alertRow}>
           <span className={styles.alertIcon}>🎯</span>
           <div className={styles.alertBody}>
@@ -1058,7 +1537,7 @@ function FriendsTab({ profile, user, sport, onStartOnline, onStartTeam, onStartL
   )
 }
 
-function ProfileTab({ user, profile, coinBalance, onAdmin, onEditProfile, onProfileUpdated, isAdmin, onLogout }) {
+function ProfileTab({ user, profile, coinBalance, onAdmin, onEditProfile, onProfileUpdated, isAdmin, onLogout, onWeeklyMissions }) {
   const [playerId, setPlayerId] = useState(profile?.playerId || null)
   const [stats, setStats] = useState(null)
   const [matches, setMatches] = useState([])
@@ -1251,6 +1730,9 @@ export default function MainShell({
   onStartLightningH2H,
   onStartSeasonalEvent,
   onStartCommonLink,
+  onStartBestOfThree,
+  onWeeklyMissions,
+  onCoinsUpdated,
   onAcceptOnlineInvite,
   onDeclineOnlineInvite,
   onAcceptTeamInvite,
@@ -1319,6 +1801,10 @@ export default function MainShell({
     onStartCommonLink({ sport, returnTab: activeTab })
     return
     }
+    if (modeId === 'bestOfThree') {
+    onStartBestOfThree({ sport, rounds, returnTab: activeTab })
+    return
+    }
     if (modeId === 'daily') {
       onStartDaily({ sport, returnTab: activeTab })
     }
@@ -1369,8 +1855,169 @@ export default function MainShell({
     }
   }
 
+ const [sidebarOpen, setSidebarOpen] = useState(false)
+ console.log('sport in MainShell:', sport)
+  const [sidebarScreen, setSidebarScreen] = useState('main')
+  const touchStartX = useRef(0)
+
+  function handleTouchStartShell(e) {
+    touchStartX.current = e.touches[0].clientX
+  }
+
+  function handleTouchEndShell(e) {
+    const diff = e.changedTouches[0].clientX - touchStartX.current
+    if (touchStartX.current < 40 && diff > 50) setSidebarOpen(true)
+    if (diff < -50) setSidebarOpen(false)
+  }
+
   return (
-    <div className={styles.shell}>
+    <div
+      className={styles.shell}
+      onTouchStart={handleTouchStartShell}
+      onTouchEnd={handleTouchEndShell}
+    >
+      {/* Sidebar overlay */}
+      {sidebarOpen && (
+        <div className={styles.sidebarOverlay} onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Sidebar */}
+      <div className={`${styles.sidebar} ${sidebarOpen ? '' : styles.sidebarClosed}`} style={{ '--sidebar-accent': sport === 'basketball' ? '#FF8C42' : '#00FF87', background: sport === 'basketball' ? 'darkred' : '#0f2518' }}></div>
+     <div className={`${styles.sidebar} ${sidebarOpen ? '' : styles.sidebarClosed}`} style={{ '--sidebar-accent': sport === 'basketball' ? '#FF8C42' : '#00FF87' }}>
+        {/* User card */}
+        <div className={styles.sidebarUserCard}>
+          <div className={styles.sidebarAvatar}>
+            {getPlayerAvatar(user, profile)
+              ? <img src={getPlayerAvatar(user, profile)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+              : avatarInitial(user?.displayName || profile?.displayName || 'P')
+            }
+          </div>
+          <div className={styles.sidebarUserInfo}>
+            <div className={styles.sidebarUserName}>{user?.displayName || profile?.displayName || 'Player'}</div>
+            <div className={styles.sidebarUserId}>{profile?.playerId || ''}</div>
+          </div>
+        </div>
+{/* How to Play screen */}
+     {/* Settings screen */}
+        {sidebarScreen === 'settings' && (
+          <SettingsSidebarScreen
+            user={user}
+            profile={profile}
+            onBack={() => setSidebarScreen('main')}
+            onProfileUpdated={onProfileUpdated}
+            onUsernameUpdated={onUsernameUpdated}
+          />
+        )}
+
+        {/* About screen */}
+        {sidebarScreen === 'about' && (
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <button
+                onClick={() => setSidebarScreen('main')}
+                style={{ background: 'transparent', border: 'none', color: 'rgba(230,240,232,0.45)', fontSize: 20, cursor: 'pointer', padding: 0, lineHeight: 1 }}
+              >
+                ←
+              </button>
+              <h2 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 22, color: '#f5f5f0', margin: 0, letterSpacing: '0.05em' }}>ABOUT TRIVELA</h2>
+            </div>
+            <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <img src="/logo-mark.svg" alt="Trivela" style={{ width: 48, height: 48 }} />
+                <div>
+                  <p style={{ color: '#f5f5f0', fontSize: 18, fontFamily: 'Bebas Neue, sans-serif', letterSpacing: '0.08em', margin: 0 }}>TRIVELA</p>
+                
+                </div>
+              </div>
+              <p style={{ color: 'rgba(230,240,232,0.65)', fontSize: 13, lineHeight: 1.6, margin: 0 }}>
+                Trivela is a competitive sports trivia app for football and basketball fans. Test your knowledge, build streaks, earn coins, and compete against players around the world.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[
+                  { label: 'Sports', value: 'Football & Basketball' },
+                  { label: 'Game Modes', value: '10 ways to play' },
+                
+                ].map(item => (
+                  <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <span style={{ color: 'rgba(230,240,232,0.45)', fontSize: 13 }}>{item.label}</span>
+                    <span style={{ color: '#f5f5f0', fontSize: 13, fontWeight: 700 }}>{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* How to Play screen */}
+        {sidebarScreen === 'howToPlay' && (
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <button
+                onClick={() => setSidebarScreen('main')}
+                style={{ background: 'transparent', border: 'none', color: 'rgba(230,240,232,0.45)', fontSize: 20, cursor: 'pointer', padding: 0, lineHeight: 1 }}
+              >
+                ←
+              </button>
+              <h2 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 22, color: '#f5f5f0', margin: 0, letterSpacing: '0.05em' }}>HOW TO PLAY</h2>
+            </div>
+            <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {[
+                { icon: '🎯', title: 'Solo Quiz', desc: 'Pick 5, 10, or 15 questions. Play at your own pace, earn coins for every correct answer.' },
+                { icon: '📅', title: 'Daily Challenge', desc: 'One shared quiz per day. Same questions for everyone — score high and climb the board.' },
+                { icon: '⚔️', title: 'Online 1v1', desc: 'Challenge another player in real-time. First correct answer wins the point.' },
+                { icon: '👥', title: 'Team Battle', desc: 'Form a squad, invite players by ID, and combine your scores to crush the other team.' },
+                { icon: '⚡', title: 'Lightning Solo', desc: '60 seconds. Answer as fast as you can. Speed and accuracy both count.' },
+                { icon: '⚡', title: 'Lightning 1v1', desc: 'Stake coins and duel a friend. Winner takes the pot.' },
+                { icon: '🏆', title: 'Tournament', desc: 'Single-elimination bracket. Win your matches, advance the bracket, claim glory.' },
+                { icon: '🥊', title: 'Best of 3', desc: 'First to win 2 rounds wins the series. Stake coins, bring your A-game.' },
+                { icon: '🔗', title: 'Common Link', desc: 'Three players share a hidden connection. Figure out what links them.' },
+                { icon: '🎉', title: 'Seasonal Events', desc: 'Limited-time quizzes with boosted coin rewards. Don\'t miss them.' },
+              ].map(mode => (
+                <div key={mode.title} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 20, flexShrink: 0, marginTop: 2 }}>{mode.icon}</span>
+                  <div>
+                    <p style={{ color: '#f5f5f0', fontSize: 13, fontWeight: 700, margin: '0 0 3px' }}>{mode.title}</p>
+                    <p style={{ color: 'rgba(230,240,232,0.45)', fontSize: 12, margin: 0, lineHeight: 1.5 }}>{mode.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Nav items */}
+        {sidebarScreen === 'main' && (
+        <nav className={styles.sidebarNav}>
+          <button className={styles.sidebarNavItem} onClick={() => { setSidebarOpen(false); setActiveTab('profile') }}>
+            <span className={styles.sidebarNavIcon}>👤</span> Profile
+          </button>
+         <button className={styles.sidebarNavItem} onClick={() => setSidebarScreen('settings')}>
+            <span className={styles.sidebarNavIcon}>⚙️</span> Settings
+          </button>
+         <button className={styles.sidebarNavItem} onClick={() => setSidebarScreen('howToPlay')}>
+            <span className={styles.sidebarNavIcon}>❓</span> How to Play
+          </button>
+          <button className={styles.sidebarNavItem} onClick={() => {
+            setSidebarOpen(false)
+            navigator.clipboard?.writeText(window.location.origin).then(() => alert('Link copied!'))
+          }}>
+            <span className={styles.sidebarNavIcon}>🔗</span> Invite a Friend
+          </button>
+         <button className={styles.sidebarNavItem} onClick={() => setSidebarScreen('about')}>
+            <span className={styles.sidebarNavIcon}>ℹ️</span> About Trivela
+          </button>
+        <div className={styles.sidebarDivider} />
+          {isAdmin && (
+            <button className={styles.sidebarNavItem} onClick={() => { setSidebarOpen(false); onAdmin() }}>
+              <span className={styles.sidebarNavIcon}>🔧</span> Admin Dashboard
+            </button>
+          )}
+          <button className={`${styles.sidebarNavItem} ${styles.sidebarLogout}`} onClick={() => { setSidebarOpen(false); onLogout() }}>
+            <span className={styles.sidebarNavIcon}>🚪</span> Log out
+          </button>
+        </nav>
+        )}
+      </div>
       {friendRequests.length > 0 && activeTab !== 'friends' && (
         <button
           type="button"
@@ -1386,7 +2033,7 @@ export default function MainShell({
         <button
           type="button"
           className={`${styles.friendRequestToast} ${styles.challengeToast}`}
-          onClick={() => setActiveTab('alerts')}
+          onClick={() => setActiveTab('hub')}
         >
           <span>⚔️</span>
           <span>{pendingLightningInvite ? 'Lightning challenge received' : 'Online challenge received'}</span>
@@ -1394,7 +2041,7 @@ export default function MainShell({
         </button>
       )}
       {activeTab === 'home' && (
-        <HomeTab
+       <HomeTab
           sport={sport}
           onSportChange={onSportChange}
           user={user}
@@ -1405,6 +2052,7 @@ export default function MainShell({
           onSelectMode={handleSelectMode}
           onOpenBoard={() => setActiveTab('board')}
           onOpenProfile={() => setActiveTab('profile')}
+          onOpenSidebar={() => setSidebarOpen(true)}
         />
       )}
       {activeTab === 'board' && <BoardTab sport={sport} onSportChange={onSportChange} profile={profile} />}
@@ -1418,8 +2066,10 @@ export default function MainShell({
           onStartSeasonalEvent={onStartSeasonalEvent}
         />
       )}
-      {activeTab === 'alerts' && (
-        <AlertsTab
+      {activeTab === 'hub' && (
+        <HubTab
+          user={user}
+          coinBalance={coinBalance}
           pendingOnlineInvite={pendingOnlineInvite}
           pendingInvites={pendingInvites}
           pendingLightningInvite={pendingLightningInvite}
@@ -1432,6 +2082,7 @@ export default function MainShell({
           onDeclineTeam={(invite) => handleTeamInvite(invite, false)}
           onAcceptLightning={onAcceptLightningInvite}
           onDeclineLightning={onDeclineLightningInvite}
+          onCoinsUpdated={onCoinsUpdated}
         />
       )}
       {activeTab === 'friends' && (
@@ -1446,7 +2097,7 @@ export default function MainShell({
           }}
         />
       )}
-     {activeTab === 'profile' && (
+  {activeTab === 'profile' && (
   <div className={styles.page}>
     <Profile
       user={user}
@@ -1456,6 +2107,7 @@ export default function MainShell({
       coinBalance={coinBalance}
       onAdmin={onAdmin}
       isAdmin={isAdmin}
+      onWeeklyMissions={onWeeklyMissions}
     />
   </div>
 )}

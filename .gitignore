@@ -4,3 +4,9 @@ dist
 .env.local
 backend/serviceAccountKey.json
 backend/serviceAccountKey.json
+ # Local dev docs
+FIXES.md
+PWA_COMPLETE_SETUP.md
+PWA_SETUP.md
+TECHNOLOGY_STACK.md
+replacements.txt

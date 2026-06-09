@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { ref, get, update, onValue } from 'firebase/database'
-import { db } from '../lib/firebase'
+import { db, auth } from '../lib/firebase'
 import { updateProfile } from 'firebase/auth'
 import { loadProfile, saveProfile } from '../lib/profile'
 import { getDefaultAvatar, isImageAvatar } from '../lib/avatars'
@@ -43,6 +43,7 @@ export default function Profile({
   coinBalance = 0,
   onAdmin,
   isAdmin = false,
+  onWeeklyMissions,
 }) {
   const [stats, setStats] = useState(null)
   const [matches, setMatches] = useState([])
@@ -178,7 +179,7 @@ export default function Profile({
     if (!newUsername.trim() || !user) return
     setSaving(true)
     try {
-      await updateProfile(user, { displayName: newUsername.trim() })
+      await updateProfile(auth.currentUser, { displayName: newUsername.trim() })
       await update(ref(db, `users/${user.uid}/profile`), { displayName: newUsername.trim(), updatedAt: new Date().toISOString() })
       const nextProfile = saveProfile({ displayName: newUsername.trim(), playerId, avatar })
       setEditingUsername(false)
@@ -195,7 +196,7 @@ export default function Profile({
     setSavingAvatar(true)
     try {
       const displayName = user.displayName || loadProfile()?.displayName || 'Player'
-      if (canUseAsAuthPhotoURL(tempAvatar)) await updateProfile(user, { photoURL: tempAvatar })
+     if (canUseAsAuthPhotoURL(tempAvatar)) await updateProfile(auth.currentUser, { photoURL: tempAvatar })
       await update(ref(db, `users/${user.uid}/profile`), { avatar: tempAvatar, updatedAt: new Date().toISOString() })
       const nextProfile = saveProfile({ displayName, playerId, avatar: tempAvatar })
       setAvatar(tempAvatar)

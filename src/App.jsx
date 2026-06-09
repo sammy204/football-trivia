@@ -25,6 +25,9 @@ import Tournament from './components/Tournament'
 import SeasonalQuiz from './components/SeasonalQuiz'
 import SeasonalResults from './components/SeasonalResults'
 import CommonLink from './components/CommonLink'
+import BestOfThreeMulti from './components/BestOfThreeMulti'
+import WeeklyMissions from './components/WeeklyMissions'
+import { updateMissionProgress } from './lib/missions'
 import { generateQuestions } from './lib/question'
 import { getPlayerByPlayerId } from './lib/multiplayer'
 import {
@@ -240,9 +243,15 @@ export default function App() {
   useEffect(() => {
   if (!user?.uid || !activePlayerId) return
   const unsub = listenToOnlineInvite(activePlayerId, (invite) => {
+     console.log('INVITE RECEIVED:', JSON.stringify(invite))
     if (invite) {
-      if (screen === 'online') {
-        // Forward to OnlineMulti via a separate state
+     if (invite.isBestOfThree) {
+  clearOnlineInvite(activePlayerId).catch(() => {})
+  setIncomingInviteForAccept(invite)
+  setGameConfig({ sport: invite.sport, rounds: invite.rounds })
+  setSelectedSport(invite.sport)
+  setScreen('bestOfThree')
+} else if (screen === 'online') {
         setPendingRematchInvite(invite)
       } else {
         setPendingOnlineInvite(invite)
@@ -521,6 +530,16 @@ function handleStartCommonLink({ sport, returnTab = 'home' }) {
   setSelectedSport(sport)
   setScreen('commonLink')
 }
+function handleStartBestOfThree({ sport, rounds, returnTab = 'home' }) {
+  if (!user) { setShowAuth(true); return }
+  if (!user.emailVerified) { setShowVerify(true); return }
+  rememberModeReturnTab(returnTab)
+  recordMode('bestOfThree')
+  setSelectedSport(sport)
+  setGameConfig({ sport, rounds })
+  setScreen('bestOfThree')
+}
+
   async function awardUserCoins({ amount, reason, sourceId, metadata, label, detail }) {
     if (!user?.uid) {
       return {
@@ -900,6 +919,10 @@ function handleStartCommonLink({ sport, returnTab = 'home' }) {
     setLightningH2HMeta({ totalTimeMs, totalQuestions, isWin, isDraw })
     setLightningH2HOpponentName(opponentName)
 
+    if (user?.uid && isWin) {
+  updateMissionProgress(user.uid, 'lightningWin').catch(() => {})
+}
+
     if (user?.uid) {
       const prof = profile || loadProfile()
       const playerId = prof?.playerId || user.uid
@@ -1020,6 +1043,12 @@ function handleStartCommonLink({ sport, returnTab = 'home' }) {
         source: gameConfig?.mode || 'game',
       }).catch((error) => console.error('Failed to record gameplay activity:', error))
     }
+    if (user?.uid && gameConfig?.mode === 'solo') {
+  updateMissionProgress(user.uid, 'solo').catch(() => {})
+}
+if (user?.uid && gameConfig?.mode === 'daily' && scores[0] === history.length) {
+  updateMissionProgress(user.uid, 'perfectDaily').catch(() => {})
+}
 
     const rewardAmount = calculateQuizCoinReward({
       mode: gameConfig?.mode,
@@ -1086,17 +1115,21 @@ function handleStartCommonLink({ sport, returnTab = 'home' }) {
     setScreen('dailyLeaderboard')
   }
 
-  async function handleAcceptOnlineInvite() {
-    if (!pendingOnlineInvite) return
-    const prof = loadProfile()
-    const inviteData = pendingOnlineInvite
-    setSelectedSport(inviteData.sport)
-    setGameConfig({ sport: inviteData.sport, rounds: inviteData.rounds })
-    await clearOnlineInvite(prof?.playerId)
+ async function handleAcceptOnlineInvite() {
+  if (!pendingOnlineInvite) return
+  const prof = loadProfile()
+  const inviteData = pendingOnlineInvite
+  setSelectedSport(inviteData.sport)
+  setGameConfig({ sport: inviteData.sport, rounds: inviteData.rounds })
+  await clearOnlineInvite(prof?.playerId)
+  setPendingOnlineInvite(null)
+  setIncomingInviteForAccept(inviteData)
+  if (inviteData.isBestOfThree) {
+    setScreen('bestOfThree')
+  } else {
     setScreen('online')
-    setPendingOnlineInvite(null)
-    setIncomingInviteForAccept(inviteData)
   }
+}
 
   async function handleDeclineOnlineInvite() {
     const prof = loadProfile()
@@ -1199,16 +1232,20 @@ function handleStartCommonLink({ sport, returnTab = 'home' }) {
           </p>
           <div style={{ display: 'flex', gap: 8 }}>
             <button
-              onClick={async () => {
-                const prof = loadProfile()
-                const inviteData = pendingOnlineInvite
-                setSelectedSport(inviteData.sport)
-                setGameConfig({ sport: inviteData.sport, rounds: inviteData.rounds })
-                await clearOnlineInvite(prof?.playerId)
-                setScreen('online')
-                setPendingOnlineInvite(null)
-                setIncomingInviteForAccept(inviteData)
-              }}
+           onClick={async () => {
+            const prof = loadProfile()
+            const inviteData = pendingOnlineInvite
+            setSelectedSport(inviteData.sport)
+            setGameConfig({ sport: inviteData.sport, rounds: inviteData.rounds })
+            await clearOnlineInvite(prof?.playerId)
+            setPendingOnlineInvite(null)
+            setIncomingInviteForAccept(inviteData)
+            if (inviteData.isBestOfThree) {
+              setScreen('bestOfThree')
+            } else {
+              setScreen('online')
+            }
+          }}
               style={{
                 flex: 1, background: '#00FF87', color: '#0a1f0f',
                 border: 'none', borderRadius: 8, padding: '10px',
@@ -1300,6 +1337,9 @@ function handleStartCommonLink({ sport, returnTab = 'home' }) {
           onStartLightningH2H={handleStartLightningH2H}
           onStartSeasonalEvent={handleStartSeasonalEvent}
           onStartCommonLink={handleStartCommonLink}
+          onStartBestOfThree={handleStartBestOfThree}
+          onWeeklyMissions={() => setScreen('weeklyMissions')}
+            onCoinsUpdated={() => {}}
           onAcceptOnlineInvite={handleAcceptOnlineInvite}
           onDeclineOnlineInvite={handleDeclineOnlineInvite}
           onAcceptTeamInvite={handleInviteAccepted}
@@ -1350,7 +1390,28 @@ function handleStartCommonLink({ sport, returnTab = 'home' }) {
           sport={gameConfig?.sport || 'football'}
           rounds={gameConfig?.rounds || 5}
           initialOpponentPlayerId={onlineTargetPlayerId}
-          onBack={() => returnToMainTab()}
+          onBack={() => {
+          if (user?.uid) {
+            updateMissionProgress(user.uid, 'online').catch(() => {})
+          }
+          returnToMainTab()
+        }}
+        onMatchResult={async ({ result }) => {
+  if (!user?.uid) return
+  try {
+    const { get, ref, update } = await import('firebase/database')
+    const { db } = await import('./lib/firebase')
+    const snap = await get(ref(db, `users/${user.uid}/onlineWinStreak`))
+    const current = snap.val() || 0
+    const newStreak = result === 'win' ? current + 1 : 0
+    await update(ref(db, `users/${user.uid}`), { onlineWinStreak: newStreak })
+    if (result === 'win' && newStreak > 0) {
+      updateMissionProgress(user.uid, 'winStreak', newStreak, true).catch(() => {})
+    }
+  } catch (e) {
+    console.error('Failed to update win streak:', e)
+  }
+}}
           user={user}
           pendingInvite={incomingInviteForAccept}
           onInviteHandled={() => {
@@ -1371,7 +1432,12 @@ function handleStartCommonLink({ sport, returnTab = 'home' }) {
           initialJoinCode={teamConfig?.joinCode || null}
           initialJoinTeamId={teamConfig?.joinTeamId || null}
           initialInvitePlayerId={teamConfig?.prefillInvitePlayerId || ''}
-          onBack={() => returnToMainTab()}
+         onBack={() => {
+          if (user?.uid) {
+            updateMissionProgress(user.uid, 'team').catch(() => {})
+          }
+          returnToMainTab()
+        }}
           user={user}
           coinBalance={coinBalance}
         />
@@ -1562,6 +1628,30 @@ function handleStartCommonLink({ sport, returnTab = 'home' }) {
   })
   setCoinReward(reward)
 }}
+  />
+)}
+{screen === 'bestOfThree' && (
+  <BestOfThreeMulti
+    key={user?.uid || 'guest'}
+    sport={gameConfig?.sport || selectedSport}
+    rounds={gameConfig?.rounds || 5}
+    user={user}
+    coinBalance={coinBalance}
+    pendingInvite={incomingInviteForAccept}
+    onInviteHandled={() => {
+      setPendingOnlineInvite(null)
+      setIncomingInviteForAccept(null)
+    }}
+    onBack={() => returnToMainTab()}
+  />
+)}
+
+{screen === 'weeklyMissions' && (
+  <WeeklyMissions
+    user={user}
+    coinBalance={coinBalance}
+    onBack={() => returnToMainTab()}
+    onCoinsUpdated={() => {}}
   />
 )}
       {screen === 'lightningLeaderboard' && (

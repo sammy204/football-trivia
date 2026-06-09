@@ -8,6 +8,7 @@ export const LIGHTNING_H2H_WAGER = 10
 export const TEAM_PLAYER_WAGER = 10
 export const TOURNAMENT_ENTRY_FEE = 10
 export const TEAM_WAGER_OPTIONS = [10, 25, 50]
+export const BEST_OF_THREE_WAGER = 50
 
 function normalizeAmount(amount) {
   return Math.max(0, Math.round(Number(amount) || 0))
