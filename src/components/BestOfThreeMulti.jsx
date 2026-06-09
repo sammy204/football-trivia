@@ -19,7 +19,7 @@ import { getEquippedFrame } from '../lib/frames'
 import { getPlayerByPlayerId, sendOnlineInvite } from '../lib/multiplayer'
 import { sendInvitePushNotification } from '../lib/inviteNotifications'
 import AvatarFrame from './AvatarFrame'
-import styles from './onlineMulti.module.css'
+import styles from './OnlineMulti.module.css'
 
 const INTERMISSION_SECONDS = 10
 
