@@ -936,3 +936,106 @@ app.post('/send-welcome-email', async (req, res) => {
     res.status(500).json({ error: 'Failed to send welcome email' })
   }
 })
+// POST /api/broadcast-email - Send broadcast email to all users
+app.post('/api/broadcast-email', async (req, res) => {
+  const { adminKey } = req.body
+
+  if (adminKey !== process.env.ADMIN_SECRET_KEY) {
+    return res.status(403).json({ error: 'Unauthorized' })
+  }
+
+  try {
+    const listUsers = async (nextPageToken) => {
+      const result = await admin.auth().listUsers(1000, nextPageToken)
+      return result
+    }
+
+    let allUsers = []
+    let nextPageToken
+
+    do {
+      const result = await listUsers(nextPageToken)
+      allUsers = allUsers.concat(result.users)
+      nextPageToken = result.pageToken
+    } while (nextPageToken)
+
+    const usersWithEmail = allUsers.filter(u => u.email && u.emailVerified)
+
+    let sent = 0
+    let failed = 0
+
+    for (const u of usersWithEmail) {
+      try {
+        await resend.emails.send({
+          from: 'Trivela <hello@trivela.online>',
+          to: u.email,
+          subject: 'Something new is waiting for you on Trivela',
+          html: `
+            <!DOCTYPE html>
+            <html>
+            <body style="margin:0;padding:0;background:#0a1a0a;font-family:'Segoe UI',Arial,sans-serif;color:#ffffff;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a1a0a;padding:40px 20px;">
+                <tr>
+                  <td align="center">
+                    <table width="560" cellpadding="0" cellspacing="0" style="background:#0f2010;border-radius:16px;overflow:hidden;border:1px solid #1a3a1a;">
+                      <tr>
+                        <td style="padding:36px 40px 28px;border-bottom:1px solid #1a3a1a;">
+                          <table cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td style="vertical-align:middle;">
+                                <img src="https://trivela.online/logo-mark.svg" alt="Trivela" width="44" height="44" style="display:block;border-radius:50%;" />
+                              </td>
+                              <td style="padding-left:12px;vertical-align:middle;">
+                                <p style="margin:0;font-size:22px;font-weight:900;color:#ffffff;text-transform:uppercase;letter-spacing:2px;">Trivela</p>
+                                <p style="margin:2px 0 0;font-size:10px;color:#4ade80;text-transform:uppercase;letter-spacing:3px;">Compete. Challenge. Win.</p>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding:40px 40px 32px;">
+                          <p style="margin:0 0 8px;font-size:11px;color:#4ade80;text-transform:uppercase;letter-spacing:3px;font-weight:700;">What's new</p>
+                          <h1 style="margin:0 0 16px;font-size:32px;font-weight:900;color:#ffffff;line-height:1.1;">We've been busy 🚀</h1>
+                          <p style="margin:0;font-size:15px;color:#86a886;line-height:1.8;">
+                            Hey ${u.displayName || 'there'}, Trivela just got a big update — new game modes, daily rewards, weekly missions, and more ways to compete. Clock in and see what's new.
+                          </p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding:0 40px 40px;">
+                          <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td align="center">
+                                <a href="https://trivela.online" style="display:inline-block;background:#4ade80;color:#0a1a0a;text-decoration:none;font-size:14px;font-weight:900;padding:16px 48px;border-radius:50px;text-transform:uppercase;letter-spacing:2px;">Clock In →</a>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding:20px 40px;border-top:1px solid #1a3a1a;text-align:center;">
+                          <p style="margin:0;font-size:11px;color:#2d4a2d;">© 2025 Trivela. All rights reserved.</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </body>
+            </html>
+          `
+        })
+        sent++
+      } catch (e) {
+        console.error(`Failed to send to ${u.email}:`, e)
+        failed++
+      }
+    }
+
+    res.json({ success: true, total: usersWithEmail.length, sent, failed })
+  } catch (error) {
+    console.error('Broadcast email error:', error)
+    res.status(500).json({ error: 'Failed to send broadcast emails' })
+  }
+})
