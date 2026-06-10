@@ -24,6 +24,7 @@ import {
 } from '../lib/friends'
 import Profile from './Profile'
 import styles from './MainTabs.module.css'
+import NotifNudge, { shouldShowNudge } from './NotifNudge'
 
 const MODE_DEFS = {
   solo: { icon: '🎯', title: 'Solo', copy: '5, 10 or 15 questions' },
@@ -1766,6 +1767,11 @@ export default function MainShell({
     return listenToFriendRequests(myPlayerId, setFriendRequests)
   }, [profile?.playerId])
 
+  useEffect(() => {
+  if (!user) return
+  setShowNotifNudge(shouldShowNudge())
+}, [user])
+
   function handleSelectMode(modeId) {
     if (modeId === 'playTab') {
       setActiveTab('play')
@@ -1857,6 +1863,7 @@ export default function MainShell({
  console.log('sport in MainShell:', sport)
   const [sidebarScreen, setSidebarScreen] = useState('main')
   const touchStartX = useRef(0)
+  const [showNotifNudge, setShowNotifNudge] = useState(false)
 
   function handleTouchStartShell(e) {
     touchStartX.current = e.touches[0].clientX
@@ -2123,7 +2130,13 @@ export default function MainShell({
           </button>
         ))}
       </nav>
+      {showNotifNudge && (
+        <NotifNudge
+          user={user}
+          onDismiss={() => setShowNotifNudge(false)}
+        />
+      )}
+
     </div>
   )
 }
-

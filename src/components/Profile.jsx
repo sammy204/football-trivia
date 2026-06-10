@@ -13,7 +13,7 @@ import styles from './MainTabs.module.css'
 import { getStreakShield, purchaseStreakShield } from '../lib/streaks'
 import { spendCoins } from '../lib/coins'
 import { getOwnedFrames, getEquippedFrame, purchaseFrame, equipFrame, unequipFrame } from '../lib/frames'
-import { requestPushNotificationPermission, subscribeUserToPush, refreshPushSubscription } from '../lib/pushNotifications'
+
 
 
 const MILESTONES = [
@@ -71,11 +71,6 @@ export default function Profile({
   const [ownedFrames, setOwnedFrames] = useState([])
   const [equippedFrame, setEquippedFrame] = useState(null)
   const [frameMsg, setFrameMsg] = useState(null)
-  const [notifPermission, setNotifPermission] = useState(
-    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
-  )
-  const [notifBusy, setNotifBusy] = useState(false)
-  const [notifMsg, setNotifMsg] = useState(null)
   const shieldStatusText = streakShield?.active
     ? 'Shield active'
     : streak?.current > 0
@@ -286,37 +281,6 @@ export default function Profile({
     setEquippedFrame(null)
   }
 
-  async function handleEnableNotifications() {
-    setNotifBusy(true)
-    setNotifMsg(null)
-    try {
-      const permission = await requestPushNotificationPermission()
-      setNotifPermission(permission ? 'granted' : 'denied')
-      if (permission) {
-        const sub = await subscribeUserToPush(user)
-        setNotifMsg(sub ? '✅ Notifications enabled!' : '⚠️ Enabled but setup failed. Try refresh.')
-      } else {
-        setNotifMsg('❌ Permission denied. Enable in your browser/phone settings.')
-      }
-    } catch {
-      setNotifMsg('Something went wrong.')
-    }
-    setNotifBusy(false)
-    setTimeout(() => setNotifMsg(null), 4000)
-  }
-
-  async function handleRefreshNotifications() {
-    setNotifBusy(true)
-    setNotifMsg(null)
-    try {
-      const sub = await refreshPushSubscription(user)
-      setNotifMsg(sub ? '✅ Notifications refreshed!' : '⚠️ Refresh failed. Try again.')
-    } catch {
-      setNotifMsg('Something went wrong.')
-    }
-    setNotifBusy(false)
-    setTimeout(() => setNotifMsg(null), 4000)
-  }
 
 if (!user) return null  // <-- this was already here
 
@@ -453,41 +417,6 @@ if (!user) return null  // <-- this was already here
 
       {!loading && !error && (
         <>
-          {typeof window !== 'undefined' && 'Notification' in window && (
-            <div className={styles.section}>
-              <div className={styles.dailyCard}>
-                <div className={styles.dailyBadge}>Notifications</div>
-                <p className={styles.muted} style={{ marginTop: 6, marginBottom: 14, fontSize: 13 }}>
-                  {notifPermission === 'granted'
-                    ? 'Notifications are enabled on this device.'
-                    : notifPermission === 'denied'
-                    ? 'Notifications are blocked. Enable them in your device settings, then tap refresh.'
-                    : 'Enable notifications for daily challenges, streaks, and match invites.'}
-                </p>
-                {notifPermission !== 'denied' && (
-                  <button
-                    className={styles.primaryButton}
-                    type="button"
-                    style={{ width: '100%' }}
-                    onClick={notifPermission === 'granted' ? handleRefreshNotifications : handleEnableNotifications}
-                    disabled={notifBusy}
-                  >
-                    {notifBusy ? '...' : notifPermission === 'granted' ? 'Refresh notifications' : 'Enable notifications'}
-                  </button>
-                )}
-                {notifPermission === 'denied' && (
-                  <p style={{ fontSize: 12, color: '#FF5C5C', fontWeight: 700 }}>
-                    Go to your phone Settings → Safari/Chrome → Notifications → allow Trivela
-                  </p>
-                )}
-                {notifMsg && (
-                  <p style={{ marginTop: 10, fontSize: 13, fontWeight: 700, color: notifMsg.includes('✅') ? '#00FF87' : '#FF5C5C' }}>
-                    {notifMsg}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Streak */}
       {streak && (
