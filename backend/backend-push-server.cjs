@@ -58,13 +58,16 @@ async function requireFirebaseUser(req, res, next) {
 }
 
 function canAwardReason({ uid, targetUserId, reason, amount }) {
+   console.log('canAwardReason check:', { uid, targetUserId, reason, amount, match: uid === targetUserId })
   if (uid === ADMIN_UID) return true
   if (uid !== targetUserId) return false
 
-  const selfAwardCaps = {
+ const selfAwardCaps = {
     quiz_reward: 40,
     commonlink_reward: 40,
     daily_reward: 80,
+    daily_login_reward: 10,
+    weekly_missions_reward: 100,
     seasonal_reward: 150,
     lightning_solo_reward: 100,
     online_1v1_payout: 200,
