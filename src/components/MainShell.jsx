@@ -11,7 +11,7 @@ import { listenToModeCounts, getHomeModeIds } from '../lib/modeStats'
 import { getUnlockedMilestones } from '../lib/streaks'
 import { respondToInvite } from '../lib/teamMultiplayer'
 import { getOrCreateWeeklyMissions, claimWeeklyReward } from '../lib/missions'
-import { spendCoins, TEAM_PLAYER_WAGER } from '../lib/coins'
+import { awardCoins, spendCoins, TEAM_PLAYER_WAGER } from '../lib/coins'
 import { getFormBadge as buildFormBadge, syncPublicProfile } from '../lib/userStats'
 import { sendFriendRequestPushNotification } from '../lib/friendNotifications'
 import {
@@ -944,7 +944,6 @@ function HubTab({
         totalClaimed: (loginReward?.totalClaimed || 0) + DAILY_REWARD_AMOUNT,
         updatedAt: Date.now(),
       })
-      const { awardCoins } = await import('../lib/coins')
       const result = await awardCoins({
         userId: user.uid,
         amount: DAILY_REWARD_AMOUNT,
@@ -972,7 +971,6 @@ function HubTab({
     try {
       const result = await claimWeeklyReward(user.uid)
       if (result.ok) {
-        const { awardCoins } = await import('../lib/coins')
         await awardCoins({
           userId: user.uid,
           amount: WEEKLY_REWARD,
