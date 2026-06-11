@@ -961,7 +961,10 @@ app.post('/api/broadcast-email', async (req, res) => {
       nextPageToken = result.pageToken
     } while (nextPageToken)
 
-    const usersWithEmail = allUsers.filter(u => u.email && u.emailVerified)
+    const usersWithEmail = [
+  { email: 'okanlawondaniel001@gmail.com', displayName: 'Danfire' },
+  { email: 'ogabison5@gmail.com', displayName: 'Ifedips' },
+]
 
     let sent = 0
     let failed = 0
