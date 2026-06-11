@@ -58,7 +58,6 @@ async function requireFirebaseUser(req, res, next) {
 }
 
 function canAwardReason({ uid, targetUserId, reason, amount }) {
-   console.log('canAwardReason check:', { uid, targetUserId, reason, amount, match: uid === targetUserId })
   if (uid === ADMIN_UID) return true
   if (uid !== targetUserId) return false
 
@@ -972,61 +971,61 @@ app.post('/api/broadcast-email', async (req, res) => {
         await resend.emails.send({
           from: 'Trivela <hello@trivela.online>',
           to: u.email,
-          subject: 'Something new is waiting for you on Trivela',
-          html: `
-            <!DOCTYPE html>
-            <html>
-            <body style="margin:0;padding:0;background:#0a1a0a;font-family:'Segoe UI',Arial,sans-serif;color:#ffffff;">
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a1a0a;padding:40px 20px;">
+     subject: '⚽ Get Ready — World Cup Quiz hits Trivela Soon! 🏆 🏆',
+html: `
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#0a1a0a;font-family:'Segoe UI',Arial,sans-serif;color:#ffffff;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a1a0a;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="background:#0f2010;border-radius:16px;overflow:hidden;border:1px solid #1a3a1a;">
+          <tr>
+            <td style="padding:36px 40px 28px;border-bottom:1px solid #1a3a1a;">
+              <table cellpadding="0" cellspacing="0">
                 <tr>
-                  <td align="center">
-                    <table width="560" cellpadding="0" cellspacing="0" style="background:#0f2010;border-radius:16px;overflow:hidden;border:1px solid #1a3a1a;">
-                      <tr>
-                        <td style="padding:36px 40px 28px;border-bottom:1px solid #1a3a1a;">
-                          <table cellpadding="0" cellspacing="0">
-                            <tr>
-                              <td style="vertical-align:middle;">
-                                <img src="https://trivela.online/logo-mark.svg" alt="Trivela" width="44" height="44" style="display:block;border-radius:50%;" />
-                              </td>
-                              <td style="padding-left:12px;vertical-align:middle;">
-                                <p style="margin:0;font-size:22px;font-weight:900;color:#ffffff;text-transform:uppercase;letter-spacing:2px;">Trivela</p>
-                                <p style="margin:2px 0 0;font-size:10px;color:#4ade80;text-transform:uppercase;letter-spacing:3px;">Compete. Challenge. Win.</p>
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:40px 40px 32px;">
-                          <p style="margin:0 0 8px;font-size:11px;color:#4ade80;text-transform:uppercase;letter-spacing:3px;font-weight:700;">What's new</p>
-                          <h1 style="margin:0 0 16px;font-size:32px;font-weight:900;color:#ffffff;line-height:1.1;">We've been busy 🚀</h1>
-                          <p style="margin:0;font-size:15px;color:#86a886;line-height:1.8;">
-                            Hey ${u.displayName || 'there'}, Trivela just got a big update — new game modes, daily rewards, weekly missions, and more ways to compete. Clock in and see what's new.
-                          </p>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:0 40px 40px;">
-                          <table width="100%" cellpadding="0" cellspacing="0">
-                            <tr>
-                              <td align="center">
-                                <a href="https://trivela.online" style="display:inline-block;background:#4ade80;color:#0a1a0a;text-decoration:none;font-size:14px;font-weight:900;padding:16px 48px;border-radius:50px;text-transform:uppercase;letter-spacing:2px;">Clock In →</a>
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:20px 40px;border-top:1px solid #1a3a1a;text-align:center;">
-                          <p style="margin:0;font-size:11px;color:#2d4a2d;">© 2025 Trivela. All rights reserved.</p>
-                        </td>
-                      </tr>
-                    </table>
+                  <td style="vertical-align:middle;">
+                    <img src="https://trivela.online/logo-mark.svg" alt="Trivela" width="44" height="44" style="display:block;border-radius:50%;" />
+                  </td>
+                  <td style="padding-left:12px;vertical-align:middle;">
+                    <p style="margin:0;font-size:22px;font-weight:900;color:#ffffff;text-transform:uppercase;letter-spacing:2px;">Trivela</p>
+                    <p style="margin:2px 0 0;font-size:10px;color:#4ade80;text-transform:uppercase;letter-spacing:3px;">Compete. Challenge. Win.</p>
                   </td>
                 </tr>
               </table>
-            </body>
-            </html>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:40px 40px 32px;">
+              <p style="margin:0 0 8px;font-size:11px;color:#4ade80;text-transform:uppercase;letter-spacing:3px;font-weight:700;">Seasonal Event</p>
+              <h1 style="margin:0 0 16px;font-size:36px;font-weight:900;color:#ffffff;line-height:1.1;">The World Cup Quiz is almost here ⚽🏆</h1>
+              <p style="margin:0;font-size:15px;color:#86a886;line-height:1.8;">
+                Hey ${u.displayName || 'there'}, the World Cup Quiz Event goes live on Trivela tomorrow. Sharpen up — there are coins on the line.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 40px 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="https://trivela.online" style="display:inline-block;background:#4ade80;color:#0a1a0a;text-decoration:none;font-size:14px;font-weight:900;padding:16px 48px;border-radius:50px;text-transform:uppercase;letter-spacing:2px;">Play Now →</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 40px;border-top:1px solid #1a3a1a;text-align:center;">
+              <p style="margin:0;font-size:11px;color:#2d4a2d;">© 2025 Trivela. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
           `
         })
         sent++
