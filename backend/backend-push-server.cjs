@@ -1041,3 +1041,28 @@ html: `
     res.status(500).json({ error: 'Failed to send broadcast emails' })
   }
 })
+
+// ─── Feedback endpoint ────────────────────────────────────────────────────────
+app.post('/feedback', async (req, res) => {
+  const { category, message, displayName, userId } = req.body
+  if (!message?.trim()) return res.status(400).json({ error: 'Message required' })
+
+  try {
+    await resend.emails.send({
+      from: 'Trivela Feedback <noreply@trivela.online>',
+      to: 'ogabisamuel99@gmail.com',
+      subject: `[Trivela Feedback] ${category || 'General'}`,
+      html: `
+        <h2>New Feedback</h2>
+        <p><strong>Category:</strong> ${category || 'General'}</p>
+        <p><strong>From:</strong> ${displayName || 'Anonymous'} (${userId || 'not signed in'})</p>
+        <p><strong>Message:</strong></p>
+        <p>${message.trim().replace(/\n/g, '<br/>')}</p>
+      `,
+    })
+    res.json({ ok: true })
+  } catch (e) {
+    console.error('Feedback email failed:', e)
+    res.status(500).json({ error: 'Failed to send feedback' })
+  }
+})

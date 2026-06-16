@@ -177,7 +177,6 @@ export async function recordDailyChallengeActivity({ userId, dateKey, sport, sco
     source: `daily-${sport}`,
   })
 }
-
 export async function resetBrokenDailyStreak({ userId, todayDateKey }) {
   if (!userId || !todayDateKey) return { lost: false, streak: null }
 
@@ -185,7 +184,7 @@ export async function resetBrokenDailyStreak({ userId, todayDateKey }) {
   const snapshot = await get(streakRef)
   const streak = snapshot.val()
 
-  if (!streak?.lastPlayedDateKey || !streak?.current) {
+  if (!streak?.lastPlayedDateKey) {
     return { lost: false, streak }
   }
 
@@ -194,27 +193,49 @@ export async function resetBrokenDailyStreak({ userId, todayDateKey }) {
     return { lost: false, streak }
   }
 
-  // Check for active shield before resetting
+  // A day (or more) was missed. Check for an active shield BEFORE
+  // deciding whether the streak is lost — this covers the case where
+  // `current` was already zeroed by a prior unshielded check.
   const shieldSnap = await get(ref(db, `users/${userId}/streakShield`))
   const shield = shieldSnap.val()
 
-  if (shield?.active) {
-    // Consume shield, preserve streak
-    await set(ref(db, `users/${userId}/streakShield`), null)
-    // Update lastPlayedDateKey to yesterday so streak continues normally
-    const preserved = {
-      ...streak,
-      lastPlayedDateKey: todayDateKey,
-      updatedAt: new Date().toISOString(),
-    }
-    await runTransaction(streakRef, () => preserved)
-    return { lost: false, shieldUsed: true, streak: preserved }
+if (shield?.active) {
+  const protectedValue = Math.max(streak.current || 0, shield.streakAtPurchase || 0)
+
+  if (protectedValue === 0) {
+    // Nothing to protect — leave the shield active for when a streak exists
+    return { lost: false, streak }
+  }
+
+  // Consume the shield
+  await set(ref(db, `users/${userId}/streakShield`), null)
+
+  const todayDate = parseDateKey(todayDateKey)
+  const yesterday = new Date(todayDate.getTime() - 24 * 60 * 60 * 1000)
+  const yesterdayKey = `${yesterday.getUTCFullYear()}-${String(yesterday.getUTCMonth() + 1).padStart(2, '0')}-${String(yesterday.getUTCDate()).padStart(2, '0')}`
+
+  const preserved = {
+    ...streak,
+    current: protectedValue,
+    best: Math.max(streak.best || 0, protectedValue),
+    lastPlayedDateKey: yesterdayKey,
+    lastBrokenOnDateKey: null,
+    updatedAt: new Date().toISOString(),
+  }
+
+  await runTransaction(streakRef, () => preserved)
+  return { lost: false, shieldUsed: true, streak: preserved }
+}
+
+  // No shield available — only report a loss if there was an active streak
+  if (!streak.current) {
+    return { lost: false, streak }
   }
 
   const previousCount = streak.current
 
   await runTransaction(streakRef, (current) => {
-    if (!current?.lastPlayedDateKey || !current?.current) return current
+    if (!current?.lastPlayedDateKey) return current
     const latestDiff = getDayDifference(current.lastPlayedDateKey, todayDateKey)
     if (latestDiff <= 1) return current
     return {
@@ -242,8 +263,12 @@ export async function consumeStreakShield(userId) {
 }
 
 export async function purchaseStreakShield(userId) {
+  const streakSnap = await get(ref(db, `users/${userId}/dailyStreak`))
+  const streak = streakSnap.val() || {}
+
   await set(ref(db, `users/${userId}/streakShield`), {
     active: true,
     purchasedAt: new Date().toISOString(),
+    streakAtPurchase: streak.current || 0,
   })
 }

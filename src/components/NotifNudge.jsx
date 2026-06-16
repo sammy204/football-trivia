@@ -5,8 +5,7 @@ const SNOOZE_DAYS = 2
 
 export function shouldShowNudge() {
   // Only for PWA
-  //if (!window.matchMedia('(display-mode: standalone)').matches) return false
-  // Don't show if already granted
+  if (!window.matchMedia('(display-mode: standalone)').matches) return false
   if (typeof Notification !== 'undefined' && Notification.permission === 'granted') return false
 
   const stored = localStorage.getItem(STORAGE_KEY)

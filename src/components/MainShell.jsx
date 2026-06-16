@@ -25,6 +25,7 @@ import {
 import Profile from './Profile'
 import styles from './MainTabs.module.css'
 import NotifNudge, { shouldShowNudge } from './NotifNudge'
+import Feedback from './Feedback'
 
 const MODE_DEFS = {
   solo: { icon: '🎯', title: 'Solo', copy: '5, 10 or 15 questions' },
@@ -781,21 +782,21 @@ function SettingsSidebarScreen({ user, profile, onBack, onProfileUpdated, onUser
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 16px', borderBottom: '1px solid var(--card-border)' }}>
         <button
           onClick={onBack}
-          style={{ background: 'transparent', border: 'none', color: 'rgba(230,240,232,0.45)', fontSize: 20, cursor: 'pointer', padding: 0, lineHeight: 1 }}
+          style={{ background: 'transparent', border: 'none', color: 'var(--muted)', fontSize: 20, cursor: 'pointer', padding: 0, lineHeight: 1 }}
         >
           ←
         </button>
         <h2 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 22, color: '#f5f5f0', margin: 0, letterSpacing: '0.05em' }}>SETTINGS</h2>
       </div>
-
       <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
+      
         {/* Display name */}
         <div>
-          <p style={{ color: 'rgba(230,240,232,0.45)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>Display Name</p>
+          <p style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>Display Name</p>
           {editingName ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <input
@@ -803,7 +804,7 @@ function SettingsSidebarScreen({ user, profile, onBack, onProfileUpdated, onUser
                 onChange={e => setDraftName(e.target.value)}
                 placeholder="Display name"
                 style={{
-                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+                  background: 'rgba(255,255,255,0.06)', border: '1px solid var(--card-border)',
                   borderRadius: 10, padding: '10px 14px', color: '#f5f5f0', fontSize: 14,
                   fontFamily: 'DM Sans, sans-serif', outline: 'none', width: '100%',
                 }}
@@ -814,7 +815,7 @@ function SettingsSidebarScreen({ user, profile, onBack, onProfileUpdated, onUser
                   disabled={savingName || !draftName.trim()}
                   style={{
                     flex: 1, padding: '10px', borderRadius: 10, border: 'none',
-                    background: '#00FF87', color: '#08180d', fontWeight: 800,
+                    background: 'var(--accent)', color: 'var(--pitch)', fontWeight: 800,
                     fontSize: 13, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif',
                   }}
                 >
@@ -824,8 +825,8 @@ function SettingsSidebarScreen({ user, profile, onBack, onProfileUpdated, onUser
                   onClick={() => { setEditingName(false); setDraftName(user?.displayName || '') }}
                   style={{
                     flex: 1, padding: '10px', borderRadius: 10,
-                    border: '1px solid rgba(255,255,255,0.1)', background: 'transparent',
-                    color: 'rgba(230,240,232,0.6)', fontSize: 13, cursor: 'pointer',
+                    border: '1px solid var(--card-border)', background: 'transparent',
+                    color: 'var(--muted)', fontSize: 13, cursor: 'pointer',
                     fontFamily: 'DM Sans, sans-serif',
                   }}
                 >
@@ -834,25 +835,25 @@ function SettingsSidebarScreen({ user, profile, onBack, onProfileUpdated, onUser
               </div>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 10 }}>
               <span style={{ color: '#f5f5f0', fontSize: 14, fontWeight: 600 }}>{user?.displayName || profile?.displayName || 'Player'}</span>
               <button
                 onClick={() => { setEditingName(true); setDraftName(user?.displayName || profile?.displayName || '') }}
-                style={{ background: 'transparent', border: 'none', color: '#00FF87', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}
               >
                 Edit
               </button>
             </div>
           )}
-          {nameMsg && <p style={{ color: nameMsg.includes('✅') ? '#00FF87' : '#FF5C5C', fontSize: 12, fontWeight: 700, margin: '6px 0 0' }}>{nameMsg}</p>}
+          {nameMsg && <p style={{ color: nameMsg.includes('✅') ? 'var(--accent)' : '#FF5C5C', fontSize: 12, fontWeight: 700, margin: '6px 0 0' }}>{nameMsg}</p>}
         </div>
 
         {/* Notifications */}
         {typeof window !== 'undefined' && 'Notification' in window && (
           <div>
-            <p style={{ color: 'rgba(230,240,232,0.45)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>Notifications</p>
-            <div style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <p style={{ color: 'rgba(230,240,232,0.55)', fontSize: 12, margin: 0, lineHeight: 1.5 }}>
+            <p style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>Notifications</p>
+            <div style={{ padding: '12px 14px', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <p style={{ color: 'var(--muted)', fontSize: 12, margin: 0, lineHeight: 1.5 }}>
                 {notifPermission === 'granted'
                   ? 'Notifications are enabled on this device.'
                   : notifPermission === 'denied'
@@ -865,14 +866,14 @@ function SettingsSidebarScreen({ user, profile, onBack, onProfileUpdated, onUser
                   disabled={notifBusy}
                   style={{
                     padding: '10px', borderRadius: 10, border: 'none',
-                    background: '#00FF87', color: '#08180d', fontWeight: 800,
+                    background: 'var(--accent)', color: 'var(--pitch)', fontWeight: 800,
                     fontSize: 13, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif',
                   }}
                 >
                   {notifBusy ? '...' : notifPermission === 'granted' ? 'Refresh notifications' : 'Enable notifications'}
                 </button>
               )}
-              {notifMsg && <p style={{ color: notifMsg.includes('✅') ? '#00FF87' : '#FF5C5C', fontSize: 12, fontWeight: 700, margin: 0 }}>{notifMsg}</p>}
+              {notifMsg && <p style={{ color: notifMsg.includes('✅') ? 'var(--accent)' : '#FF5C5C', fontSize: 12, fontWeight: 700, margin: 0 }}>{notifMsg}</p>}
             </div>
           </div>
         )}
@@ -1885,7 +1886,156 @@ export default function MainShell({
       {sidebarOpen && (
         <div className={styles.sidebarOverlay} onClick={() => setSidebarOpen(false)} />
       )}
-
+        {/* About modal */}
+      {sidebarScreen === 'about' && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)',
+            padding: 20,
+          }}
+          onClick={() => setSidebarScreen('main')}
+        >
+          <div
+            style={{
+              background: 'var(--pitch-mid)', border: '1px solid var(--card-border)',
+              borderRadius: 16, width: '100%', maxWidth: 380,
+              maxHeight: '80vh', overflowY: 'auto',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '20px 20px 16px', borderBottom: '1px solid var(--card-border)' }}>
+              <h2 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 22, color: '#f5f5f0', margin: 0, letterSpacing: '0.05em' }}>ABOUT TRIVELA</h2>
+              <button
+                onClick={() => setSidebarScreen('main')}
+                style={{ background: 'transparent', border: 'none', color: 'var(--muted)', fontSize: 20, cursor: 'pointer', padding: 0, lineHeight: 1 }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <img src="/logo-mark.svg" alt="Trivela" style={{ width: 48, height: 48 }} />
+                <div>
+                  <p style={{ color: '#f5f5f0', fontSize: 18, fontFamily: 'Bebas Neue, sans-serif', letterSpacing: '0.08em', margin: 0 }}>TRIVELA</p>
+                </div>
+              </div>
+              <p style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.6, margin: 0 }}>
+                Trivela is a competitive sports trivia app for football and basketball fans. Test your knowledge, build streaks, earn coins, and compete against players around the world.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[
+                  { label: 'Sports', value: 'Football & Basketball' },
+                  { label: 'Game Modes', value: '10 ways to play' },
+                ].map(item => (
+                  <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--card-border)' }}>
+                    <span style={{ color: 'var(--muted)', fontSize: 13 }}>{item.label}</span>
+                    <span style={{ color: '#f5f5f0', fontSize: 13, fontWeight: 700 }}>{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {sidebarScreen === 'feedback' && (
+  <div
+    style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)',
+      padding: 20,
+    }}
+    onClick={() => setSidebarScreen('main')}
+  >
+    <div
+      style={{
+        background: 'var(--pitch-mid)', border: '1px solid var(--card-border)',
+        borderRadius: 16, width: '100%', maxWidth: 380,
+        maxHeight: '80vh', overflowY: 'auto',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <Feedback user={user} onBack={() => setSidebarScreen('main')} />
+    </div>
+  </div>
+)}
+      {/* Settings modal */}
+      {sidebarScreen === 'settings' && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)',
+            padding: 20,
+          }}
+          onClick={() => setSidebarScreen('main')}
+        >
+            <div
+            style={{
+              background: 'var(--pitch-mid)', border: '1px solid var(--card-border)',
+              borderRadius: 16, width: '100%', maxWidth: 380,
+              maxHeight: '80vh', overflowY: 'auto',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+              display: 'flex', flexDirection: 'column',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <SettingsSidebarScreen
+              user={user}
+              profile={profile}
+              onBack={() => setSidebarScreen('main')}
+              onProfileUpdated={onProfileUpdated}
+              onUsernameUpdated={onUsernameUpdated}
+            />
+          </div>
+        </div>
+      )}
+      {/* How to Play full-screen takeover */}
+      {sidebarScreen === 'howToPlay' && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'var(--pitch)', overflowY: 'auto',
+            display: 'flex', flexDirection: 'column',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+            <button
+              onClick={() => setSidebarScreen('main')}
+              style={{ background: 'transparent', border: 'none', color: 'rgba(230,240,232,0.45)', fontSize: 20, cursor: 'pointer', padding: 0, lineHeight: 1 }}
+            >
+              ←
+            </button>
+            <h2 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 22, color: '#f5f5f0', margin: 0, letterSpacing: '0.05em' }}>HOW TO PLAY</h2>
+          </div>
+          <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {[
+              { icon: '🎯', title: 'Solo Quiz', desc: 'Choose 5, 10, or 15 questions and play through them at your own pace. Each correct answer earns coins, with a small completion bonus and a perfect-score bonus if you get every question right.' },
+              { icon: '📅', title: 'Daily Challenge', desc: 'A new shared quiz unlocks for everyone at the same time, separately for football and basketball. Everyone gets the same questions, so it comes down to score first and completion time second. You can only play it once per day, and it pays double coins compared to a solo run.' },
+              { icon: '⚔️', title: 'Online 1v1', desc: 'Create or join a real-time head-to-head room against another player. You both answer the same set of questions — the first person to answer correctly wins that point. If the match ends in a tie, a tiebreaker question decides the winner.' },
+              { icon: '👥', title: 'Team Battle', desc: 'Create a team room and invite other players using their Player ID. Each teammate gets their own set of questions to answer, and your individual scores combine into a total team score. Teams need a balanced roster before the match can start, and the winning team splits the coin payout.' },
+              { icon: '⚡', title: 'Lightning Solo', desc: 'A fast-paced 60-second mode — answer as many questions as you can before time runs out. Your score is based on how many you get right, and your best runs appear on the Lightning leaderboard for your sport.' },
+              { icon: '⚡', title: 'Lightning 1v1', desc: 'Invite a friend using their Player ID to a 60-second duel. Both players stake coins to enter, and whoever scores higher takes the entire pot. A draw refunds both players their stake.' },
+              { icon: '🏆', title: 'Tournament', desc: 'Join or create a single-elimination bracket tournament — public tournaments anyone can browse and join, or private ones shared with a 6-character code. As players win matches they advance through the bracket automatically until a champion is crowned.' },
+              { icon: '🥊', title: 'Best of 3', desc: 'A 3-round series against another player — first to win 2 rounds takes the match. Both players stake coins to enter, there\'s a short break between rounds, and the winner takes the full pot. Leaving mid-series counts as a forfeit.' },
+              { icon: '🔗', title: 'Common Link', desc: 'You\'re given three players or clues that share a hidden connection — figure out what links them from the multiple-choice options. Correct answers earn coins just like a solo quiz.' },
+              { icon: '🎉', title: 'Seasonal Events', desc: 'Limited-time quizzes that run for a set window with their own question sets. Some events have an entry fee in coins, but rewards are boosted by a coin multiplier — the better you score, the more that multiplier pays off.' },
+            ].map(mode => (
+              <div key={mode.title} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <span style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>{mode.icon}</span>
+                <div>
+                  <p style={{ color: '#f5f5f0', fontSize: 14, fontWeight: 700, margin: '0 0 4px' }}>{mode.title}</p>
+                  <p style={{ color: 'rgba(230,240,232,0.5)', fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>{mode.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {/* Sidebar */}
       <div className={`${styles.sidebar} ${sidebarOpen ? '' : styles.sidebarClosed}`} style={{ '--sidebar-accent': sport === 'basketball' ? '#FF8C42' : '#00FF87', background: sport === 'basketball' ? 'darkred' : '#0f2518' }}></div>
      <div className={`${styles.sidebar} ${sidebarOpen ? '' : styles.sidebarClosed}`} style={{ '--sidebar-accent': sport === 'basketball' ? '#FF8C42' : '#00FF87' }}>
@@ -1902,93 +2052,6 @@ export default function MainShell({
             <div className={styles.sidebarUserId}>{profile?.playerId || ''}</div>
           </div>
         </div>
-{/* How to Play screen */}
-     {/* Settings screen */}
-        {sidebarScreen === 'settings' && (
-          <SettingsSidebarScreen
-            user={user}
-            profile={profile}
-            onBack={() => setSidebarScreen('main')}
-            onProfileUpdated={onProfileUpdated}
-            onUsernameUpdated={onUsernameUpdated}
-          />
-        )}
-
-        {/* About screen */}
-        {sidebarScreen === 'about' && (
-          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-              <button
-                onClick={() => setSidebarScreen('main')}
-                style={{ background: 'transparent', border: 'none', color: 'rgba(230,240,232,0.45)', fontSize: 20, cursor: 'pointer', padding: 0, lineHeight: 1 }}
-              >
-                ←
-              </button>
-              <h2 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 22, color: '#f5f5f0', margin: 0, letterSpacing: '0.05em' }}>ABOUT TRIVELA</h2>
-            </div>
-            <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <img src="/logo-mark.svg" alt="Trivela" style={{ width: 48, height: 48 }} />
-                <div>
-                  <p style={{ color: '#f5f5f0', fontSize: 18, fontFamily: 'Bebas Neue, sans-serif', letterSpacing: '0.08em', margin: 0 }}>TRIVELA</p>
-                
-                </div>
-              </div>
-              <p style={{ color: 'rgba(230,240,232,0.65)', fontSize: 13, lineHeight: 1.6, margin: 0 }}>
-                Trivela is a competitive sports trivia app for football and basketball fans. Test your knowledge, build streaks, earn coins, and compete against players around the world.
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {[
-                  { label: 'Sports', value: 'Football & Basketball' },
-                  { label: 'Game Modes', value: '10 ways to play' },
-                
-                ].map(item => (
-                  <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                    <span style={{ color: 'rgba(230,240,232,0.45)', fontSize: 13 }}>{item.label}</span>
-                    <span style={{ color: '#f5f5f0', fontSize: 13, fontWeight: 700 }}>{item.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* How to Play screen */}
-        {sidebarScreen === 'howToPlay' && (
-          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-              <button
-                onClick={() => setSidebarScreen('main')}
-                style={{ background: 'transparent', border: 'none', color: 'rgba(230,240,232,0.45)', fontSize: 20, cursor: 'pointer', padding: 0, lineHeight: 1 }}
-              >
-                ←
-              </button>
-              <h2 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 22, color: '#f5f5f0', margin: 0, letterSpacing: '0.05em' }}>HOW TO PLAY</h2>
-            </div>
-            <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {[
-                { icon: '🎯', title: 'Solo Quiz', desc: 'Pick 5, 10, or 15 questions. Play at your own pace, earn coins for every correct answer.' },
-                { icon: '📅', title: 'Daily Challenge', desc: 'One shared quiz per day. Same questions for everyone — score high and climb the board.' },
-                { icon: '⚔️', title: 'Online 1v1', desc: 'Challenge another player in real-time. First correct answer wins the point.' },
-                { icon: '👥', title: 'Team Battle', desc: 'Form a squad, invite players by ID, and combine your scores to crush the other team.' },
-                { icon: '⚡', title: 'Lightning Solo', desc: '60 seconds. Answer as fast as you can. Speed and accuracy both count.' },
-                { icon: '⚡', title: 'Lightning 1v1', desc: 'Stake coins and duel a friend. Winner takes the pot.' },
-                { icon: '🏆', title: 'Tournament', desc: 'Single-elimination bracket. Win your matches, advance the bracket, claim glory.' },
-                { icon: '🥊', title: 'Best of 3', desc: 'First to win 2 rounds wins the series. Stake coins, bring your A-game.' },
-                { icon: '🔗', title: 'Common Link', desc: 'Three players share a hidden connection. Figure out what links them.' },
-                { icon: '🎉', title: 'Seasonal Events', desc: 'Limited-time quizzes with boosted coin rewards. Don\'t miss them.' },
-              ].map(mode => (
-                <div key={mode.title} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 20, flexShrink: 0, marginTop: 2 }}>{mode.icon}</span>
-                  <div>
-                    <p style={{ color: '#f5f5f0', fontSize: 13, fontWeight: 700, margin: '0 0 3px' }}>{mode.title}</p>
-                    <p style={{ color: 'rgba(230,240,232,0.45)', fontSize: 12, margin: 0, lineHeight: 1.5 }}>{mode.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Nav items */}
         {sidebarScreen === 'main' && (
@@ -1996,10 +2059,10 @@ export default function MainShell({
           <button className={styles.sidebarNavItem} onClick={() => { setSidebarOpen(false); setActiveTab('profile') }}>
             <span className={styles.sidebarNavIcon}>👤</span> Profile
           </button>
-         <button className={styles.sidebarNavItem} onClick={() => setSidebarScreen('settings')}>
+         <button className={styles.sidebarNavItem} onClick={() => { setSidebarOpen(false); setSidebarScreen('settings') }}>
             <span className={styles.sidebarNavIcon}>⚙️</span> Settings
           </button>
-         <button className={styles.sidebarNavItem} onClick={() => setSidebarScreen('howToPlay')}>
+         <button className={styles.sidebarNavItem} onClick={() => { setSidebarOpen(false); setSidebarScreen('howToPlay') }}>
             <span className={styles.sidebarNavIcon}>❓</span> How to Play
           </button>
           <button className={styles.sidebarNavItem} onClick={() => {
@@ -2008,8 +2071,11 @@ export default function MainShell({
           }}>
             <span className={styles.sidebarNavIcon}>🔗</span> Invite a Friend
           </button>
-         <button className={styles.sidebarNavItem} onClick={() => setSidebarScreen('about')}>
+         <button className={styles.sidebarNavItem} onClick={() => { setSidebarOpen(false); setSidebarScreen('about') }}>
             <span className={styles.sidebarNavIcon}>ℹ️</span> About Trivela
+          </button>
+          <button className={styles.sidebarNavItem} onClick={() => { setSidebarOpen(false); setSidebarScreen('feedback') }}>
+          <span className={styles.sidebarNavIcon}>💬</span> Send Feedback
           </button>
         <div className={styles.sidebarDivider} />
           {isAdmin && (
