@@ -266,6 +266,14 @@ export default function BestOfThreeMulti({
     if (!opponentPlayerId.trim()) return setError("Enter your opponent's Player ID.")
     setError('')
     setInviteStatus('sending')
+    const myPlayerId = String(loadProfile()?.playerId || '').trim().toUpperCase()
+    const targetPlayerId = opponentPlayerId.trim().toUpperCase()
+
+    if (targetPlayerId && myPlayerId && targetPlayerId === myPlayerId) {
+      setError('You cannot invite yourself.')
+      setInviteStatus(null)
+      return
+    }
 
     try {
       const stake = await spendCoins({
@@ -281,7 +289,7 @@ export default function BestOfThreeMulti({
         return
       }
 
-      const opponent = await getPlayerByPlayerId(opponentPlayerId.trim())
+      const opponent = await getPlayerByPlayerId(targetPlayerId)
       if (!opponent) {
         setError('Player ID not found. Check and try again.')
         setInviteStatus(null)
@@ -313,7 +321,7 @@ export default function BestOfThreeMulti({
       await sendOnlineInvite({
         fromName: name.trim(),
         fromUserId: user.uid,
-        toPlayerId: opponentPlayerId.trim(),
+        toPlayerId: targetPlayerId,
         roomCode: code,
         sport,
         rounds,

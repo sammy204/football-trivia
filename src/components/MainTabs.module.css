@@ -145,7 +145,7 @@
   }
 
   .heroText {
-    overflow: hiddden;
+    overflow: hidden;
     text-overflow: ellipsis;
   }
 }

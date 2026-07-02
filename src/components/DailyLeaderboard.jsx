@@ -3,6 +3,7 @@ import styles from './Leaderboard.module.css'
 import { getDateKey, getWeekKey, listenToDailyLeaderboard, listenToWeeklyLeaderboard } from '../lib/dailyChallenge'
 import { getDefaultAvatar } from '../lib/avatars'
 import { getEquippedFrame } from '../lib/frames'
+import { getPlayerByPlayerId } from '../lib/multiplayer'
 import AvatarFrame from './AvatarFrame'
 
 function formatTime(totalTimeMs) {
@@ -59,14 +60,34 @@ export default function DailyLeaderboard({ sport, onBack, highlightPlayerId }) {
       return
     }
 
-    const highlightedEntry = entries.find(entry => entry.playerId === highlightPlayerId)
-    if (!highlightedEntry?.uid) {
-      setMyFrame(null)
-      return
+    let cancelled = false
+
+    async function loadFrame() {
+      try {
+        const player = await getPlayerByPlayerId(highlightPlayerId)
+        if (cancelled) return
+        if (!player?.uid) {
+          setMyFrame(null)
+          return
+        }
+
+        const frame = await getEquippedFrame(player.uid)
+        if (!cancelled) {
+          setMyFrame(frame)
+        }
+      } catch {
+        if (!cancelled) {
+          setMyFrame(null)
+        }
+      }
     }
 
-    getEquippedFrame(highlightedEntry.uid).then(setMyFrame)
-  }, [entries, highlightPlayerId])
+    loadFrame()
+
+    return () => {
+      cancelled = true
+    }
+  }, [highlightPlayerId])
 
   const tabActiveStyle = { background: 'var(--green)', color: 'var(--pitch)' }
   const tabInactiveStyle = { background: 'rgba(255,255,255,0.03)', color: 'var(--muted)' }
@@ -127,7 +148,11 @@ export default function DailyLeaderboard({ sport, onBack, highlightPlayerId }) {
               <div className={styles.rank}>{entry.rank}</div>
               {entry.playerId === highlightPlayerId && (
                 <AvatarFrame frameId={myFrame} size={32}>
-                  <img src={getDefaultAvatar()} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img
+                    src={entry.avatar || entry.photoURL || getDefaultAvatar()}
+                    alt=""
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
                 </AvatarFrame>
               )}
               <div className={styles.info}>

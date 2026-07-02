@@ -171,6 +171,14 @@ export default function OnlineMulti({
   async function handleCreate() {
     if (!name.trim()) return setError('No username found.')
     if (!opponentPlayerId.trim()) return setError('Enter your opponent\'s Player ID.')
+    const myPlayerId = String(loadProfile()?.playerId || '').trim().toUpperCase()
+    const targetPlayerId = opponentPlayerId.trim().toUpperCase()
+
+    if (targetPlayerId && myPlayerId && targetPlayerId === myPlayerId) {
+      setError('You cannot invite yourself.')
+      return
+    }
+
     setError('')
     setInviteStatus('sending')
 
@@ -188,20 +196,20 @@ export default function OnlineMulti({
         return
       }
 
-       const questions = await generateQuestions({ rounds, sport })
-       const c = await createRoom({
-         playerName: name.trim(),
-         questions,
+      const questions = await generateQuestions({ rounds, sport })
+      const c = await createRoom({
+        playerName: name.trim(),
+        questions,
          rounds,
          sport,
-         hostUid: user.uid,
-         wager: ONLINE_1V1_WAGER,
-         hostPhotoURL: playerAvatar
-       })
+        hostUid: user.uid,
+        wager: ONLINE_1V1_WAGER,
+        hostPhotoURL: playerAvatar
+      })
       setRoomCode(c)
       setRole('host')
 
-      const opponent = await getPlayerByPlayerId(opponentPlayerId.trim())
+      const opponent = await getPlayerByPlayerId(targetPlayerId)
       if (!opponent) {
         setError('Player ID not found. Check and try again.')
         setInviteStatus(null)
@@ -211,7 +219,7 @@ export default function OnlineMulti({
       await sendOnlineInvite({
         fromName: name.trim(),
         fromUserId: user?.uid,
-        toPlayerId: opponentPlayerId.trim(),
+        toPlayerId: targetPlayerId,
         roomCode: c,
         sport,
         rounds,

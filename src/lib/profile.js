@@ -121,6 +121,35 @@ export async function fetchAndCachePlayerId(uid) {
   }
 }
 
+export async function fetchAndCacheProfile(uid) {
+  if (!uid) return null
+
+  try {
+    const snap = await get(ref(db, `users/${uid}/profile`))
+    const data = snap.val() || {}
+    const current = loadProfile() || {}
+
+    const nextProfile = {
+      ...current,
+      displayName: data.displayName || current.displayName || null,
+      playerId: data.playerId || current.playerId || null,
+      avatar: data.avatar || data.photoURL || current.avatar || null,
+    }
+
+    if (!nextProfile.displayName) {
+      return null
+    }
+
+    if (canUseStorage()) {
+      window.localStorage.setItem(PROFILE_KEY, JSON.stringify(nextProfile))
+    }
+
+    return nextProfile
+  } catch {
+    return null
+  }
+}
+
 export function clearProfile() {
   if (canUseStorage()) {
     window.localStorage.removeItem(PROFILE_KEY)

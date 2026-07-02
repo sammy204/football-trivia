@@ -298,6 +298,13 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
     setError('')
     try {
       const targetPlayerId = invitePlayerId.trim().toUpperCase()
+      const myPlayerId = String(playerId || loadProfile()?.playerId || '').trim().toUpperCase()
+
+      if (targetPlayerId && myPlayerId && targetPlayerId === myPlayerId) {
+        setError('You cannot invite yourself.')
+        return
+      }
+
       await sendInvite({
         targetPlayerId,
         roomCode,

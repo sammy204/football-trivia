@@ -39,7 +39,7 @@ import {
   getDateKey,
   saveDailyLeaderboardEntry,
 } from './lib/dailyChallenge'
-import { loadProfile, saveProfile, fetchAndCachePlayerId } from './lib/profile'
+import { loadProfile, saveProfile, fetchAndCachePlayerId, fetchAndCacheProfile } from './lib/profile'
 import { saveLightningScore } from './lib/lightningDaily'
 import { logOut } from './lib/auth'
 import { recordDailyChallengeActivity, recordGameplayActivity, resetBrokenDailyStreak, isStreakInDanger, getStreakStatus, isPast10PM } from './lib/streaks'
@@ -204,7 +204,27 @@ export default function App() {
 
   useEffect(() => {
     if (user?.uid) {
-      setProfileState(loadProfile())
+      fetchAndCacheProfile(user.uid)
+        .then((nextProfile) => {
+          if (nextProfile) {
+            setProfile(nextProfile)
+            setProfileState(nextProfile)
+            return
+          }
+
+          const cached = loadProfile()
+          if (cached) {
+            setProfile(cached)
+            setProfileState(cached)
+          }
+        })
+        .catch(() => {
+          const cached = loadProfile()
+          if (cached) {
+            setProfile(cached)
+            setProfileState(cached)
+          }
+        })
       window.localStorage.setItem(INSTALL_INTEREST_KEY, 'true')
       setInstallPromptEligible(true)
     }
@@ -611,10 +631,17 @@ function handleStartBestOfThree({ sport, rounds, returnTab = 'home' }) {
   async function handleStartLightningH2H({ sport, opponentPlayerId }) {
     if (!user) { setShowAuth(true); return }
     if (!user.emailVerified) { setShowVerify(true); return }
+    const targetPlayerId = opponentPlayerId.trim().toUpperCase()
+    const myPlayerId = String(loadProfile()?.playerId || activePlayerId || '').trim().toUpperCase()
+
+    if (targetPlayerId && myPlayerId && targetPlayerId === myPlayerId) {
+      setError('You cannot invite yourself.')
+      return
+    }
+
     recordMode('lightning_h2h')
     setSelectedSport(sport)
     setLightningH2HConfig({ sport, mode: 'h2h', wager: LIGHTNING_H2H_WAGER })
-    const targetPlayerId = opponentPlayerId.trim().toUpperCase()
 
     try {
       const opponent = await getPlayerByPlayerId(targetPlayerId)

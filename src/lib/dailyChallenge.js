@@ -52,7 +52,7 @@ function getCutoffTimeUTC(date = new Date()) {
   // Get today's date in Nigeria time
   const nigeriaTime = date.getTime() + NIGERIA_UTC_OFFSET_HOURS * 60 * 60 * 1000
   const nigeriaToday = new Date(nigeriaTime)
-  
+
   // The cutoff time in Nigeria is 12:00:00 + DAILY_DURATION_MINUTES
   // To express this as UTC, we subtract the offset from the hours
   const utcHour = DAILY_RELEASE_HOUR_NIGERIA - NIGERIA_UTC_OFFSET_HOURS
@@ -129,8 +129,27 @@ export async function getDailyChallengeSet({ sport, date = new Date() }) {
     // If no scheduledDate, fall back to all daily questions (for backwards compat)
     const allQuestions = Object.values(data).map(normalizeQuestion).filter(Boolean)
 
-    const todayQuestions = allQuestions.filter(q => q.scheduledDate === dateKey)
-    const questions = todayQuestions.length > 0 ? todayQuestions : allQuestions
+  const todayQuestions = allQuestions.filter(q => q.scheduledDate === dateKey)
+
+let questions
+if (todayQuestions.length > 0) {
+  questions = todayQuestions
+} else {
+  const rounds = DEFAULT_ROUNDS
+  const batchCount = Math.ceil(allQuestions.length / rounds)
+  const seed = dateKey.replace(/-/g, '')
+  const batchIndex = Math.floor(Number(seed)) % batchCount
+  const startIndex = batchIndex * rounds
+
+  if (startIndex + rounds <= allQuestions.length) {
+    questions = allQuestions.slice(startIndex, startIndex + rounds)
+  } else {
+    questions = [
+      ...allQuestions.slice(startIndex),
+      ...allQuestions.slice(0, rounds - (allQuestions.length - startIndex)),
+    ]
+  }
+}
 
     return {
       dateKey,
