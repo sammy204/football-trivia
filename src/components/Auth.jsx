@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { signUpWithEmail, signInWithEmail, signInWithGoogle, resetPassword } from '../lib/auth'
 import { assignPlayerIdToUser } from '../lib/profile'
 import styles from './Auth.module.css'
@@ -23,6 +23,12 @@ export default function Auth({ onSuccess, onPlaySolo }) {
   const [error, setError] = useState(null)
   const [message, setMessage] = useState(null)
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!error) return
+    const timeout = window.setTimeout(() => setError(null), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [error])
 
   async function handleEmailSubmit() {
     setError(null)

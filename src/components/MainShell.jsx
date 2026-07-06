@@ -524,6 +524,12 @@ function BoardTab({ sport, onSportChange, profile }) {
   const weekKey = useMemo(() => getWeekKey(), [])
 
   useEffect(() => {
+    if (!error) return
+    const timeout = window.setTimeout(() => setError(null), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [error])
+
+  useEffect(() => {
     setLoading(true)
     setError(null)
     setEntries([])
@@ -1196,6 +1202,12 @@ function FriendsTab({ profile, user, sport, onStartOnline, onStartTeam, onStartL
   const [busyId, setBusyId] = useState(null)
   const [activeFriend, setActiveFriend] = useState(null)
   const [challengeSheetOpen, setChallengeSheetOpen] = useState(false)
+
+  useEffect(() => {
+    if (!error) return
+    const timeout = window.setTimeout(() => setError(''), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [error])
 
   useEffect(() => {
     const localProfile = loadProfile()

@@ -144,6 +144,12 @@ export default function Analytics() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!error) return
+    const timeout = window.setTimeout(() => setError(''), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [error])
+
   const analytics = useMemo(() => {
     const source = data || {}
     const users = source.users || {}

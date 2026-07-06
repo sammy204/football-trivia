@@ -50,6 +50,12 @@ export default function BestOfThreeMulti({
   const intermissionTimerRef = useRef(null)
   const autoStartedRef = useRef(false)
 
+  useEffect(() => {
+    if (!error) return
+    const timeout = window.setTimeout(() => setError(''), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [error])
+
   const playerAvatar = getPlayerAvatar(user, loadProfile())
   const accent = sport === 'basketball' ? '#FF6B35' : '#00FF87'
   const accentText = sport === 'basketball' ? '#fff' : '#0a1f0f'

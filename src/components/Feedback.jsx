@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const CATEGORIES = [
   'Bug Report',
@@ -13,6 +13,12 @@ export default function Feedback({ user, onBack }) {
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!error) return
+    const timeout = window.setTimeout(() => setError(''), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [error])
 
   async function handleSubmit() {
     if (!message.trim()) return setError('Please write a message before submitting.')

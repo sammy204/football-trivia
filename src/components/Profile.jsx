@@ -78,6 +78,12 @@ export default function Profile({
       : 'Buy another for 50C'
 
   useEffect(() => {
+    if (!error) return
+    const timeout = window.setTimeout(() => setError(null), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [error])
+
+  useEffect(() => {
     if (!user?.uid) { setError('Not signed in'); setLoading(false); return }
 
     async function loadUserData() {

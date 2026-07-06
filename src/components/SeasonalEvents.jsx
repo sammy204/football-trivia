@@ -49,6 +49,12 @@ export default function SeasonalEvents() {
   const [error, setError] = useState('')
 
   useEffect(() => {
+    if (!error) return
+    const timeout = window.setTimeout(() => setError(''), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [error])
+
+  useEffect(() => {
     setLoading(true)
     const unsubscribe = listenToAllSeasonalEvents(
       (liveEvents) => {

@@ -55,6 +55,12 @@ export default function TeamMulti({ sport, onBack, user, initialJoinCode, initia
   const [wagerAmount, setWagerAmount] = useState(TEAM_PLAYER_WAGER)
   const timerRef = useRef(null)
 
+  useEffect(() => {
+    if (!error) return
+    const timeout = window.setTimeout(() => setError(''), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [error])
+
   const accent = sport === 'basketball' ? '#FF6B35' : '#00FF87'
   const accentText = sport === 'basketball' ? '#fff' : '#0a1f0f'
   const profile = loadProfile()

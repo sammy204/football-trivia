@@ -55,6 +55,12 @@ export default function DailyLeaderboard({ sport, onBack, highlightPlayerId }) {
   }, [dateKey, weekKey, sport, activeTab])
 
   useEffect(() => {
+    if (!error) return
+    const timeout = window.setTimeout(() => setError(null), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [error])
+
+  useEffect(() => {
     if (!highlightPlayerId) {
       setMyFrame(null)
       return

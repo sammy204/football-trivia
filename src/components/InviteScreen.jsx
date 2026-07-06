@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { respondToInvite } from '../lib/teamMultiplayer'
 import { loadProfile } from '../lib/profile'
 import { spendCoins, TEAM_PLAYER_WAGER } from '../lib/coins'
@@ -8,6 +8,12 @@ import styles from './InviteScreen.module.css'
 export default function InviteScreen({ invites, user, onAccepted, onClose }) {
   const [loading, setLoading] = useState(null) // inviteId being processed
   const [error, setError] = useState(null)
+
+  useEffect(() => {
+    if (!error) return
+    const timeout = window.setTimeout(() => setError(null), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [error])
 
   if (!invites || invites.length === 0) return null
 

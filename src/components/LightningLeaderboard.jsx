@@ -39,6 +39,12 @@ export default function LightningLeaderboard({ sport, onBack }) {
     })
   }, [sport, dateKey])
 
+  useEffect(() => {
+    if (!error) return
+    const timeout = window.setTimeout(() => setError(null), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [error])
+
   return (
     <div className={styles.wrap}>
       <button className={styles.backBtn} onClick={onBack}>Back</button>

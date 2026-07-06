@@ -385,6 +385,12 @@ export default function App() {
     return () => window.clearTimeout(timeout)
   }, [streakNotice])
 
+  useEffect(() => {
+    if (!error) return
+    const timeout = window.setTimeout(() => setError(null), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [error])
+
   const sport = screen === 'home' ? selectedSport : gameConfig?.sport || selectedSport
   const isBasketball = sport === 'basketball'
   const accent = isBasketball ? '#FF6B35' : '#00FF87'

@@ -55,6 +55,12 @@ export default function Tournament({ user, sport: sportProp = "football", onSpor
   const [publicList, setPublicList] = useState([]);
   const unsubRef = useRef(null);
 
+  useEffect(() => {
+    if (!error) return
+    const timeout = window.setTimeout(() => setError(""), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [error]);
+
   const [form, setForm] = useState({
     name: "",
     sport: sportProp,

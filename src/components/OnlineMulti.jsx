@@ -54,6 +54,12 @@ export default function OnlineMulti({
   const [hostFrame, setHostFrame] = useState(null)
   const [guestFrame, setGuestFrame] = useState(null)
 
+  useEffect(() => {
+    if (!error) return
+    const timeout = window.setTimeout(() => setError(''), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [error])
+
   const accent = sport === 'basketball' ? '#FF6B35' : '#00FF87'
   const accentText = sport === 'basketball' ? '#fff' : '#0a1f0f'
   const sportLabel = sport === 'basketball' ? 'Basketball' : 'Football'
