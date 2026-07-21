@@ -1,6 +1,6 @@
 // Service Worker for Football Trivia PWA with Push Notifications
 
-const CACHE_NAME = 'football-trivia-v2'
+const CACHE_NAME = 'football-trivia-v3'
 const urlsToCache = [
   '/logo-mark.svg',
 ]
@@ -85,6 +85,12 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url)
   if (isLocalhost(url)) return
+
+  // Only handle same-origin requests — let the browser handle
+  // cross-origin requests (Sanity API, Sanity CDN images, etc.) natively.
+  // Intercepting cross-origin/opaque responses here is what was causing
+  // mobile Safari to hang on article loads and broken images.
+  if (url.origin !== self.location.origin) return
 
   if (isNavigationRequest(event.request) || isAppShellAsset(url)) {
     event.respondWith(networkFirst(event.request))
