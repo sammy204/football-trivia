@@ -27,6 +27,11 @@ import SeasonalResults from './components/SeasonalResults'
 import CommonLink from './components/CommonLink'
 import BestOfThreeMulti from './components/BestOfThreeMulti'
 import WeeklyMissions from './components/WeeklyMissions'
+import BlogHome from './components/BlogHome'
+import BlogPost from './components/BlogPost'
+import BlogAbout from './components/BlogAbout'
+import BlogHowToPlay from './components/BlogHowToPlay'
+import BlogFeedbackPage from './components/BlogFeedbackPage'
 import { updateMissionProgress } from './lib/missions'
 import { generateQuestions } from './lib/question'
 import { getPlayerByPlayerId } from './lib/multiplayer'
@@ -86,6 +91,15 @@ function trackEvent(name, data) {
     .catch(() => {})
 }
 
+function getScreenFromPath() {
+  const path = window.location.pathname
+  if (path === '/blog') return 'blog'
+  if (path === '/blog/about') return 'blogAbout'
+  if (path === '/blog/how-to-play') return 'blogHowToPlay'
+  if (path === '/blog/feedback') return 'blogFeedback'
+  if (path.startsWith('/blog/')) return 'blogPost'
+  return 'landing'
+}
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props)
@@ -106,9 +120,8 @@ class ErrorBoundary extends React.Component {
     return this.props.children
   }
 }
-
 export default function App() {
-  const [screen, setScreen] = useState('landing')
+  const [screen, setScreen] = useState(getScreenFromPath())
   const [questions, setQuestions] = useState([])
   const [gameConfig, setGameConfig] = useState(null)
   const [selectedSport, setSelectedSport] = useState('football')
@@ -171,6 +184,8 @@ export default function App() {
 
   const ADMIN_UID = 'K4qCnBhAVDMTkvK70SMVfbbsw463'
   const [pendingRematchInvite, setPendingRematchInvite] = useState(null)
+  const [blogSlug, setBlogSlug] = useState(null)
+  const [pendingSidebarScreen, setPendingSidebarScreen] = useState(null)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -179,6 +194,40 @@ export default function App() {
     if ((actionMode === 'verifyEmail' || actionMode === 'resetPassword') && oobCode) {
       setShowAuthCallback(true)
     }
+  }, [])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const actionMode = params.get('mode')
+    const oobCode = params.get('oobCode')
+    if ((actionMode === 'verifyEmail' || actionMode === 'resetPassword') && oobCode) {
+      setShowAuthCallback(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    const path = window.location.pathname
+    if (path.startsWith('/blog/')) {
+      setBlogSlug(path.replace('/blog/', ''))
+    }
+  }, [])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const openTarget = params.get('open')
+    if (openTarget) {
+      setPendingSidebarScreen(openTarget)
+      setScreen('home')
+      window.history.replaceState({}, '', '/')
+    }
+  }, [])
+
+  useEffect(() => {
+    function handlePopState() {
+      setScreen(getScreenFromPath())
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
   useEffect(() => {
@@ -195,7 +244,8 @@ export default function App() {
         (pathname === '/verify-email' && oobCode) ||
         ((actionMode === 'verifyEmail' || actionMode === 'resetPassword') && oobCode)
 
-      if (firebaseUser && !isCallbackFlow) {
+    const onBlogPath = window.location.pathname.startsWith('/blog')
+      if (firebaseUser && !isCallbackFlow && !onBlogPath) {
         setScreen('home')
       }
     })
@@ -1346,8 +1396,71 @@ if (user?.uid && gameConfig?.mode === 'daily' && scores[0] === history.length) {
         </div>
       )}
 
-      {screen === 'landing' && !showAuthCallback && <Landing onPlay={() => setShowAuth(true)} />}
+{screen === 'landing' && !showAuthCallback && (
+  <Landing onPlay={() => setShowAuth(true)} />
+)}
 
+{screen === 'blog' && (
+  <BlogHome
+    onOpenPost={(slug) => {
+      setBlogSlug(slug)
+      window.history.pushState({}, '', `/blog/${slug}`)
+      setScreen('blogPost')
+    }}
+    onBack={() => {
+      window.history.pushState({}, '', '/')
+      setScreen(user ? 'home' : 'landing')
+    }}
+    onPlayTrivela={() => {
+      window.location.href = '/'
+    }}
+    onNavigate={setScreen}
+  />
+)}
+
+{screen === 'blogPost' && blogSlug && (
+  <BlogPost
+    slug={blogSlug}
+    onBack={() => {
+      window.history.pushState({}, '', '/blog')
+      setScreen('blog')
+    }}
+    onPlayTrivela={() => {
+      window.location.href = '/'
+    }}
+  />
+)}
+
+{screen === 'blogAbout' && (
+  <BlogAbout
+    onBack={() => {
+      window.history.pushState({}, '', '/blog')
+      setScreen('blog')
+    }}
+    onPlayTrivela={() => { window.location.href = '/' }}
+  />
+)}
+
+{screen === 'blogHowToPlay' && (
+  <BlogHowToPlay
+    onBack={() => {
+      window.history.pushState({}, '', '/blog')
+      setScreen('blog')
+    }}
+    onPlayTrivela={() => { window.location.href = '/' }}
+  />
+)}
+
+{screen === 'blogFeedback' && (
+  <BlogFeedbackPage
+    user={user}
+    onBack={() => {
+      window.history.pushState({}, '', '/blog')
+      setScreen('blog')
+    }}
+    onPlayTrivela={() => { window.location.href = '/' }}
+  />
+)}
       {screen === 'home' && (
         <MainShell
           initialTab={mainInitialTab}

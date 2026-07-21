@@ -16,7 +16,7 @@ const PARTICLES = [
   { emoji: '🏀', x: 25, y: 30, size: 42, duration: 6.8, delay: 2.8 },
 ]
 
-export default function Landing({ onPlay }) {
+export default function Landing({ onPlay, onBlog  }) {
   return (
     <div className={styles.wrap}>
       {/* Floating particles */}
@@ -46,6 +46,12 @@ export default function Landing({ onPlay }) {
         <button className={styles.playBtn} onClick={onPlay}>
           Play
         </button>
+       <button
+  className={styles.blogBtn}
+onClick={() => window.open(`${window.location.origin}/blog`, '_blank', 'noopener,noreferrer')}
+>
+  Read the Blog
+</button>
       </div>
     </div>
   )

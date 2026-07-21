@@ -1723,6 +1723,7 @@ function ProfileTab({ user, profile, coinBalance, onAdmin, onEditProfile, onProf
 
 export default function MainShell({
   initialTab = 'home',
+  initialSidebarScreen = null,
   sport,
   onSportChange,
   user,
@@ -1875,6 +1876,13 @@ export default function MainShell({
  const [sidebarOpen, setSidebarOpen] = useState(false)
  console.log('sport in MainShell:', sport)
   const [sidebarScreen, setSidebarScreen] = useState('main')
+
+
+  useEffect(() => {
+    if (initialSidebarScreen) {
+      setSidebarScreen(initialSidebarScreen)
+    }
+  }, [initialSidebarScreen])
   const touchStartX = useRef(0)
   const [showNotifNudge, setShowNotifNudge] = useState(false)
 

@@ -124,3 +124,27 @@
     transform: translateY(-140px) rotate(360deg) scale(0.9);
   }
 }
+.blogBtn {
+  margin-top: 12px;
+  min-width: 160px;
+  padding: 12px 28px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(0, 255, 135, 0.5);
+  background: transparent;
+  color: #00FF87;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, transform 0.15s;
+}
+
+.blogBtn:hover {
+  background: rgba(0, 255, 135, 0.12);
+  transform: translateY(-1px);
+}
+
+.blogBtn:active {
+  transform: translateY(0);
+}
