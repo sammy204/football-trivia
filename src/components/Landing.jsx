@@ -23,12 +23,23 @@ function isStandalonePWA() {
   )
 }
 
+function isIOS() {
+  return /iphone|ipad|ipod/i.test(window.navigator.userAgent)
+}
+
 function openInSystemBrowser(url) {
   if (isStandalonePWA()) {
-    // window.location.href reliably kicks out to the system browser
-    // for CROSS-ORIGIN urls. Same-origin urls may just navigate inside
-    // the PWA's own webview on iOS.
-    window.location.href = url
+    if (isIOS()) {
+      // iOS-only trick: prefixing with x-safari-https:// tells iOS to hand
+      // off to Safari specifically, bypassing the PWA's own webview.
+      // Plain window.location.href / window.open do NOT do this for
+      // same-origin urls on iOS standalone PWAs.
+      const stripped = url.replace(/^https?:\/\//, '')
+      window.location.href = `x-safari-https://${stripped}`
+    } else {
+      // Android standalone PWAs generally hand off fine via location.href
+      window.location.href = url
+    }
   } else {
     // Already in a normal browser tab — fine to open a new tab
     window.open(url, '_blank', 'noopener,noreferrer')
