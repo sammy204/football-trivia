@@ -16,7 +16,26 @@ const PARTICLES = [
   { emoji: '🏀', x: 25, y: 30, size: 42, duration: 6.8, delay: 2.8 },
 ]
 
-export default function Landing({ onPlay, onBlog  }) {
+function isStandalonePWA() {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true // iOS Safari legacy flag
+  )
+}
+
+function openInSystemBrowser(url) {
+  if (isStandalonePWA()) {
+    // window.location.href reliably kicks out to the system browser
+    // for CROSS-ORIGIN urls. Same-origin urls may just navigate inside
+    // the PWA's own webview on iOS.
+    window.location.href = url
+  } else {
+    // Already in a normal browser tab — fine to open a new tab
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+}
+
+export default function Landing({ onPlay, onBlog }) {
   return (
     <div className={styles.wrap}>
       {/* Floating particles */}
@@ -46,12 +65,12 @@ export default function Landing({ onPlay, onBlog  }) {
         <button className={styles.playBtn} onClick={onPlay}>
           Play
         </button>
-       <button
-  className={styles.blogBtn}
-onClick={() => window.open(`${window.location.origin}/blog`, '_blank', 'noopener,noreferrer')}
->
-  Read the Blog
-</button>
+        <button
+          className={styles.blogBtn}
+          onClick={() => openInSystemBrowser(`${window.location.origin}/blog`)}
+        >
+          Read the Blog
+        </button>
       </div>
     </div>
   )
