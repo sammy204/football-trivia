@@ -82,7 +82,7 @@ function handleFooterNav(target) {
       </header>
 
       <section className={styles.hero}>
-        <h1 className={styles.heroTitle}>Football Knowledge. Game Insights. Pure Passion.</h1>
+        <h1 className={styles.heroTitle}>Sports Knowledge. Game Insights. Pure Passion.</h1>
         <p className={styles.heroSub}>
           {posts.length} articles · Football & Basketball
         </p>

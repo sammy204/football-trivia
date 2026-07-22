@@ -1753,6 +1753,7 @@ export default function MainShell({
   onAcceptLightningInvite,
   onDeclineLightningInvite,
   onAdmin,
+  onOpenBlog,
   onEditProfile,
   onUsernameUpdated,
   onProfileUpdated,
@@ -2081,6 +2082,9 @@ export default function MainShell({
           </button>
          <button className={styles.sidebarNavItem} onClick={() => { setSidebarOpen(false); setSidebarScreen('settings') }}>
             <span className={styles.sidebarNavIcon}>⚙️</span> Settings
+          </button>
+         <button className={styles.sidebarNavItem} onClick={() => { setSidebarOpen(false); onOpenBlog() }}>
+            <span className={styles.sidebarNavIcon}>📰</span> Blog
           </button>
          <button className={styles.sidebarNavItem} onClick={() => { setSidebarOpen(false); setSidebarScreen('howToPlay') }}>
             <span className={styles.sidebarNavIcon}>❓</span> How to Play

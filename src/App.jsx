@@ -32,6 +32,7 @@ import BlogPost from './components/BlogPost'
 import BlogAbout from './components/BlogAbout'
 import BlogHowToPlay from './components/BlogHowToPlay'
 import BlogFeedbackPage from './components/BlogFeedbackPage'
+import LegalPage from './components/LegalPage'
 import { updateMissionProgress } from './lib/missions'
 import { generateQuestions } from './lib/question'
 import { getPlayerByPlayerId } from './lib/multiplayer'
@@ -80,6 +81,25 @@ import {
 import { recordModePlayed } from './lib/modeStats'
 import { getPlayerAvatar } from './lib/avatars'
 
+function openBlogFromGame() {
+  const blogUrl = `${window.location.origin}/blog`
+  const isStandalonePWA =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true
+
+  if (isStandalonePWA) {
+    if (/iphone|ipad|ipod/i.test(window.navigator.userAgent)) {
+      const stripped = blogUrl.replace(/^https?:\/\//, '')
+      window.location.href = `x-safari-https://${stripped}`
+    } else {
+      window.location.href = blogUrl
+    }
+    return true
+  }
+
+  window.open(blogUrl, '_blank', 'noopener,noreferrer')
+  return true
+}
 
 const TEAM_ROUNDS = 10
 const INSTALL_INTEREST_KEY = 'trivela-install-interest'
@@ -97,6 +117,8 @@ function getScreenFromPath() {
   if (path === '/blog/about') return 'blogAbout'
   if (path === '/blog/how-to-play') return 'blogHowToPlay'
   if (path === '/blog/feedback') return 'blogFeedback'
+  if (path === '/blog/terms') return 'blogTerms'
+  if (path === '/blog/privacy') return 'blogPrivacy'
   if (path.startsWith('/blog/')) return 'blogPost'
   return 'landing'
 }
@@ -1461,6 +1483,28 @@ if (user?.uid && gameConfig?.mode === 'daily' && scores[0] === history.length) {
     onPlayTrivela={() => { window.location.href = '/' }}
   />
 )}
+
+{screen === 'blogTerms' && (
+  <LegalPage
+    type="terms"
+    onBack={() => {
+      window.history.pushState({}, '', '/blog')
+      setScreen('blog')
+    }}
+    onPlayTrivela={() => { window.location.href = '/' }}
+  />
+)}
+
+{screen === 'blogPrivacy' && (
+  <LegalPage
+    type="privacy"
+    onBack={() => {
+      window.history.pushState({}, '', '/blog')
+      setScreen('blog')
+    }}
+    onPlayTrivela={() => { window.location.href = '/' }}
+  />
+)}
       {screen === 'home' && (
         <MainShell
           initialTab={mainInitialTab}
@@ -1493,6 +1537,7 @@ if (user?.uid && gameConfig?.mode === 'daily' && scores[0] === history.length) {
           onAcceptLightningInvite={() => pendingLightningInvite && handleAcceptLightningInvite(pendingLightningInvite)}
           onDeclineLightningInvite={handleDeclineLightningInvite}
           onAdmin={() => setScreen('admin')}
+          onOpenBlog={openBlogFromGame}
           onEditProfile={() => {
             setMainInitialTab('profile')
             setScreen('profile')

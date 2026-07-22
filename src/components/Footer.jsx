@@ -1,4 +1,14 @@
 export default function Footer({ onNavigate, context = 'app' }) {
+  const handleNavigate = (target) => {
+    if (target === 'terms' || target === 'privacy') {
+      const path = target === 'terms' ? '/blog/terms' : '/blog/privacy'
+      window.history.pushState({}, '', path)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+      return
+    }
+    onNavigate(target)
+  }
+
   return (
     <footer style={{
       borderTop: '1px solid rgba(255,255,255,0.08)',
@@ -34,13 +44,13 @@ export default function Footer({ onNavigate, context = 'app' }) {
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {context === 'app' && (
-              <button onClick={() => onNavigate('blog')} style={linkStyle}>Blog</button>
+              <button onClick={() => handleNavigate('blog')} style={linkStyle}>Blog</button>
             )}
             {context === 'blog' && (
-              <button onClick={() => onNavigate('home')} style={linkStyle}>Play Trivela</button>
+              <button onClick={() => handleNavigate('home')} style={linkStyle}>Play Trivela</button>
             )}
-            <button onClick={() => onNavigate('howToPlay')} style={linkStyle}>How to Play</button>
-            <button onClick={() => onNavigate('feedback')} style={linkStyle}>Feedback</button>
+            <button onClick={() => handleNavigate('howToPlay')} style={linkStyle}>How to Play</button>
+            <button onClick={() => handleNavigate('feedback')} style={linkStyle}>Feedback</button>
           </div>
         </div>
 
@@ -50,7 +60,7 @@ export default function Footer({ onNavigate, context = 'app' }) {
             Company
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button onClick={() => onNavigate('about')} style={linkStyle}>About Us</button>
+            <button onClick={() => handleNavigate('about')} style={linkStyle}>About Us</button>
           </div>
         </div>
 
@@ -60,8 +70,8 @@ export default function Footer({ onNavigate, context = 'app' }) {
             Legal
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button onClick={() => onNavigate('terms')} style={linkStyle}>Terms of Service</button>
-            <button onClick={() => onNavigate('privacy')} style={linkStyle}>Privacy Policy</button>
+            <button onClick={() => handleNavigate('terms')} style={linkStyle}>Terms of Service</button>
+            <button onClick={() => handleNavigate('privacy')} style={linkStyle}>Privacy Policy</button>
           </div>
         </div>
       </div>
