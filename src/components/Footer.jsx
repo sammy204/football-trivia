@@ -1,3 +1,5 @@
+import styles from './Footer.module.css'
+
 export default function Footer({ onNavigate, context = 'app' }) {
   const handleNavigate = (target) => {
     if (target === 'terms' || target === 'privacy') {
@@ -10,13 +12,13 @@ export default function Footer({ onNavigate, context = 'app' }) {
   }
 
   return (
-    <footer style={{
+    <footer className={styles.footer} style={{
       borderTop: '1px solid rgba(255,255,255,0.08)',
       marginTop: 60,
       padding: '48px 24px 24px',
       background: 'rgba(0,0,0,0.15)',
     }}>
-      <div style={{
+      <div className={styles.footerGrid} style={{
         maxWidth: 1100,
         margin: '0 auto',
         display: 'grid',
@@ -76,7 +78,7 @@ export default function Footer({ onNavigate, context = 'app' }) {
         </div>
       </div>
 
-      <div style={{
+      <div className={styles.footerBottom} style={{
         maxWidth: 1100,
         margin: '0 auto',
         display: 'flex',

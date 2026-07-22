@@ -1,0 +1,32 @@
+.footer {
+  overflow: hidden;
+}
+
+.footerGrid {
+  grid-template-columns: 1.3fr 1fr 1fr 1fr;
+}
+
+.footerBottom {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .footerGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 28px 22px !important;
+    margin-bottom: 28px !important;
+  }
+}
+
+@media (max-width: 440px) {
+  .footerGrid {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+
+  .footer {
+    margin-top: 40px !important;
+    padding: 32px 16px 20px !important;
+  }
+}

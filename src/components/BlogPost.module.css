@@ -125,3 +125,12 @@
   color: rgba(230,240,232,0.5);
   padding: 60px;
 }
+
+@media (max-width: 768px) {
+  .wrap { padding: 12px; }
+  .header { margin-bottom: 16px; }
+  .backBtn, .playBtn { padding: 9px 12px; font-size: 12px; }
+  .title { font-size: 32px; }
+  .body { font-size: 15px; line-height: 1.65; }
+  .ctaBox { padding: 18px 14px; }
+}
