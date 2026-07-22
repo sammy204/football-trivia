@@ -253,6 +253,12 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (screen.startsWith('blog')) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    }
+  }, [screen])
+
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser)
       setAuthChecked(true)
